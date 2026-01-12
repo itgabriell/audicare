@@ -1,0 +1,74 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  :root {
+    --background: 220 13% 98%;
+    --foreground: 28 9% 20%;
+    --card: 0 0% 100%;
+    --card-foreground: 28 9% 20%;
+    --popover: 0 0% 100%;
+    --popover-foreground: 28 9% 20%;
+    --primary: 157 37% 33%;
+    --primary-foreground: 40 100% 98%;
+    --secondary: 39 42% 91%;
+    --secondary-foreground: 157 37% 33%;
+    --muted: 210 40% 96.1%;
+    --muted-foreground: 215.4 16.3% 46.9%;
+    --accent: 14 78% 60%;
+    --accent-foreground: 0 0% 100%;
+    --destructive: 0 84.2% 60.2%;
+    --destructive-foreground: 210 40% 98%;
+    --border: 214.3 31.8% 91.4%;
+    --input: 214.3 31.8% 91.4%;
+    --ring: 157 37% 33%;
+    --radius: 0.75rem;
+  }
+
+  .dark {
+    --background: 220 13% 10%; /* Darker background */
+    --foreground: 210 40% 98%; /* Light text */
+    --card: 220 13% 15%; /* Darker card background */
+    --card-foreground: 210 40% 98%;
+    --popover: 220 13% 10%;
+    --popover-foreground: 210 40% 98%;
+    --primary: 157 37% 43%; /* Main accent green */
+    --primary-foreground: 40 100% 98%;
+    --secondary: 220 13% 25%; /* Dark secondary color for backgrounds/highlights */
+    --secondary-foreground: 210 40% 98%;
+    --muted: 217.2 32.6% 17.5%; /* Muted dark background */
+    --muted-foreground: 215 20.2% 65.1%; /* Grayish text */
+    --accent: 14 78% 50%; /* Orange accent */
+    --accent-foreground: 0 0% 100%;
+    --destructive: 0 62.8% 30.6%; /* Red for errors/destructive actions */
+    --destructive-foreground: 210 40% 98%;
+    --border: 217.2 32.6% 22.5%; /* Dark border color */
+    --input: 217.2 32.6% 22.5%;
+    --ring: 157 37% 43%;
+    --radius: 0.75rem;
+  }
+}
+
+@layer base {
+  * {
+    @apply border-border;
+  }
+  body {
+    @apply bg-background text-foreground;
+    font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  }
+  .dark .dark\:invert {
+    filter: invert(1);
+  }
+}
+
+@layer utilities {
+  .scrollbar-hide::-webkit-scrollbar {
+    display: none;
+  }
+  .scrollbar-hide {
+    -ms-overflow-style: none;
+    scrollbar-width: none;
+  }
+}
