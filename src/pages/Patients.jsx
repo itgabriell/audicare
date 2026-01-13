@@ -26,6 +26,7 @@ import { useNavigate } from 'react-router-dom';
 import { getPatients, addPatient, updatePatient, deletePatient, checkDuplicatePatient } from '@/database';
 import { useDevice } from '@/hooks/useDevice';
 import { DataTableMobile } from '@/components/ui/data-table-mobile';
+import { useVirtualScroll } from '@/hooks/useOfflineCache';
 
 const Patients = () => {
   const { profile } = useAuth();
@@ -77,6 +78,10 @@ const Patients = () => {
   const [editingPatient, setEditingPatient] = useState(null);
   const [isExporting, setIsExporting] = useState(false);
   const [isImporting, setIsImporting] = useState(false);
+
+  // Virtual scrolling setup
+  const useVirtual = totalCount > 100; // Use virtual scrolling for large lists
+  const virtualScroll = useVirtualScroll(patients, 60, 600); // itemHeight: 60px, containerHeight: 600px
 
   // --- Load Data ---
   const loadPatients = useCallback(async () => {
@@ -450,7 +455,67 @@ const Patients = () => {
                  onRowClick={handleViewDetails}
                  actions={tableActions}
                />
+             ) : useVirtual ? (
+               // Virtual Scrolling para listas grandes
+               <div className="border rounded-lg overflow-hidden">
+                 <div className="bg-muted/50 px-4 py-3 border-b">
+                   <div className="grid grid-cols-5 gap-4 text-sm font-medium text-muted-foreground">
+                     <div>Nome</div>
+                     <div>CPF</div>
+                     <div>Celular</div>
+                     <div>Cidade/Estado</div>
+                     <div className="text-right">Ações</div>
+                   </div>
+                 </div>
+                 <div
+                   className="relative"
+                   style={virtualScroll.containerStyle}
+                   onScroll={virtualScroll.handleScroll}
+                 >
+                   {virtualScroll.visibleItems.map((patient, index) => (
+                     <div
+                       key={patient.id}
+                       className="absolute w-full border-b border-border/50 hover:bg-muted/30 transition-colors cursor-pointer"
+                       style={virtualScroll.getItemStyle(virtualScroll.visibleRange.start + index)}
+                       onClick={() => handleViewDetails(patient)}
+                     >
+                       <div className="grid grid-cols-5 gap-4 px-4 py-3 text-sm">
+                         <div className="font-medium truncate">{patient.name || '-'}</div>
+                         <div className="truncate">{patient.cpf || '-'}</div>
+                         <div className="truncate">{formatPhone(patient.phone)}</div>
+                         <div className="truncate">{patient.address ? patient.address.split(',')[2] || patient.address : '-'}</div>
+                         <div className="flex gap-2 justify-end" onClick={(e) => e.stopPropagation()}>
+                           <Button
+                             variant="ghost"
+                             size="sm"
+                             className="h-8 px-2"
+                           >
+                             <Eye className="h-3 w-3 mr-1" />
+                             Ver
+                           </Button>
+                           <Button
+                             variant="ghost"
+                             size="sm"
+                             className="h-8 px-2"
+                             onClick={(e) => {
+                               e.stopPropagation();
+                               handleEdit(patient);
+                             }}
+                           >
+                             Editar
+                           </Button>
+                         </div>
+                       </div>
+                     </div>
+                   ))}
+                 </div>
+                 <div className="bg-muted/30 px-4 py-3 border-t text-xs text-muted-foreground text-center">
+                   Exibindo {virtualScroll.visibleRange.end - virtualScroll.visibleRange.start} de {patients.length} pacientes
+                   {useVirtual && ' • Virtual scrolling ativado para performance'}
+                 </div>
+               </div>
              ) : (
+               // Tabela normal para listas pequenas
                <div className="border rounded-lg overflow-hidden">
                  <Table>
                    <TableHeader>
