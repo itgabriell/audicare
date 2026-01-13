@@ -6,10 +6,13 @@ import { Sheet, SheetContent } from "@/components/ui/sheet";
 import { Menu } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import ConfigValidationBanner from '@/components/Debug/ConfigValidationBanner';
+import { CommandPalette } from '@/components/ui/command-palette';
+import { useCommandPalette } from '@/hooks/useCommandPalette';
 
 const DashboardLayout = () => {
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const location = useLocation();
+  const { isOpen: commandPaletteOpen, setIsOpen: setCommandPaletteOpen, openPalette } = useCommandPalette();
 
   // Close sidebar on route change (mobile)
   React.useEffect(() => {
@@ -39,9 +42,10 @@ const DashboardLayout = () => {
       <div className="flex-1 md:pl-72 flex flex-col relative min-w-0 overflow-hidden">
         {!isInbox && (
           <div className="relative z-10">
-            <Header 
-              onMenuClick={() => setSidebarOpen(true)} 
+            <Header
+              onMenuClick={() => setSidebarOpen(true)}
               showMenuButton={true}
+              onCommandPaletteOpen={openPalette}
             />
           </div>
         )}
@@ -49,8 +53,14 @@ const DashboardLayout = () => {
         <main className={`flex-1 overflow-y-auto ${isInbox ? 'p-2 md:p-3 pb-4' : 'p-4 md:p-6 pb-20 md:pb-6'} relative`}>
           <Outlet />
         </main>
-        
+
       </div>
+
+      {/* Global Command Palette */}
+      <CommandPalette
+        open={commandPaletteOpen}
+        onOpenChange={setCommandPaletteOpen}
+      />
     </div>
   );
 };

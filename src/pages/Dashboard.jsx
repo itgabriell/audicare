@@ -1,11 +1,11 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { Helmet } from 'react-helmet';
 import { motion, AnimatePresence } from 'framer-motion';
-import { 
-  Users, 
-  Calendar, 
-  Wrench, 
-  CheckSquare, 
+import {
+  Users,
+  Calendar,
+  Wrench,
+  CheckSquare,
   Sun,
   TrendingUp,
   TrendingDown,
@@ -13,10 +13,17 @@ import {
   Clock,
   UserPlus,
   ArrowRight,
-  PieChart
+  PieChart,
+  Brain,
+  BarChart3,
+  Sparkles
 } from 'lucide-react';
 import StatsCard from '@/components/dashboard/StatsCard';
-import RecentActivity from '@/components/dashboard/RecentActivity';
+import AnalyticsInsights from '@/components/dashboard/AnalyticsInsights';
+import { SmartTooltip, ContextualTooltip } from '@/components/ui/smart-tooltip';
+import { AdvancedConfirmModal, AdvancedSuccessModal } from '@/components/ui/advanced-modal';
+import { ComponentLoadingOverlay, SmartSkeleton, AdvancedSpinner } from '@/components/ui/advanced-loading';
+import { useAdvancedToast } from '@/components/ui/advanced-toast';
 import { useToast } from '@/components/ui/use-toast';
 import {
   getPatients,
@@ -98,6 +105,7 @@ const Dashboard = () => {
 
   const [dailyHighlights, setDailyHighlights] = useState(null);
   const [highlightsOpen, setHighlightsOpen] = useState(false);
+  const [showAnalytics, setShowAnalytics] = useState(false);
 
   const { toast } = useToast();
 
@@ -371,13 +379,24 @@ const Dashboard = () => {
       </Helmet>
 
       <div className="space-y-6">
-        <div>
-          <h1 className="text-3xl font-bold text-foreground">
-            Dashboard
-          </h1>
-          <p className="text-muted-foreground mt-1 text-sm">
-            Visão geral da clínica e métricas essenciais
-          </p>
+        <div className="flex items-center justify-between">
+          <div>
+            <h1 className="text-3xl font-bold text-foreground">
+              Dashboard
+            </h1>
+            <p className="text-muted-foreground mt-1 text-sm">
+              {showAnalytics ? 'Analytics inteligente com IA' : 'Visão geral da clínica e métricas essenciais'}
+            </p>
+          </div>
+          <Button
+            variant={showAnalytics ? 'default' : 'outline'}
+            onClick={() => setShowAnalytics(!showAnalytics)}
+            className="flex items-center gap-2"
+          >
+            <Brain className="h-4 w-4" />
+            {showAnalytics ? 'Visão Padrão' : 'Analytics IA'}
+            <Sparkles className="h-3 w-3" />
+          </Button>
         </div>
 
         {/* Cards Principais com Links de Navegação */}
@@ -874,15 +893,31 @@ const Dashboard = () => {
           )}
         </AnimatePresence>
 
-        {/* Tarefas Internas - Gráfico existente */}
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-          <RecentActivity />
+        {/* Analytics Inteligente */}
+        <AnimatePresence>
+          {showAnalytics && (
+            <motion.div
+              initial={{ opacity: 0, height: 0 }}
+              animate={{ opacity: 1, height: 'auto' }}
+              exit={{ opacity: 0, height: 0 }}
+              transition={{ duration: 0.3 }}
+            >
+              <AnalyticsInsights
+                appointments={[]} // TODO: Passar dados reais dos agendamentos
+                patients={[]} // TODO: Passar dados reais dos pacientes
+                loading={loading}
+              />
+            </motion.div>
+          )}
+        </AnimatePresence>
 
+        {/* Visão Padrão - Tarefas Internas */}
+        {!showAnalytics && (
           <motion.div
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ delay: 0.2 }}
-            className="bg-card rounded-xl shadow-sm border p-6 lg:col-span-2"
+            className="bg-card rounded-xl shadow-sm border p-6"
           >
             <h2 className="text-lg font-semibold text-foreground mb-4">
               Status dos Processos Internos
@@ -948,7 +983,7 @@ const Dashboard = () => {
               </ResponsiveContainer>
             )}
           </motion.div>
-        </div>
+        )}
       </div>
 
       {/* Popup de novidades do dia */}

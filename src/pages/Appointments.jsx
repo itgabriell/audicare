@@ -3,7 +3,7 @@ import { Helmet } from 'react-helmet';
 import { Plus, ChevronLeft, ChevronRight } from 'lucide-react';
 import { useSearchParams } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
-import AppointmentCalendar from '@/components/appointments/AppointmentCalendar';
+import DraggableAppointmentCalendar from '@/components/appointments/DraggableAppointmentCalendar';
 import AppointmentDialog from '@/components/appointments/AppointmentDialog';
 import { useToast } from '@/components/ui/use-toast';
 import { getAppointments, addAppointment, getPatients } from '@/database';
@@ -19,6 +19,7 @@ const Appointments = () => {
   const [patients, setPatients] = useState([]);
   const [loading, setLoading] = useState(true);
   const [dialogInitialData, setDialogInitialData] = useState(null);
+  const [editingAppointment, setEditingAppointment] = useState(null);
   const { toast } = useToast();
   const { profile } = useAuth();
 
@@ -94,39 +95,57 @@ const Appointments = () => {
 
   const handleSaveAppointment = useCallback(async (appointmentData) => {
     try {
-      const newAppointment = await addAppointment(appointmentData);
+      const savedAppointment = await addAppointment(appointmentData);
 
       const patientName =
-        patients.find((p) => p.id === newAppointment.patient_id)?.name || '';
+        patients.find((p) => p.id === savedAppointment.contact_id)?.name || '';
 
-      setAppointments((prev) => [
-        ...prev,
-        { ...newAppointment, patients: { name: patientName } },
-      ]);
+      setAppointments((prev) => {
+        if (editingAppointment) {
+          // Atualização: substituir o appointment existente
+          return prev.map(app =>
+            app.id === editingAppointment.id
+              ? { ...savedAppointment, contact: { name: patientName } }
+              : app
+          );
+        } else {
+          // Novo: adicionar à lista
+          return [
+            ...prev,
+            { ...savedAppointment, contact: { name: patientName } },
+          ];
+        }
+      });
 
       setDialogOpen(false);
       setDialogInitialData(null);
+      setEditingAppointment(null);
 
-      toast({ title: 'Sucesso!', description: 'Consulta agendada.' });
-    } catch (error) {
-      console.error('[Appointments] Erro ao agendar consulta', error);
       toast({
-        title: 'Erro ao agendar consulta',
+        title: 'Sucesso!',
+        description: editingAppointment ? 'Consulta atualizada.' : 'Consulta agendada.'
+      });
+    } catch (error) {
+      console.error('[Appointments] Erro ao salvar consulta', error);
+      toast({
+        title: 'Erro ao salvar consulta',
         description:
           error?.message ||
           'Não foi possível salvar o agendamento. Verifique os dados e tente novamente.',
         variant: 'destructive',
       });
     }
-  }, [patients, toast]);
+  }, [patients, toast, editingAppointment]);
 
   const handleSlotClick = useCallback((date, time) => {
     setDialogInitialData({ date, time });
+    setEditingAppointment(null);
     setDialogOpen(true);
   }, []);
 
   const handleOpenDialog = useCallback(() => {
     setDialogInitialData(null);
+    setEditingAppointment(null);
     setDialogOpen(true);
   }, []);
 
@@ -143,12 +162,49 @@ const Appointments = () => {
   }, []);
 
   const handleAppointmentClick = useCallback((appointment) => {
+    setEditingAppointment(appointment);
     setDialogInitialData({
       ...appointment,
-      date: new Date(appointment.appointment_date),
+      date: new Date(appointment.start_time),
     });
     setDialogOpen(true);
   }, []);
+
+  const handleAppointmentMove = useCallback(async (appointment, newDate) => {
+    try {
+      // Atualizar a data/hora do agendamento no banco
+      const { error } = await supabase
+        .from('appointments')
+        .update({
+          appointment_date: newDate.toISOString(),
+          updated_at: new Date().toISOString()
+        })
+        .eq('id', appointment.id);
+
+      if (error) throw error;
+
+      // Atualizar localmente para feedback imediato
+      setAppointments(prev => prev.map(app =>
+        app.id === appointment.id
+          ? { ...app, appointment_date: newDate.toISOString() }
+          : app
+      ));
+
+      toast({
+        title: 'Consulta reagendada',
+        description: `Movida para ${format(newDate, "dd/MM/yyyy 'às' HH:mm", { locale: ptBR })}`
+      });
+    } catch (error) {
+      console.error('Erro ao mover agendamento:', error);
+      toast({
+        title: 'Erro ao reagendar',
+        description: 'Não foi possível mover a consulta.',
+        variant: 'destructive'
+      });
+      // Recarregar dados para reverter mudança local
+      loadData();
+    }
+  }, [toast, loadData]);
 
   const monthLabel = useMemo(() => {
     return format(currentDate, "MMMM 'de' yyyy", { locale: ptBR });
@@ -211,11 +267,12 @@ const Appointments = () => {
               <div className="w-8 h-8 border-2 border-primary border-t-transparent rounded-full animate-spin" />
             </div>
           ) : (
-            <AppointmentCalendar
+            <DraggableAppointmentCalendar
               currentDate={currentDate}
               appointments={appointments}
               onSlotClick={handleSlotClick}
               onAppointmentClick={handleAppointmentClick}
+              onAppointmentMove={handleAppointmentMove}
             />
           )}
         </div>
@@ -225,8 +282,12 @@ const Appointments = () => {
           open={dialogOpen}
           onOpenChange={(open) => {
             setDialogOpen(open);
-            if (!open) setDialogInitialData(null);
+            if (!open) {
+              setDialogInitialData(null);
+              setEditingAppointment(null);
+            }
           }}
+          appointment={editingAppointment}
           onSave={handleSaveAppointment}
           patients={Array.isArray(patients) ? patients : []}
           initialData={dialogInitialData}

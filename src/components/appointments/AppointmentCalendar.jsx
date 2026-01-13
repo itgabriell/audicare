@@ -17,11 +17,11 @@ const AppointmentCalendar = ({ currentDate, appointments, onSlotClick, onAppoint
     const appointmentsBySlot = useMemo(() => {
         const map = new Map();
         appointments.forEach(app => {
-            const appDate = new Date(app.appointment_date);
+            const appDate = new Date(app.start_time);
             const dateKey = appDate.toDateString();
             const hour = appDate.getHours();
             const slotKey = `${dateKey}_${hour}`;
-            
+
             if (!map.has(slotKey)) {
                 map.set(slotKey, []);
             }
@@ -66,7 +66,7 @@ const AppointmentCalendar = ({ currentDate, appointments, onSlotClick, onAppoint
                                                 className="bg-primary/10 text-primary-foreground p-1.5 rounded-md text-xs mb-1 hover:bg-primary/20 transition-colors"
                                                 onClick={(e) => { e.stopPropagation(); onAppointmentClick(app); }}
                                             >
-                                                <p className="font-semibold text-primary truncate">{app.patients?.name || 'Paciente'}</p>
+                                                <p className="font-semibold text-primary truncate">{app.contact?.name || 'Paciente'}</p>
                                                 <p className="text-primary/80 truncate">{app.appointment_type}</p>
                                             </div>
                                         ))}

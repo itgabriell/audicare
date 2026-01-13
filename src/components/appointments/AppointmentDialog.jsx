@@ -18,12 +18,12 @@ import { useNavigate } from 'react-router-dom';
 import PatientCombobox from '@/components/patients/PatientCombobox';
 
 const appointmentSchema = z.object({
-  patient_id: z.string().min(1, "Paciente é obrigatório"),
+  contact_id: z.string().min(1, "Paciente é obrigatório"),
   professional_name: z.string().min(1, "Profissional é obrigatório"),
-  appointment_date: z.string().min(1, "Data e hora são obrigatórias"),
+  start_time: z.string().min(1, "Data e hora são obrigatórias"),
   appointment_type: z.string().min(1, "Tipo de agendamento é obrigatório"),
   status: z.string().default('scheduled'),
-  notes: z.string().optional(),
+  obs: z.string().optional(),
 });
 
 const AppointmentDialog = ({ open, onOpenChange, appointment, onSuccess, initialData, patients = [] }) => {
@@ -35,49 +35,49 @@ const AppointmentDialog = ({ open, onOpenChange, appointment, onSuccess, initial
   const form = useForm({
     resolver: zodResolver(appointmentSchema),
     defaultValues: {
-      patient_id: '',
+      contact_id: '',
       professional_name: '',
-      appointment_date: '',
+      start_time: '',
       appointment_type: '',
       status: 'scheduled',
-      notes: '',
+      obs: '',
     }
   });
 
   useEffect(() => {
     if (appointment) {
       form.reset({
-        patient_id: appointment.patient_id,
+        contact_id: appointment.contact_id,
         professional_name: appointment.professional_name || 'Dra. Karine Brandão',
-        appointment_date: appointment.appointment_date ? new Date(appointment.appointment_date).toISOString().slice(0, 16) : '',
+        start_time: appointment.start_time ? new Date(appointment.start_time).toISOString().slice(0, 16) : '',
         appointment_type: appointment.appointment_type || '',
         status: appointment.status || 'scheduled',
-        notes: appointment.notes || '',
+        obs: appointment.obs || '',
       });
       // Fetch patient details for the "Send Message" button context
-      if (appointment.patient_id) {
-          fetchPatient(appointment.patient_id);
+      if (appointment.contact_id) {
+          fetchPatient(appointment.contact_id);
       }
     } else if (initialData) {
       form.reset({
-        patient_id: initialData.patient_id || '',
+        contact_id: initialData.contact_id || '',
         professional_name: 'Dra. Karine Brandão',
-        appointment_date: initialData.appointment_date || '',
+        start_time: initialData.start_time || '',
         appointment_type: initialData.appointment_type || '',
         status: 'scheduled',
-        notes: initialData.notes || '',
+        obs: initialData.obs || '',
       });
-      if (initialData.patient_id) {
-        fetchPatient(initialData.patient_id);
+      if (initialData.contact_id) {
+        fetchPatient(initialData.contact_id);
       }
     } else {
       form.reset({
-        patient_id: '',
+        contact_id: '',
         professional_name: 'Dra. Karine Brandão',
-        appointment_date: '',
+        start_time: '',
         appointment_type: '',
         status: 'scheduled',
-        notes: '',
+        obs: '',
       });
       setSelectedPatient(null);
     }
@@ -156,11 +156,11 @@ const AppointmentDialog = ({ open, onOpenChange, appointment, onSuccess, initial
         <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4 py-4">
           <div className="space-y-2">
             <Label>Paciente</Label>
-            <PatientCombobox 
+            <PatientCombobox
                 patients={Array.isArray(patients) ? patients : []}
-                value={form.watch('patient_id')}
+                value={form.watch('contact_id')}
                 onChange={(val) => {
-                    form.setValue('patient_id', val);
+                    form.setValue('contact_id', val);
                     fetchPatient(val);
                 }}
                 disabled={!!appointment}
@@ -181,12 +181,12 @@ const AppointmentDialog = ({ open, onOpenChange, appointment, onSuccess, initial
           <div className="grid grid-cols-2 gap-4">
             <div className="space-y-2">
                 <Label>Data e Hora</Label>
-                <Input 
-                    type="datetime-local" 
-                    {...form.register('appointment_date')} 
+                <Input
+                    type="datetime-local"
+                    {...form.register('start_time')}
                 />
-                {form.formState.errors.appointment_date && (
-                    <span className="text-xs text-red-500">{form.formState.errors.appointment_date.message}</span>
+                {form.formState.errors.start_time && (
+                    <span className="text-xs text-red-500">{form.formState.errors.start_time.message}</span>
                 )}
             </div>
             <div className="space-y-2">
@@ -241,7 +241,7 @@ const AppointmentDialog = ({ open, onOpenChange, appointment, onSuccess, initial
 
           <div className="space-y-2">
             <Label>Observações</Label>
-            <Textarea {...form.register('notes')} placeholder="Detalhes adicionais..." />
+            <Textarea {...form.register('obs')} placeholder="Detalhes adicionais..." />
           </div>
 
           <DialogFooter>

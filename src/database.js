@@ -39,67 +39,78 @@ export const getPatients = async (page = 1, pageSize = 10, searchTerm = '', sort
   const clinicId = await getClinicId();
   if (!clinicId) return { data: [], count: 0 };
 
-  let query = supabase
-    .from('patients')
-    .select('*', { count: 'exact' })
-    .eq('clinic_id', clinicId);
+  try {
+    let query = supabase
+      .from('patients')
+      .select('*', { count: 'exact' })
+      .eq('clinic_id', clinicId);
 
-  if (searchTerm) {
-    query = query.or(
-      `name.ilike.%${searchTerm}%,cpf.ilike.%${searchTerm}%,phone.ilike.%${searchTerm}%`,
-    );
-  }
-
-  // Apply sorting
-  query = query.order(sortBy, { ascending: sortOrder === 'asc' });
-  
-  // Apply pagination
-  const from = (page - 1) * pageSize;
-  const to = from + pageSize - 1;
-  query = query.range(from, to);
-
-  const { data, error, count } = await query;
-  
-  if (error) {
-      console.error("[DB] Error fetching patients:", error);
-      throw error;
-  }
-  
-  // Buscar telefones para cada paciente
-  if (data && data.length > 0) {
-    const patientIds = data.map(p => p.id);
-    const { data: phonesData } = await supabase
-      .from('patient_phones')
-      .select('*')
-      .in('patient_id', patientIds)
-      .order('is_primary', { ascending: false })
-      .order('created_at', { ascending: true });
-
-    // Agrupar telefones por paciente
-    const phonesByPatient = {};
-    if (phonesData) {
-      phonesData.forEach(phone => {
-        if (!phonesByPatient[phone.patient_id]) {
-          phonesByPatient[phone.patient_id] = [];
-        }
-        phonesByPatient[phone.patient_id].push(phone);
-      });
+    if (searchTerm) {
+      query = query.or(
+        `name.ilike.%${searchTerm}%,cpf.ilike.%${searchTerm}%,phone.ilike.%${searchTerm}%`,
+      );
     }
 
-    // Adicionar telefones aos pacientes e manter compatibilidade
-    data.forEach(patient => {
-      patient.phones = phonesByPatient[patient.id] || [];
-      // Manter telefone principal no campo phone para compatibilidade
-      const primaryPhone = patient.phones.find(p => p.is_primary);
-      if (primaryPhone) {
-        patient.phone = primaryPhone.phone;
-      } else if (patient.phones.length > 0) {
-        patient.phone = patient.phones[0].phone;
+    // Apply sorting
+    query = query.order(sortBy, { ascending: sortOrder === 'asc' });
+
+    // Apply pagination
+    const from = (page - 1) * pageSize;
+    const to = from + pageSize - 1;
+    query = query.range(from, to);
+
+    const { data, error, count } = await query;
+
+    if (error) {
+        console.error("[DB] Error fetching patients:", error);
+        throw error;
+    }
+
+    // Buscar telefones para cada paciente (opcional, pode falhar se tabela não existir)
+    if (data && data.length > 0) {
+      try {
+        const patientIds = data.map(p => p.id);
+        const { data: phonesData } = await supabase
+          .from('patient_phones')
+          .select('*')
+          .in('patient_id', patientIds)
+          .order('is_primary', { ascending: false })
+          .order('created_at', { ascending: true });
+
+        // Agrupar telefones por paciente
+        const phonesByPatient = {};
+        if (phonesData) {
+          phonesData.forEach(phone => {
+            if (!phonesByPatient[phone.patient_id]) {
+              phonesByPatient[phone.patient_id] = [];
+            }
+            phonesByPatient[phone.patient_id].push(phone);
+          });
+        }
+
+        // Adicionar telefones aos pacientes e manter compatibilidade
+        data.forEach(patient => {
+          patient.phones = phonesByPatient[patient.id] || [];
+          // Manter telefone principal no campo phone para compatibilidade
+          const primaryPhone = patient.phones.find(p => p.is_primary);
+          if (primaryPhone) {
+            patient.phone = primaryPhone.phone;
+          } else if (patient.phones.length > 0) {
+            patient.phone = patient.phones[0].phone;
+          }
+        });
+      } catch (phonesError) {
+        console.warn("[DB] Could not fetch patient phones, continuing without:", phonesError);
+        // Continue sem telefones se a tabela não existir
       }
-    });
+    }
+
+    return { data, count };
+  } catch (error) {
+    console.error("[DB] Critical error fetching patients:", error);
+    // Retornar dados vazios em caso de erro crítico para não quebrar a UI
+    return { data: [], count: 0 };
   }
-  
-  return { data, count };
 };
 
 export const getPatientById = async (id) => {
@@ -307,12 +318,107 @@ export const deletePatient = async (patientId) => {
 export const getAppointments = async (filters = {}) => {
   const clinicId = await getClinicId();
   if (!clinicId) return [];
-  let query = supabase.from('appointments').select('*, patient:patients(name)').eq('clinic_id', clinicId);
-  if (filters.startDate) query = query.gte('appointment_date', filters.startDate);
-  if (filters.endDate) query = query.lte('appointment_date', filters.endDate);
-  const { data, error } = await query.order('appointment_date', { ascending: true });
-  if (error) throw error;
-  return data;
+
+  try {
+    // Primeiro, vamos buscar apenas os appointments sem filtros para descobrir as colunas
+    const { data: testData, error: testError } = await supabase
+      .from('appointments')
+      .select('*')
+      .eq('clinic_id', clinicId)
+      .limit(1);
+
+    if (testError) {
+      console.error("[DB] Error testing appointments table:", testError);
+      throw testError;
+    }
+
+    // Verificar quais colunas existem nos dados de teste
+    const sampleAppointment = testData?.[0];
+    console.log("[DB] Sample appointment structure:", sampleAppointment);
+
+    // Determinar qual coluna usar para data (tentar várias possibilidades)
+    const dateColumn = sampleAppointment?.appointment_date ? 'appointment_date' :
+                      sampleAppointment?.scheduled_at ? 'scheduled_at' :
+                      sampleAppointment?.start_time ? 'start_time' :
+                      sampleAppointment?.created_at ? 'created_at' : null;
+
+    console.log("[DB] Using date column:", dateColumn);
+
+    // Buscar appointments com ordenação baseada na coluna descoberta
+    let query = supabase
+      .from('appointments')
+      .select('*')
+      .eq('clinic_id', clinicId);
+
+    // Aplicar filtros se a coluna de data foi encontrada
+    if (dateColumn && filters.startDate) {
+      query = query.gte(dateColumn, filters.startDate);
+    }
+    if (dateColumn && filters.endDate) {
+      query = query.lte(dateColumn, filters.endDate);
+    }
+
+    // Ordenar pela coluna de data se encontrada, senão por created_at
+    const orderColumn = dateColumn || 'created_at';
+    const { data: appointmentsData, error } = await query.order(orderColumn, { ascending: true });
+
+    if (error) {
+      console.error("[DB] Error fetching appointments:", error);
+      throw error;
+    }
+
+    if (!appointmentsData || appointmentsData.length === 0) {
+      return [];
+    }
+
+    // Buscar dados dos pacientes separadamente
+    try {
+      const patientIds = [...new Set(appointmentsData.map(app => app.patient_id).filter(Boolean))];
+
+      if (patientIds.length > 0) {
+        const { data: patientsData, error: patientsError } = await supabase
+          .from('patients')
+          .select('id, name, phone')
+          .in('id', patientIds)
+          .eq('clinic_id', clinicId);
+
+        if (!patientsError && patientsData) {
+          // Criar mapa de pacientes
+          const patientsMap = {};
+          patientsData.forEach(patient => {
+            patientsMap[patient.id] = patient;
+          });
+
+          // Combinar dados
+          return appointmentsData.map(appointment => ({
+            ...appointment,
+            contact: appointment.patient_id ? {
+              name: patientsMap[appointment.patient_id]?.name || 'Paciente não encontrado',
+              phone: patientsMap[appointment.patient_id]?.phone || ''
+            } : null
+          }));
+        }
+      }
+
+      // Se não conseguiu buscar pacientes, retornar sem dados de contato
+      return appointmentsData.map(appointment => ({
+        ...appointment,
+        contact: null
+      }));
+
+    } catch (joinError) {
+      console.warn("[DB] Could not fetch patient data for appointments, continuing without:", joinError);
+      // Retornar appointments sem dados de pacientes
+      return appointmentsData.map(appointment => ({
+        ...appointment,
+        contact: null
+      }));
+    }
+  } catch (error) {
+    console.error("[DB] Critical error fetching appointments:", error);
+    // Retornar array vazio em caso de erro crítico para não quebrar a UI
+    return [];
+  }
 };
 export const addAppointment = async (d) => {
     const cid = await getClinicId();

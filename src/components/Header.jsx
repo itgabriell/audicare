@@ -11,10 +11,10 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import { User, LogOut, Settings } from 'lucide-react';
+import { User, LogOut, Settings, Search } from 'lucide-react';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
 
-const Header = ({ children }) => {
+const Header = ({ children, onCommandPaletteOpen }) => {
   const [title, ...rest] = React.Children.toArray(children);
   const { user, signOut } = useAuth();
   const navigate = useNavigate();
@@ -57,6 +57,18 @@ const Header = ({ children }) => {
       </div>
       <div className="flex items-center gap-3">
         {rest}
+
+        {/* Search Button */}
+        <Button
+          variant="ghost"
+          size="sm"
+          onClick={onCommandPaletteOpen}
+          className="h-9 w-9 p-0 hover:bg-muted/80 transition-all duration-200 hover:scale-105 active:scale-95"
+          title="Buscar (Ctrl+K)"
+        >
+          <Search className="h-4 w-4" />
+        </Button>
+
         <ThemeToggle />
         
         {/* User Menu */}

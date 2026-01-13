@@ -1,5 +1,5 @@
 import React from 'react';
-import { NavLink, useLocation } from 'react-router-dom';
+import { NavLink, useLocation, useNavigate } from 'react-router-dom';
 import {
   LayoutDashboard,
   Users,
@@ -97,6 +97,7 @@ const Sidebar = () => {
   const [isCollapsed, setIsCollapsed] = React.useState(false);
   const { theme } = useTheme();
   const { canAccessRoute } = usePermissions();
+  const navigate = useNavigate();
 
   return (
     <aside className={cn(
@@ -107,10 +108,11 @@ const Sidebar = () => {
       <div className="flex items-center justify-center mb-6 pt-2">
         {!isCollapsed && (
           <div className="flex items-center justify-center w-full">
-            <img 
+            <img
               src={theme === 'dark' ? logoWhite : logoGreen}
               alt="Audicare"
-              className="h-9 w-auto transition-opacity duration-300"
+              className="h-9 w-auto transition-opacity duration-300 cursor-pointer hover:scale-105 active:scale-95"
+              onClick={() => navigate('/dashboard')}
             />
           </div>
         )}

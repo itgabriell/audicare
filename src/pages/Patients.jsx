@@ -22,13 +22,46 @@ import PatientDialog from '@/components/patients/PatientDialog';
 import { useToast } from '@/components/ui/use-toast';
 import { useAuth } from '@/contexts/SupabaseAuthContext';
 import { supabase } from '@/lib/customSupabaseClient';
+import { useNavigate } from 'react-router-dom';
+import { getPatients, addPatient, updatePatient, deletePatient, checkDuplicatePatient } from '@/database';
+import { useDevice } from '@/hooks/useDevice';
+import { DataTableMobile } from '@/components/ui/data-table-mobile';
 
 const Patients = () => {
   const { profile } = useAuth();
   const { toast } = useToast();
-  
+  const navigate = useNavigate();
+  const { isMobile } = useDevice();
+
+  // Table columns configuration
+  const tableColumns = useMemo(() => [
+    {
+      accessorKey: 'name',
+      header: 'Nome',
+      render: (value) => <span className="font-medium">{value || '-'}</span>
+    },
+    {
+      accessorKey: 'cpf',
+      header: 'CPF',
+      hideOnMobile: true,
+    },
+    {
+      accessorKey: 'phone',
+      header: 'Celular',
+      render: (value) => formatPhone(value)
+    },
+    {
+      accessorKey: 'address',
+      header: 'Cidade/Estado',
+      hideOnMobile: true,
+      render: (value) => value ? value.split(',')[2] || value : '-'
+    }
+  ], []);
+
+  // Actions for mobile table (defined after handleEdit)
+
   // Data State
-  const [contacts, setContacts] = useState([]);
+  const [patients, setPatients] = useState([]);
   const [totalCount, setTotalCount] = useState(0);
   const [loading, setLoading] = useState(true);
 
@@ -42,11 +75,13 @@ const Patients = () => {
   // UI State
   const [dialogOpen, setDialogOpen] = useState(false);
   const [editingPatient, setEditingPatient] = useState(null);
+  const [isExporting, setIsExporting] = useState(false);
+  const [isImporting, setIsImporting] = useState(false);
 
   // --- Load Data ---
-  const loadContacts = useCallback(async () => {
+  const loadPatients = useCallback(async () => {
     if (!profile?.clinic_id) {
-      setContacts([]);
+      setPatients([]);
       setTotalCount(0);
       setLoading(false);
       return;
@@ -56,7 +91,7 @@ const Patients = () => {
       setLoading(true);
 
       let query = supabase
-        .from('contacts')
+        .from('patients')
         .select('*', { count: 'exact' })
         .eq('clinic_id', profile.clinic_id)
         .order(sortBy, { ascending: sortOrder === 'asc' });
@@ -64,7 +99,7 @@ const Patients = () => {
       // Apply search filter
       if (searchTerm) {
         query = query.or(
-          `name.ilike.%${searchTerm}%,phone.ilike.%${searchTerm}%,email.ilike.%${searchTerm}%`
+          `name.ilike.%${searchTerm}%,cpf.ilike.%${searchTerm}%,phone.ilike.%${searchTerm}%,email.ilike.%${searchTerm}%`
         );
       }
 
@@ -80,19 +115,19 @@ const Patients = () => {
         toast({
           variant: 'destructive',
           title: 'Erro ao carregar',
-          description: 'Não foi possível buscar a lista de contatos.'
+          description: 'Não foi possível buscar a lista de pacientes.'
         });
         return;
       }
 
-      setContacts(data || []);
+      setPatients(data || []);
       setTotalCount(count || 0);
     } catch (error) {
       console.error('[Patients] Load Error:', error);
       toast({
         variant: 'destructive',
         title: 'Erro ao carregar',
-        description: 'Não foi possível buscar a lista de contatos.'
+        description: 'Não foi possível buscar a lista de pacientes.'
       });
     } finally {
       setLoading(false);
@@ -101,20 +136,20 @@ const Patients = () => {
 
   // --- Effects ---
   useEffect(() => {
-    loadContacts();
-  }, [loadContacts]);
+    loadPatients();
+  }, [loadPatients]);
 
   // Real-time subscription
   useEffect(() => {
     if (!profile?.clinic_id) return;
 
     const channel = supabase
-      .channel('public:contacts')
+      .channel('public:patients')
       .on('postgres_changes',
-        { event: '*', schema: 'public', table: 'contacts', filter: `clinic_id=eq.${profile.clinic_id}` },
+        { event: '*', schema: 'public', table: 'patients', filter: `clinic_id=eq.${profile.clinic_id}` },
         (payload) => {
             console.log('[Realtime] Change received:', payload);
-            loadContacts(); // Reload to respect sort/filter/page
+            loadPatients(); // Reload to respect sort/filter/page
         }
       )
       .subscribe();
@@ -122,20 +157,26 @@ const Patients = () => {
     return () => {
       supabase.removeChannel(channel);
     };
-  }, [profile?.clinic_id, loadContacts]);
+  }, [profile?.clinic_id, loadPatients]);
 
 
   // --- Actions ---
-  const handleViewDetails = useCallback((contact) => {
-    // TODO: Implementar navegação para detalhes do contato/paciente
-    console.log('Ver detalhes:', contact);
-    toast({ title: 'Detalhes', description: `Visualizando detalhes de ${contact.name}` });
-  }, [toast]);
+  const handleViewDetails = useCallback((patient) => {
+    navigate(`/patients/${patient.id}`);
+  }, [navigate]);
 
-  const handleEdit = useCallback((contact) => {
-    setEditingPatient(contact);
+  const handleEdit = useCallback((patient) => {
+    setEditingPatient(patient);
     setDialogOpen(true);
   }, []);
+
+  // Actions for mobile table (defined after handleEdit)
+  const tableActions = useMemo(() => [
+    {
+      label: 'Editar',
+      onClick: handleEdit
+    }
+  ], [handleEdit]);
 
   const handleSavePatient = useCallback(async (patientData) => {
     try {
@@ -160,7 +201,7 @@ const Patients = () => {
       setDialogOpen(false);
       setEditingPatient(null);
       // Realtime deve atualizar automaticamente, mas recarregamos para garantir feedback imediato
-      loadContacts();
+      loadPatients();
     } catch (error) {
       console.error('[Patients] Save Error:', error);
       toast({
@@ -169,7 +210,7 @@ const Patients = () => {
         description: error.message || 'Ocorreu um erro inesperado.'
       });
     }
-  }, [editingPatient, toast, loadContacts]);
+  }, [editingPatient, toast, loadPatients]);
 
   const handleDelete = useCallback(async (id) => {
     if (!window.confirm("Tem certeza que deseja excluir este paciente? Esta ação não pode ser desfeita.")) return;
@@ -178,7 +219,7 @@ const Patients = () => {
       await deletePatient(id);
       toast({ title: 'Paciente removido', description: 'O registro foi excluído.' });
       // Realtime deve atualizar automaticamente, mas recarregamos para garantir
-      loadContacts();
+      loadPatients();
     } catch (error) {
       console.error('[Patients] Delete Error:', error);
       toast({
@@ -187,7 +228,7 @@ const Patients = () => {
         description: 'Não foi possível excluir o paciente.'
       });
     }
-  }, [toast, loadContacts]);
+  }, [toast, loadPatients]);
 
   const handleExportCSV = async () => {
     try {
@@ -279,7 +320,7 @@ const Patients = () => {
             }
             
             toast({ title: "Importação Finalizada", description: `${successCount} pacientes importados.` });
-            loadContacts();
+            loadPatients();
         } catch (err) {
              console.error(err);
              toast({ variant: 'destructive', title: "Erro ao importar", description: "Verifique o formato do arquivo." });
@@ -362,7 +403,7 @@ const Patients = () => {
             </div>
             
             <div className="flex gap-2 w-full md:w-auto ml-auto">
-                 <Button variant="ghost" size="icon" onClick={loadContacts} title="Recarregar lista">
+                 <Button variant="ghost" size="icon" onClick={loadPatients} title="Recarregar lista">
                     <RefreshCw className={`h-4 w-4 ${loading ? 'animate-spin' : ''}`} />
                  </Button>
                  
@@ -399,50 +440,66 @@ const Patients = () => {
                  <div key={i} className="h-16 bg-muted/20 animate-pulse rounded-xl border" />
               ))}
            </div>
-        ) : contacts.length > 0 ? (
+        ) : patients.length > 0 ? (
            <>
-             <div className="border rounded-lg overflow-hidden">
-               <Table>
-                 <TableHeader>
-                   <TableRow>
-                     <TableHead>Nome</TableHead>
-                     <TableHead>CPF</TableHead>
-                     <TableHead>Celular</TableHead>
-                     <TableHead>Cidade/Estado</TableHead>
-                     <TableHead className="text-right">Ações</TableHead>
-                   </TableRow>
-                 </TableHeader>
-                 <TableBody>
-                   {contacts.map((contact) => (
-                     <TableRow key={contact.id}>
-                       <TableCell className="font-medium">{contact.name || '-'}</TableCell>
-                       <TableCell>{contact.cpf || '-'}</TableCell>
-                       <TableCell>{formatPhone(contact.phone)}</TableCell>
-                       <TableCell>{contact.address || '-'}</TableCell>
-                       <TableCell className="text-right">
-                         <div className="flex gap-2 justify-end">
-                           <Button
-                             variant="ghost"
-                             size="sm"
-                             onClick={() => handleViewDetails(contact)}
-                           >
-                             <Eye className="h-4 w-4 mr-1" />
-                             Ver Detalhes
-                           </Button>
-                           <Button
-                             variant="ghost"
-                             size="sm"
-                             onClick={() => handleEdit(contact)}
-                           >
-                             Editar
-                           </Button>
-                         </div>
-                       </TableCell>
+             {/* Desktop Table / Mobile Cards */}
+             {isMobile ? (
+               <DataTableMobile
+                 data={patients}
+                 columns={tableColumns}
+                 onRowClick={handleViewDetails}
+                 actions={tableActions}
+               />
+             ) : (
+               <div className="border rounded-lg overflow-hidden">
+                 <Table>
+                   <TableHeader>
+                     <TableRow>
+                       <TableHead>Nome</TableHead>
+                       <TableHead>CPF</TableHead>
+                       <TableHead>Celular</TableHead>
+                       <TableHead>Cidade/Estado</TableHead>
+                       <TableHead className="text-right">Ações</TableHead>
                      </TableRow>
-                   ))}
-                 </TableBody>
-               </Table>
-             </div>
+                   </TableHeader>
+                   <TableBody>
+                     {patients.map((patient) => (
+                       <TableRow
+                         key={patient.id}
+                         className="cursor-pointer hover:bg-muted/50 transition-colors"
+                         onClick={() => handleViewDetails(patient)}
+                       >
+                         <TableCell className="font-medium">{patient.name || '-'}</TableCell>
+                         <TableCell>{patient.cpf || '-'}</TableCell>
+                         <TableCell>{formatPhone(patient.phone)}</TableCell>
+                         <TableCell>{patient.address ? patient.address.split(',')[2] || patient.address : '-'}</TableCell>
+                         <TableCell className="text-right">
+                           <div className="flex gap-2 justify-end" onClick={(e) => e.stopPropagation()}>
+                             <Button
+                               variant="ghost"
+                               size="sm"
+                             >
+                               <Eye className="h-4 w-4 mr-1" />
+                               Ver Detalhes
+                             </Button>
+                             <Button
+                               variant="ghost"
+                               size="sm"
+                               onClick={(e) => {
+                                 e.stopPropagation();
+                                 handleEdit(patient);
+                               }}
+                             >
+                               Editar
+                             </Button>
+                           </div>
+                         </TableCell>
+                       </TableRow>
+                     ))}
+                   </TableBody>
+                 </Table>
+               </div>
+             )}
 
              {/* Pagination Footer */}
              <div className="flex items-center justify-between py-4 border-t mt-4">
@@ -477,9 +534,9 @@ const Patients = () => {
                 <div className="bg-muted p-4 rounded-full mb-4">
                     <Search className="h-8 w-8 text-muted-foreground" />
                 </div>
-                <h3 className="text-lg font-semibold">Nenhum contato encontrado</h3>
+                <h3 className="text-lg font-semibold">Nenhum paciente encontrado</h3>
                 <p className="text-muted-foreground max-w-sm mt-1 mb-4">
-                    Não encontramos registros com os filtros atuais. Tente limpar a busca ou adicione um novo contato.
+                    Não encontramos registros com os filtros atuais. Tente limpar a busca ou adicione um novo paciente.
                 </p>
                 <Button onClick={() => { setSearchTerm(''); setPage(1); }}>Limpar Filtros</Button>
             </motion.div>

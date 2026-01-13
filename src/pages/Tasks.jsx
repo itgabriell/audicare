@@ -3,7 +3,7 @@ import { Helmet } from 'react-helmet';
 import { Plus, Search, CheckCircle2, Clock, AlertCircle } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import TaskColumn from '@/components/tasks/TaskColumn';
+import DraggableKanbanBoard from '@/components/tasks/DraggableKanbanBoard';
 import TaskDialog from '@/components/tasks/TaskDialog';
 import { useToast } from '@/components/ui/use-toast';
 import { getTasks, addTask, updateTask, deleteTask, getTeamMembers } from '@/database';
@@ -154,23 +154,27 @@ const Tasks = () => {
     };
   }, [filteredTasks]);
 
-  const handleUpdateStatus = async (taskId, newStatus) => {
+  const handleTaskMove = async (task, newStatus) => {
     const originalTasks = [...tasks];
     setTasks((prev) =>
-      prev.map((task) =>
-        task.id === taskId ? { ...task, status: newStatus } : task,
+      prev.map((t) =>
+        t.id === task.id ? { ...t, status: newStatus } : t,
       ),
     );
     try {
-      await updateTask(taskId, { status: newStatus });
+      await updateTask(task.id, { status: newStatus });
+      toast({
+        title: 'Tarefa movida',
+        description: `Status alterado para ${newStatus === 'todo' ? 'A Fazer' : newStatus === 'doing' ? 'Em Andamento' : 'Concluído'}`
+      });
     } catch (error) {
-      console.error('[Tasks] Erro ao atualizar status', error);
+      console.error('[Tasks] Erro ao mover tarefa', error);
       setTasks(originalTasks);
       toast({
-        title: 'Erro ao atualizar status',
+        title: 'Erro ao mover tarefa',
         description:
           error?.message ||
-          'Não foi possível atualizar o status da tarefa. Tente novamente.',
+          'Não foi possível mover a tarefa. Tente novamente.',
         variant: 'destructive',
       });
     }
@@ -198,6 +202,12 @@ const Tasks = () => {
   const handleEditTask = (task) => {
     setEditingTask(task);
     setDialogOpen(true);
+  };
+
+  const handleAddTask = (status) => {
+    setEditingTask(null);
+    setDialogOpen(true);
+    // Could pre-set status here if needed
   };
 
   // Categorias únicas para filtro
@@ -379,26 +389,20 @@ const Tasks = () => {
           </div>
         </div>
 
-        {/* Board */}
+        {/* Kanban Board */}
         {loading ? (
           <div className="flex justify-center items-center h-64">
             <div className="w-8 h-8 border-2 border-primary border-t-transparent rounded-full animate-spin" />
           </div>
         ) : (
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-            {columns.map((column) => (
-              <TaskColumn
-                key={column.id}
-                column={column}
-                tasks={filteredTasks.filter(
-                  (task) => task.status === column.id,
-                )}
-                onUpdateTask={handleUpdateStatus}
-                onEditTask={handleEditTask}
-                onDeleteTask={handleDeleteTask}
-              />
-            ))}
-          </div>
+          <DraggableKanbanBoard
+            tasks={filteredTasks}
+            onTaskMove={handleTaskMove}
+            onTaskClick={handleEditTask}
+            onTaskEdit={handleEditTask}
+            onTaskDelete={handleDeleteTask}
+            onAddTask={handleAddTask}
+          />
         )}
 
         <TaskDialog
