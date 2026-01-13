@@ -17,7 +17,8 @@ const Inbox = () => {
     isSending,
     selectConversation,
     sendMessage,
-    refresh
+    refresh,
+    updateActiveConversation
   } = useWhatsApp();
 
   const [searchTerm, setSearchTerm] = useState('');
@@ -70,7 +71,7 @@ const Inbox = () => {
 
       {/* 2. JANELA DE CHAT */}
       <div className={`${!activeConversation ? 'hidden md:flex' : 'flex'} flex-1 flex-col bg-background relative min-w-0`}>
-        <ChatWindow 
+        <ChatWindow
           conversation={activeConversation}
           messages={messages}
           loadingMessages={loadingMessages}
@@ -80,7 +81,8 @@ const Inbox = () => {
           refetch={refresh}
           searchTerm={searchTerm}
           onSearchTermChange={setSearchTerm}
-          onToggleInfo={() => setShowRightPanel(!showRightPanel)} 
+          onToggleInfo={() => setShowRightPanel(!showRightPanel)}
+          onConversationUpdate={updateActiveConversation}
         />
       </div>
 

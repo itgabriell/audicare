@@ -291,6 +291,10 @@ export function useWhatsApp() {
 
   const selectConversation = (conversation) => setActiveConversation(conversation);
 
+  const updateActiveConversation = (updatedConversation) => {
+    setActiveConversation(updatedConversation);
+  };
+
   const sendMessage = async (payload) => {
     // Suporta texto, mídia e áudio
     const isMedia = payload?.media_url || payload?.file;
@@ -399,7 +403,7 @@ export function useWhatsApp() {
   };
 
   return {
-    conversations, 
+    conversations,
     activeConversation,
     messages,
     loading: loadingConversations,
@@ -407,7 +411,8 @@ export function useWhatsApp() {
     isSending,
     selectConversation,
     sendMessage,
-    refresh: refreshConversations
+    refresh: refreshConversations,
+    updateActiveConversation
   };
 }
 

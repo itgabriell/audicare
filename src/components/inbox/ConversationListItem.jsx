@@ -20,6 +20,24 @@ const ConversationListItem = ({ conversation, isSelected, onSelect }) => {
     const contactName = conversation.contact?.name || conversation.contact?.phone || 'Desconhecido';
     const unreadCount = conversation.unread_count || 0;
     const channel = conversation.channel || conversation.contact?.channel || 'whatsapp';
+    const leadStatus = conversation.lead_status || 'novo';
+
+    // Função para obter a cor do status do lead
+    const getLeadStatusColor = (status) => {
+        switch (status) {
+            case 'novo': return 'border-blue-500';
+            case 'atendendo': return 'border-yellow-500';
+            case 'agendado': return 'border-green-500';
+            case 'finalizado': return 'border-gray-400';
+            default: return 'border-gray-300';
+        }
+    };
+
+    // Função para obter as iniciais do nome
+    const getInitials = (name) => {
+        if (!name) return '?';
+        return name.split(' ').map(n => n.charAt(0).toUpperCase()).join('').slice(0, 2);
+    };
 
     const formatTimestamp = (timestamp) => {
         if (!timestamp) return '';
@@ -40,17 +58,18 @@ const ConversationListItem = ({ conversation, isSelected, onSelect }) => {
         <div
             onClick={onSelect}
             className={cn(
-                'flex items-start gap-3 p-3 mx-2 my-1 rounded-lg cursor-pointer transition-all border border-transparent',
-                isSelected 
-                    ? 'bg-primary/5 border-primary/10 shadow-sm' 
-                    : 'hover:bg-muted/50 border-transparent'
+                'flex items-start gap-3 p-3 mx-2 my-1 rounded-lg cursor-pointer transition-all border-l-4',
+                isSelected
+                    ? 'bg-primary/5 border-primary/10 shadow-sm'
+                    : 'hover:bg-muted/50 border-transparent',
+                getLeadStatusColor(leadStatus)
             )}
         >
             <div className="relative mt-1">
                 <Avatar className="h-10 w-10 border-2 border-background shadow-sm">
-                    <AvatarImage src={conversation.contact?.avatar_url} alt={contactName} className="object-cover" />
+                    <AvatarImage src={conversation.contact?.profile_pic_url} alt={contactName} className="object-cover" />
                     <AvatarFallback className="text-xs bg-primary/10 text-primary font-medium">
-                        {contactName.charAt(0).toUpperCase()}
+                        {getInitials(contactName)}
                     </AvatarFallback>
                 </Avatar>
                 <div className="absolute -bottom-1 -right-1 bg-background rounded-full p-0.5 shadow border border-border">
@@ -69,13 +88,14 @@ const ConversationListItem = ({ conversation, isSelected, onSelect }) => {
                 </div>
                 
                 <div className="flex justify-between items-start">
-                    <p className={cn(
-                        "text-xs truncate max-w-[180px] line-clamp-1",
-                        unreadCount > 0 ? "text-foreground font-medium" : "text-muted-foreground"
-                    )}>
-                        {conversation.last_message_preview || 'Nova conversa'}
+                    <p className="text-xs text-gray-500 truncate max-w-[180px] line-clamp-1">
+                        {conversation.last_message_preview && conversation.last_message_preview.trim()
+                            ? (conversation.last_message_preview.length > 30
+                                ? `${conversation.last_message_preview.substring(0, 30)}...`
+                                : conversation.last_message_preview)
+                            : 'Iniciar conversa'}
                     </p>
-                    
+
                     {unreadCount > 0 && (
                         <Badge className="h-4 min-w-[1rem] px-1 flex items-center justify-center text-[9px] rounded-full bg-primary text-primary-foreground shadow-none ml-2 mt-0.5">
                             {unreadCount > 9 ? '9+' : unreadCount}

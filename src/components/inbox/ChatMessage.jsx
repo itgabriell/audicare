@@ -7,9 +7,10 @@ import MessageActionsMenu from './MessageActionsMenu';
 
 const ChatMessage = ({ message, highlight, onEdit, onDelete, onForward }) => {
   const [showActions, setShowActions] = useState(false);
-  const { content, created_at, sender_type, message_type, media_url, status } = message;
-  
-  const isUser = sender_type === 'user' || sender_type === 'bot';
+  const { content, created_at, sender_type, message_type, media_url, status, direction } = message;
+
+  // Usar direction se disponível, senão fallback para sender_type
+  const isUser = direction === 'outbound' || sender_type === 'user' || sender_type === 'bot';
   const formattedTime = created_at ? format(new Date(created_at), 'HH:mm', { locale: ptBR }) : '';
 
   const isImage = message_type === 'image' && media_url;

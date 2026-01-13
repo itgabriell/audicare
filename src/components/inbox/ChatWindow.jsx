@@ -5,11 +5,13 @@ import { Button } from '@/components/ui/button';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Badge } from '@/components/ui/badge';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { AnimatePresence } from 'framer-motion';
 import ChatInput from './ChatInput';
 import ChatMessage from './ChatMessage';
 import { useToast } from '@/components/ui/use-toast';
 import { validatePhoneE164, formatPhoneE164 } from '@/lib/phoneUtils';
+import { supabase } from '@/database.js';
 import ConversationSearch from './ConversationSearch';
 import QuickReplyPopover from './QuickReplyPopover';
 import EmojiPicker from './EmojiPicker';
@@ -31,16 +33,17 @@ const MessageSkeleton = () => (
   </div>
 );
 
-const ChatWindow = ({ 
-  conversation, 
-  messages, 
-  loadingMessages, 
-  isSending, 
-  onSendMessage, 
-  onBack, 
+const ChatWindow = ({
+  conversation,
+  messages,
+  loadingMessages,
+  isSending,
+  onSendMessage,
+  onBack,
   searchTerm,
   onSearchTermChange,
-  onToggleInfo 
+  onToggleInfo,
+  onConversationUpdate
 }) => {
   // TODOS OS HOOKS DEVEM SER CHAMADOS ANTES DE QUALQUER RETURN
   const scrollAreaRef = useRef(null);
@@ -113,6 +116,38 @@ const ChatWindow = ({
       content: 'Áudio'
     });
   }, [conversation, onSendMessage, validateContactPhone]);
+
+  // Handler para atualizar status do lead
+  const handleStatusChange = useCallback(async (newStatus) => {
+    if (!conversation?.id) return;
+
+    try {
+      const { error } = await supabase
+        .from('conversations')
+        .update({ lead_status: newStatus })
+        .eq('id', conversation.id);
+
+      if (error) throw error;
+
+      // Atualizar estado local imediatamente para reatividade
+      const updatedConversation = { ...conversation, lead_status: newStatus };
+      if (onConversationUpdate) {
+        onConversationUpdate(updatedConversation);
+      }
+
+      toast({
+        title: 'Status atualizado',
+        description: `Status alterado para ${newStatus}`,
+      });
+    } catch (error) {
+      console.error('Erro ao atualizar status:', error);
+      toast({
+        variant: 'destructive',
+        title: 'Erro',
+        description: 'Não foi possível atualizar o status',
+      });
+    }
+  }, [conversation, onConversationUpdate, toast]);
 
   // Memoizar handlers para evitar re-renders desnecessários
   const handleEdit = useCallback(() => {
@@ -204,13 +239,24 @@ const ChatWindow = ({
         </Button>
         
         <Avatar className="h-10 w-10 ring-2 ring-primary/10 cursor-pointer" onClick={onToggleInfo}>
-          <AvatarImage src={contact.avatar_url} className="object-cover"/>
+          <AvatarImage src={contact.profile_pic_url} className="object-cover"/>
           <AvatarFallback className="bg-primary/5 text-primary font-medium">{displayName?.[0]}</AvatarFallback>
         </Avatar>
         
         <div className="flex-1 min-w-0 cursor-pointer" onClick={onToggleInfo}>
           <div className="flex items-center gap-2">
              <h3 className="font-semibold text-base truncate text-foreground">{displayName}</h3>
+             <Select value={conversation.lead_status || 'novo'} onValueChange={handleStatusChange}>
+               <SelectTrigger className="w-auto h-6 text-xs border-none bg-transparent hover:bg-muted/50 px-2">
+                 <SelectValue />
+               </SelectTrigger>
+               <SelectContent>
+                 <SelectItem value="novo">Novo</SelectItem>
+                 <SelectItem value="atendendo">Em Atendimento</SelectItem>
+                 <SelectItem value="agendado">Agendado</SelectItem>
+                 <SelectItem value="finalizado">Finalizado</SelectItem>
+               </SelectContent>
+             </Select>
              <Badge variant="secondary" className="h-5 w-5 p-0 flex items-center justify-center bg-green-50 text-green-700 hover:bg-green-100 border-green-200 shadow-none rounded-full">
                 <WhatsAppIcon />
              </Badge>

@@ -15,11 +15,13 @@ export function useConversations() {
       // Otimização: Limitar a 100 conversas mais recentes e selecionar apenas campos necessários
       const { data, error } = await supabase
         .from('conversations')
-        .select(`id, clinic_id, contact_id, status, last_message_at, unread_count, created_at, updated_at, contact:contacts(id, name, phone, avatar_url, channel_type)`)
+        .select(`id, clinic_id, contact_id, status, lead_status, last_message_at, last_message_preview, unread_count, created_at, updated_at, contact:contacts(id, name, phone, avatar_url, profile_pic_url, channel_type)`)
         .order('last_message_at', { ascending: false, nullsFirst: false })
         .limit(100); // Limitar para melhor performance
 
       if (error) throw error;
+
+      console.log('Dados recebidos:', data);
       
       // Remover duplicatas baseado em (clinic_id + contact_id)
       const uniqueConversations = [];
@@ -91,7 +93,7 @@ export function useConversations() {
           try {
             const { data: updatedConv } = await supabase
               .from('conversations')
-              .select(`id, clinic_id, contact_id, status, last_message_at, unread_count, created_at, updated_at, contact:contacts(id, name, phone, avatar_url, channel_type)`)
+              .select(`id, clinic_id, contact_id, status, lead_status, last_message_at, last_message_preview, unread_count, created_at, updated_at, contact:contacts(id, name, phone, avatar_url, profile_pic_url, channel_type)`)
               .eq('id', payload.new.id)
               .single();
 
@@ -173,7 +175,7 @@ export function useConversations() {
         if (payload.new.conversation_id) {
           const { data: updatedConv } = await supabase
             .from('conversations')
-            .select(`id, clinic_id, contact_id, status, last_message_at, unread_count, created_at, updated_at, contact:contacts(id, name, phone, avatar_url, channel_type)`)
+            .select(`id, clinic_id, contact_id, status, lead_status, last_message_at, last_message_preview, unread_count, created_at, updated_at, contact:contacts(id, name, phone, avatar_url, profile_pic_url, channel_type)`)
             .eq('id', payload.new.conversation_id)
             .single();
 
@@ -235,7 +237,7 @@ export function useConversations() {
         // Quando um novo contato é criado, buscar se há conversa associada (otimizado)
         const { data: conversation } = await supabase
           .from('conversations')
-          .select(`id, clinic_id, contact_id, status, last_message_at, unread_count, created_at, updated_at, contact:contacts(id, name, phone, avatar_url, channel_type)`)
+          .select(`id, clinic_id, contact_id, status, lead_status, last_message_at, last_message_preview, unread_count, created_at, updated_at, contact:contacts(id, name, phone, avatar_url, profile_pic_url, channel_type)`)
           .eq('contact_id', payload.new.id)
           .maybeSingle();
 
