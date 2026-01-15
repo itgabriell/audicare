@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Bell, X } from 'lucide-react';
+import { Bell, X, Settings, CheckCheck, Trash2 } from 'lucide-react';
 import {
   Popover,
   PopoverContent,
@@ -8,11 +8,15 @@ import {
 import { Button } from '@/components/ui/button';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Badge } from '@/components/ui/badge';
+import { Separator } from '@/components/ui/separator';
 import {
   getNotificationsForUser,
+  getUnreadNotificationCount,
   markNotificationAsRead,
   markAllNotificationsAsRead,
-  deleteNotification
+  deleteNotification,
+  getNotificationSettings,
+  updateNotificationSettings
 } from '@/database';
 import { useAuth } from '@/contexts/SupabaseAuthContext';
 import { supabase } from '@/lib/customSupabaseClient';
@@ -26,29 +30,44 @@ const NotificationBell = ({ userId }) => {
   const [notifications, setNotifications] = useState([]);
   const [unreadCount, setUnreadCount] = useState(0);
   const [isOpen, setIsOpen] = useState(false);
+  const [loading, setLoading] = useState(false);
   const navigate = useNavigate();
 
   const fetchNotifications = async () => {
     if (!actualUserId) return;
     try {
-      const data = await getNotificationsForUser(actualUserId);
+      setLoading(true);
+      const data = await getNotificationsForUser(actualUserId, 10); // Limitar a 10 notificações no sino
       if (data) {
         setNotifications(data);
-        setUnreadCount(data.filter(n => !n.is_read).length);
       }
     } catch (error) {
       console.error('Error fetching notifications:', error);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const fetchUnreadCount = async () => {
+    if (!actualUserId) return;
+    try {
+      const count = await getUnreadNotificationCount(actualUserId);
+      setUnreadCount(count);
+    } catch (error) {
+      console.error('Error fetching unread count:', error);
     }
   };
 
   useEffect(() => {
+    // Buscar dados iniciais
     fetchNotifications();
-    
+    fetchUnreadCount();
+
     if (!actualUserId) return;
 
     // Realtime subscription for new notifications
     const channel = supabase
-      .channel('public:notifications')
+      .channel('notification-bell')
       .on(
         'postgres_changes',
         {
@@ -57,8 +76,14 @@ const NotificationBell = ({ userId }) => {
           table: 'notifications',
           filter: `user_id=eq.${actualUserId}`,
         },
-        () => {
-          fetchNotifications();
+        (payload) => {
+          // Atualizar apenas contador para performance (notificações serão carregadas ao abrir)
+          fetchUnreadCount();
+
+          // Se popover estiver aberto, recarregar notificações
+          if (isOpen) {
+            fetchNotifications();
+          }
         }
       )
       .subscribe();
@@ -66,7 +91,7 @@ const NotificationBell = ({ userId }) => {
     return () => {
       supabase.removeChannel(channel);
     };
-  }, [actualUserId]);
+  }, [actualUserId, isOpen]);
 
   const handleMarkAsRead = async (id) => {
     try {

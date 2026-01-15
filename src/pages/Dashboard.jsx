@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { Helmet } from 'react-helmet';
 import { motion, AnimatePresence } from 'framer-motion';
+import { FeatureFlag, FEATURES } from '@/lib/featureFlags';
 import {
   Users,
   Calendar,
@@ -31,6 +32,8 @@ import {
   getRepairs,
   getTasks,
 } from '@/database';
+import { usePatients } from '@/hooks/usePatients';
+import { useMemo } from 'react';
 import {
   BarChart,
   Bar,
@@ -115,7 +118,7 @@ const Dashboard = () => {
 
       const [patientsResult, appointments, repairs, tasks] =
         await Promise.all([
-          getPatients(1, 1000), // Buscar muitos pacientes para calcular métricas
+          getPatients(1, 500), // Reduzido para 500 pacientes para melhor performance
           getAppointments(),
           getRepairs(),
           getTasks(),
@@ -388,15 +391,29 @@ const Dashboard = () => {
               {showAnalytics ? 'Analytics inteligente com IA' : 'Visão geral da clínica e métricas essenciais'}
             </p>
           </div>
-          <Button
-            variant={showAnalytics ? 'default' : 'outline'}
-            onClick={() => setShowAnalytics(!showAnalytics)}
-            className="flex items-center gap-2"
+          <FeatureFlag
+            feature={FEATURES.DASHBOARD_ANALYTICS}
+            fallback={
+              <Button
+                variant="outline"
+                disabled
+                className="flex items-center gap-2 opacity-50"
+              >
+                <Brain className="h-4 w-4" />
+                Analytics IA (Em Breve)
+              </Button>
+            }
           >
-            <Brain className="h-4 w-4" />
-            {showAnalytics ? 'Visão Padrão' : 'Analytics IA'}
-            <Sparkles className="h-3 w-3" />
-          </Button>
+            <Button
+              variant={showAnalytics ? 'default' : 'outline'}
+              onClick={() => setShowAnalytics(!showAnalytics)}
+              className="flex items-center gap-2"
+            >
+              <Brain className="h-4 w-4" />
+              {showAnalytics ? 'Visão Padrão' : 'Analytics IA'}
+              <Sparkles className="h-3 w-3" />
+            </Button>
+          </FeatureFlag>
         </div>
 
         {/* Cards Principais com Links de Navegação */}

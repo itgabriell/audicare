@@ -591,21 +591,234 @@ export const updateLead = async (id, u) => {
     const { data, error } = await supabase.from('leads').update(u).eq('id', id).eq('clinic_id', cid).select().single();
     if(error) throw error; return data;
 };
-export const getNotificationsForUser = async (uid) => {
-    const { data, error } = await supabase.from('notifications').select('*').eq('user_id', uid).order('created_at', {ascending: false});
-    if(error) throw error; return data;
+// ======================================================================
+// Notifications System
+// ======================================================================
+
+export const getNotificationsForUser = async (uid, limit = 50, offset = 0) => {
+    const { data, error } = await supabase
+        .from('notifications')
+        .select('*')
+        .eq('user_id', uid)
+        .order('created_at', { ascending: false })
+        .range(offset, offset + limit - 1);
+
+    if (error) {
+        console.error('Error fetching notifications:', error);
+        throw error;
+    }
+    return data || [];
 };
+
+export const getUnreadNotificationCount = async (uid) => {
+    const { count, error } = await supabase
+        .from('notifications')
+        .select('*', { count: 'exact', head: true })
+        .eq('user_id', uid)
+        .eq('is_read', false);
+
+    if (error) {
+        console.error('Error counting unread notifications:', error);
+        return 0;
+    }
+    return count || 0;
+};
+
 export const markNotificationAsRead = async (id) => {
-    const { data, error } = await supabase.from('notifications').update({is_read: true}).eq('id', id).select().single();
-    if(error) throw error; return data;
+    const { data, error } = await supabase
+        .from('notifications')
+        .update({
+            is_read: true,
+            updated_at: new Date().toISOString()
+        })
+        .eq('id', id)
+        .select()
+        .single();
+
+    if (error) {
+        console.error('Error marking notification as read:', error);
+        throw error;
+    }
+    return data;
 };
+
 export const markAllNotificationsAsRead = async (uid) => {
-    const { error } = await supabase.from('notifications').update({is_read: true}).eq('user_id', uid).eq('is_read', false);
-    if(error) throw error; return true;
+    const { error } = await supabase
+        .from('notifications')
+        .update({
+            is_read: true,
+            updated_at: new Date().toISOString()
+        })
+        .eq('user_id', uid)
+        .eq('is_read', false);
+
+    if (error) {
+        console.error('Error marking all notifications as read:', error);
+        throw error;
+    }
+    return true;
 };
+
 export const deleteNotification = async (id) => {
-    const { error } = await supabase.from('notifications').delete().eq('id', id);
-    if(error) throw error; return true;
+    const { error } = await supabase
+        .from('notifications')
+        .delete()
+        .eq('id', id);
+
+    if (error) {
+        console.error('Error deleting notification:', error);
+        throw error;
+    }
+    return true;
+};
+
+export const createNotification = async (notificationData) => {
+    // Validar tipos permitidos
+    const allowedTypes = ['manual', 'appointment', 'message', 'task', 'system', 'patient'];
+    if (!allowedTypes.includes(notificationData.type)) {
+        throw new Error(`Tipo de notificação inválido: ${notificationData.type}`);
+    }
+
+    const clinicId = await getClinicId();
+    const userId = await getUserId();
+
+    // Usar função SQL otimizada se disponível, senão fallback para insert direto
+    try {
+        const { data, error } = await supabase.rpc('create_notification', {
+            p_user_id: notificationData.user_id || userId,
+            p_clinic_id: clinicId,
+            p_type: notificationData.type,
+            p_title: notificationData.title,
+            p_message: notificationData.message,
+            p_related_entity_type: notificationData.related_entity_type || null,
+            p_related_entity_id: notificationData.related_entity_id || null,
+            p_metadata: notificationData.metadata || {}
+        });
+
+        if (error) throw error;
+        return data ? { id: data } : null; // Função SQL retorna UUID ou NULL
+    } catch (rpcError) {
+        // Fallback para insert direto se função SQL não estiver disponível
+        console.warn('RPC function not available, using direct insert:', rpcError);
+
+        const { data, error } = await supabase
+            .from('notifications')
+            .insert([{
+                ...notificationData,
+                clinic_id: clinicId,
+                user_id: notificationData.user_id || userId,
+                created_at: new Date().toISOString(),
+                updated_at: new Date().toISOString()
+            }])
+            .select()
+            .single();
+
+        if (error) {
+            console.error('Error creating notification:', error);
+            throw error;
+        }
+        return data;
+    }
+};
+
+export const createManualNotification = async (title, message, targetUserId) => {
+    const clinicId = await getClinicId();
+
+    const { data, error } = await supabase
+        .from('notifications')
+        .insert([{
+            user_id: targetUserId,
+            clinic_id: clinicId,
+            type: 'manual',
+            title,
+            message,
+            is_read: false,
+            created_at: new Date().toISOString(),
+            updated_at: new Date().toISOString()
+        }])
+        .select()
+        .single();
+
+    if (error) {
+        console.error('Error creating manual notification:', error);
+        throw error;
+    }
+    return data;
+};
+
+// Configurações de notificações por usuário
+export const getNotificationSettings = async (uid) => {
+    const { data, error } = await supabase
+        .from('notification_settings')
+        .select('*')
+        .eq('user_id', uid);
+
+    if (error) {
+        console.error('Error fetching notification settings:', error);
+        // Retornar configurações padrão se não conseguir buscar
+        return {
+            appointment: true,
+            message: true,
+            task: true,
+            system: true,
+            patient: true
+        };
+    }
+
+    // Converter array em objeto
+    const settings = {};
+    data.forEach(setting => {
+        settings[setting.notification_type] = setting.enabled;
+    });
+
+    return settings;
+};
+
+export const updateNotificationSettings = async (uid, settings) => {
+    const clinicId = await getClinicId();
+
+    // Converter objeto em array para upsert
+    const settingsArray = Object.entries(settings).map(([type, enabled]) => ({
+        user_id: uid,
+        notification_type: type,
+        enabled,
+        updated_at: new Date().toISOString()
+    }));
+
+    const { error } = await supabase
+        .from('notification_settings')
+        .upsert(settingsArray, {
+            onConflict: 'user_id,notification_type'
+        });
+
+    if (error) {
+        console.error('Error updating notification settings:', error);
+        throw error;
+    }
+    return true;
+};
+
+// Função para enviar notificações em lote (útil para admins)
+export const createBulkNotifications = async (notifications) => {
+    const clinicId = await getClinicId();
+
+    const notificationsWithClinic = notifications.map(notification => ({
+        ...notification,
+        clinic_id: clinicId,
+        created_at: new Date().toISOString(),
+        updated_at: new Date().toISOString()
+    }));
+
+    const { data, error } = await supabase
+        .from('notifications')
+        .insert(notificationsWithClinic)
+        .select();
+
+    if (error) {
+        console.error('Error creating bulk notifications:', error);
+        throw error;
+    }
+    return data;
 };
 export const getContactByPatientId = async (pid) => {
     const { data, error } = await supabase.from('contact_relationships').select('contact_id').eq('related_entity_id', pid).eq('related_entity_type', 'patient').maybeSingle();

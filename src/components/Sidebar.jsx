@@ -15,7 +15,8 @@ import {
   Bell,
   Share2,
   UploadCloud,
-  BarChart3
+  BarChart3,
+  Receipt
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import {
@@ -36,6 +37,7 @@ const mainNavItems = [
   { href: '/crm', icon: BarChart3, label: 'CRM' },
   { href: '/tasks', icon: Briefcase, label: 'Tarefas' },
   { href: '/repairs', icon: Wrench, label: 'Reparos' },
+  { href: '/invoices', icon: Receipt, label: 'Notas Fiscais' },
 ];
 
 const secondaryNavItems = [

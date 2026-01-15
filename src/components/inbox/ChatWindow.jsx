@@ -3,6 +3,7 @@ import { MessageSquare, ArrowLeft, Search, MoreVertical, Paperclip, Mic, Send, S
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Button } from '@/components/ui/button';
 import { ScrollArea } from '@/components/ui/scroll-area';
+import { InfiniteList } from '@/components/ui/VirtualizedList';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Badge } from '@/components/ui/badge';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
@@ -298,11 +299,37 @@ const ChatWindow = ({
       </AnimatePresence>
       
       <div className="flex-1 relative overflow-hidden w-full">
-         <ScrollArea className="h-full w-full" ref={scrollAreaRef}>
-             <AnimatePresence mode="wait">
-                 {renderContent}
-             </AnimatePresence>
-         </ScrollArea>
+        {loadingMessages ? (
+          <div className="h-full w-full">
+            <MessageSkeleton />
+          </div>
+        ) : safeMessages.length === 0 ? (
+          <div className="flex h-full items-center justify-center p-8">
+            <div className="bg-background/80 backdrop-blur border px-6 py-3 rounded-full shadow-sm text-xs text-muted-foreground text-center">
+              🔒 Início da conversa com <strong>{displayName}</strong>
+            </div>
+          </div>
+        ) : (
+          <InfiniteList
+            items={safeMessages}
+            renderItem={(msg, index) => (
+              <ChatMessage
+                key={msg.id}
+                message={{ ...msg, _index: index }}
+                highlight={highlightedMessages.has(index)}
+                onEdit={handleEdit}
+                onDelete={(msg, deleteForEveryone) => handleDelete(deleteForEveryone)}
+                onForward={handleForward}
+              />
+            )}
+            hasNextPage={false} // TODO: implementar paginação histórica
+            isFetchingNextPage={false}
+            fetchNextPage={() => {}} // TODO: implementar carregamento histórico
+            itemHeight={80} // Altura estimada de mensagens
+            containerHeight="100%"
+            className="p-4 md:p-8 pb-4"
+          />
+        )}
       </div>
       
       {/* FOOTER - NOVO LAYOUT */}

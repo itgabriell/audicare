@@ -14,6 +14,7 @@ import PatientHistory from '@/components/patients/PatientHistory';
 import PatientDocuments from '@/components/patients/PatientDocuments';
 import PatientAppointments from '@/components/patients/PatientAppointments';
 import PatientDialog from '@/components/patients/PatientDialog';
+import InvoiceList from '@/components/patients/InvoiceList';
 import Breadcrumbs from '@/components/ui/breadcrumbs';
 
 const PatientDetails = () => {
@@ -154,6 +155,7 @@ const PatientDetails = () => {
           <TabsTrigger value="history" className="rounded-none border-b-2 border-transparent data-[state=active]:border-primary data-[state=active]:bg-transparent px-4 py-3">Histórico Médico</TabsTrigger>
           <TabsTrigger value="documents" className="rounded-none border-b-2 border-transparent data-[state=active]:border-primary data-[state=active]:bg-transparent px-4 py-3">Documentos</TabsTrigger>
            <TabsTrigger value="appointments" className="rounded-none border-b-2 border-transparent data-[state=active]:border-primary data-[state=active]:bg-transparent px-4 py-3">Agendamentos</TabsTrigger>
+           <TabsTrigger value="invoices" className="rounded-none border-b-2 border-transparent data-[state=active]:border-primary data-[state=active]:bg-transparent px-4 py-3">Notas Fiscais</TabsTrigger>
         </TabsList>
         
         <div className="mt-6">
@@ -161,6 +163,7 @@ const PatientDetails = () => {
           <TabsContent value="history"><PatientHistory patient={patient} /></TabsContent>
           <TabsContent value="documents"><PatientDocuments patientId={id} /></TabsContent>
           <TabsContent value="appointments"><PatientAppointments patientId={id} /></TabsContent>
+          <TabsContent value="invoices"><InvoiceList patientId={id} /></TabsContent>
         </div>
       </Tabs>
 

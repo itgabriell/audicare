@@ -1,118 +1,319 @@
-import { useEffect, useRef, useState } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { supabase } from '@/lib/customSupabaseClient';
-import { useAuth } from '@/contexts/SupabaseAuthContext';
 
-/**
- * Hook para gerenciar indicador de digitação em conversas
- * Envia e recebe eventos de digitação via Supabase Realtime
- */
+// Hook para gerenciar indicadores de digitação avançados
 export function useTypingIndicator(conversationId, contactId) {
-  const { user } = useAuth();
   const [isContactTyping, setIsContactTyping] = useState(false);
-  const [isUserTyping, setIsUserTyping] = useState(false);
-  const typingTimeoutRef = useRef(null);
+  const [typingUsers, setTypingUsers] = useState(new Map());
   const channelRef = useRef(null);
-  const lastTypingTimeRef = useRef(0);
+  const typingTimeoutRef = useRef(null);
 
-  // Limpar timeout de digitação
-  const clearTypingTimeout = () => {
+  // Iniciar digitação (enviar para outros participantes)
+  const startTyping = useCallback(() => {
+    if (!conversationId) return;
+
+    // Enviar evento de digitação via Supabase realtime
+    supabase.channel(`typing_${conversationId}`)
+      .send({
+        type: 'broadcast',
+        event: 'typing_start',
+        payload: {
+          userId: 'current_user', // TODO: integrar com auth
+          timestamp: Date.now()
+        }
+      });
+
+    // Resetar timeout anterior
     if (typingTimeoutRef.current) {
       clearTimeout(typingTimeoutRef.current);
-      typingTimeoutRef.current = null;
     }
-  };
 
-  // Parar de indicar digitação após 3 segundos sem digitar
-  const stopTyping = () => {
-    setIsUserTyping(false);
-    if (channelRef.current && conversationId) {
-      channelRef.current.send({
+    // Auto-parar digitação após 3 segundos de inatividade
+    typingTimeoutRef.current = setTimeout(() => {
+      supabase.channel(`typing_${conversationId}`)
+        .send({
+          type: 'broadcast',
+          event: 'typing_stop',
+          payload: {
+            userId: 'current_user',
+            timestamp: Date.now()
+          }
+        });
+    }, 3000);
+  }, [conversationId]);
+
+  // Parar digitação manualmente
+  const stopTyping = useCallback(() => {
+    if (!conversationId) return;
+
+    if (typingTimeoutRef.current) {
+      clearTimeout(typingTimeoutRef.current);
+    }
+
+    supabase.channel(`typing_${conversationId}`)
+      .send({
         type: 'broadcast',
-        event: 'typing_stopped',
+        event: 'typing_stop',
         payload: {
-          conversation_id: conversationId,
-          user_id: user?.id,
-          contact_id: contactId
+          userId: 'current_user',
+          timestamp: Date.now()
         }
       });
-    }
-  };
+  }, [conversationId]);
 
-  // Indicar que está digitando
-  const startTyping = () => {
-    const now = Date.now();
-    // Throttle: só envia evento a cada 2 segundos
-    if (now - lastTypingTimeRef.current < 2000) {
+  // Setup do realtime channel para receber indicadores de digitação
+  useEffect(() => {
+    if (!conversationId) {
+      setIsContactTyping(false);
+      setTypingUsers(new Map());
       return;
     }
-    lastTypingTimeRef.current = now;
 
-    setIsUserTyping(true);
-    clearTypingTimeout();
-
-    // Enviar evento de digitação
-    if (channelRef.current && conversationId) {
-      channelRef.current.send({
-        type: 'broadcast',
-        event: 'typing_started',
-        payload: {
-          conversation_id: conversationId,
-          user_id: user?.id,
-          contact_id: contactId
-        }
-      });
+    // Limpar channel anterior
+    if (channelRef.current) {
+      supabase.removeChannel(channelRef.current);
     }
 
-    // Parar após 3 segundos sem digitar
-    typingTimeoutRef.current = setTimeout(stopTyping, 3000);
-  };
-
-  useEffect(() => {
-    if (!conversationId || !user?.id) return;
-
-    // Criar canal Realtime para eventos de digitação
     const channel = supabase
-      .channel(`typing:${conversationId}`, {
-        config: {
-          broadcast: { self: false } // Não receber próprios eventos
-        }
+      .channel(`typing_${conversationId}`)
+      .on('broadcast', { event: 'typing_start' }, (payload) => {
+        const { userId, timestamp } = payload.payload;
+
+        // Não mostrar indicador para o próprio usuário
+        if (userId === 'current_user') return;
+
+        setTypingUsers(prev => {
+          const updated = new Map(prev);
+          updated.set(userId, {
+            timestamp,
+            timeout: setTimeout(() => {
+              // Auto-remover após 5 segundos se não houver atualização
+              setTypingUsers(current => {
+                const newMap = new Map(current);
+                newMap.delete(userId);
+                return newMap;
+              });
+            }, 5000)
+          });
+          return updated;
+        });
       })
-      .on('broadcast', { event: 'typing_started' }, (payload) => {
-        // Ignorar se for o próprio usuário
-        if (payload.payload.user_id === user.id) return;
-        
-        setIsContactTyping(true);
-        
-        // Parar indicador após 3 segundos
-        setTimeout(() => {
-          setIsContactTyping(false);
-        }, 3000);
+      .on('broadcast', { event: 'typing_stop' }, (payload) => {
+        const { userId } = payload.payload;
+
+        setTypingUsers(prev => {
+          const updated = new Map(prev);
+          const userData = updated.get(userId);
+          if (userData?.timeout) {
+            clearTimeout(userData.timeout);
+          }
+          updated.delete(userId);
+          return updated;
+        });
       })
-      .on('broadcast', { event: 'typing_stopped' }, (payload) => {
-        if (payload.payload.user_id === user.id) return;
-        setIsContactTyping(false);
-      })
-      .subscribe((status) => {
-        if (status === 'SUBSCRIBED') {
-          console.log('[useTypingIndicator] Canal de digitação conectado');
-        }
-      });
+      .subscribe();
 
     channelRef.current = channel;
 
     return () => {
-      clearTypingTimeout();
       if (channelRef.current) {
         supabase.removeChannel(channelRef.current);
       }
+      if (typingTimeoutRef.current) {
+        clearTimeout(typingTimeoutRef.current);
+      }
     };
-  }, [conversationId, user?.id, contactId]);
+  }, [conversationId]);
+
+  // Atualizar estado de digitação baseado no contact atual
+  useEffect(() => {
+    if (!contactId) {
+      setIsContactTyping(false);
+      return;
+    }
+
+    // Verificar se o contato atual está digitando
+    const contactTyping = Array.from(typingUsers.keys()).some(userId =>
+      userId === contactId || userId.includes(contactId)
+    );
+
+    setIsContactTyping(contactTyping);
+  }, [contactId, typingUsers]);
+
+  // Cleanup ao desmontar
+  useEffect(() => {
+    return () => {
+      if (typingTimeoutRef.current) {
+        clearTimeout(typingTimeoutRef.current);
+      }
+      typingUsers.forEach(userData => {
+        if (userData.timeout) {
+          clearTimeout(userData.timeout);
+        }
+      });
+    };
+  }, []);
 
   return {
     isContactTyping,
-    isUserTyping,
+    typingUsers: Array.from(typingUsers.keys()),
     startTyping,
-    stopTyping
+    stopTyping,
+    typingCount: typingUsers.size
   };
 }
 
+// Hook para múltiplos indicadores de digitação (para listas de conversas)
+export function useMultiTypingIndicator(conversations) {
+  const [conversationsTyping, setConversationsTyping] = useState(new Map());
+
+  useEffect(() => {
+    if (!conversations || conversations.length === 0) return;
+
+    const channels = new Map();
+
+    // Setup de channels para cada conversa
+    conversations.forEach(conversation => {
+      if (!conversation?.id) return;
+
+      const channel = supabase
+        .channel(`typing_${conversation.id}`)
+        .on('broadcast', { event: 'typing_start' }, (payload) => {
+          const { userId } = payload.payload;
+          if (userId === 'current_user') return;
+
+          setConversationsTyping(prev => {
+            const updated = new Map(prev);
+            const typingUsers = updated.get(conversation.id) || new Set();
+            typingUsers.add(userId);
+            updated.set(conversation.id, typingUsers);
+            return updated;
+          });
+        })
+        .on('broadcast', { event: 'typing_stop' }, (payload) => {
+          const { userId } = payload.payload;
+
+          setConversationsTyping(prev => {
+            const updated = new Map(prev);
+            const typingUsers = updated.get(conversation.id) || new Set();
+            typingUsers.delete(userId);
+
+            if (typingUsers.size === 0) {
+              updated.delete(conversation.id);
+            } else {
+              updated.set(conversation.id, typingUsers);
+            }
+
+            return updated;
+          });
+        })
+        .subscribe();
+
+      channels.set(conversation.id, channel);
+    });
+
+    return () => {
+      // Cleanup de todos os channels
+      channels.forEach(channel => {
+        supabase.removeChannel(channel);
+      });
+    };
+  }, [conversations]);
+
+  // Verificar se uma conversa específica tem alguém digitando
+  const isConversationTyping = useCallback((conversationId) => {
+    const typingUsers = conversationsTyping.get(conversationId);
+    return typingUsers && typingUsers.size > 0;
+  }, [conversationsTyping]);
+
+  // Obter lista de usuários digitando em uma conversa
+  const getTypingUsers = useCallback((conversationId) => {
+    return Array.from(conversationsTyping.get(conversationId) || []);
+  }, [conversationsTyping]);
+
+  return {
+    conversationsTyping,
+    isConversationTyping,
+    getTypingUsers
+  };
+}
+
+// Hook para gerenciar presença (online/offline)
+export function usePresence(conversationId) {
+  const [onlineUsers, setOnlineUsers] = useState(new Set());
+  const [presenceChannel, setPresenceChannel] = useState(null);
+
+  useEffect(() => {
+    if (!conversationId) {
+      setOnlineUsers(new Set());
+      return;
+    }
+
+    const channel = supabase.channel(`presence_${conversationId}`, {
+      config: {
+        presence: {
+          key: 'current_user' // TODO: usar ID real do usuário
+        }
+      }
+    });
+
+    channel
+      .on('presence', { event: 'sync' }, () => {
+        const presenceState = channel.presenceState();
+        const online = new Set();
+
+        Object.values(presenceState).forEach((presences) => {
+          presences.forEach((presence) => {
+            online.add(presence.user_id);
+          });
+        });
+
+        setOnlineUsers(online);
+      })
+      .on('presence', { event: 'join' }, ({ key, newPresences }) => {
+        newPresences.forEach((presence) => {
+          setOnlineUsers(prev => new Set(prev).add(presence.user_id));
+        });
+      })
+      .on('presence', { event: 'leave' }, ({ key, leftPresences }) => {
+        leftPresences.forEach((presence) => {
+          setOnlineUsers(prev => {
+            const updated = new Set(prev);
+            updated.delete(presence.user_id);
+            return updated;
+          });
+        });
+      })
+      .subscribe(async (status) => {
+        if (status === 'SUBSCRIBED') {
+          await channel.track({
+            user_id: 'current_user', // TODO: usar ID real
+            online_at: new Date().toISOString()
+          });
+        }
+      });
+
+    setPresenceChannel(channel);
+
+    return () => {
+      if (channel) {
+        supabase.removeChannel(channel);
+      }
+    };
+  }, [conversationId]);
+
+  const isUserOnline = useCallback((userId) => {
+    return onlineUsers.has(userId);
+  }, [onlineUsers]);
+
+  const getOnlineCount = useCallback(() => {
+    return onlineUsers.size;
+  }, [onlineUsers]);
+
+  return {
+    onlineUsers: Array.from(onlineUsers),
+    isUserOnline,
+    getOnlineCount,
+    presenceChannel
+  };
+}

@@ -1,8 +1,8 @@
-import React, { useState, memo } from 'react';
+import React, { useState, memo, useEffect } from 'react';
 import { cn } from '@/lib/utils';
 import { format } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
-import { Check, CheckCheck, FileText, Download } from 'lucide-react';
+import { Check, CheckCheck, FileText, Download, Clock, AlertCircle, Loader2 } from 'lucide-react';
 import MessageActionsMenu from './MessageActionsMenu';
 
 const ChatMessage = ({ message, highlight, onEdit, onDelete, onForward }) => {
@@ -18,11 +18,60 @@ const ChatMessage = ({ message, highlight, onEdit, onDelete, onForward }) => {
   const isAudio = message_type === 'audio' && media_url;
   const isDocument = message_type === 'document' && media_url;
 
+  // Status completo de mensagens com animações
+  const MESSAGE_STATUS = {
+    SENDING: 'sending',
+    SENT: 'sent',
+    DELIVERED: 'delivered',
+    READ: 'read',
+    FAILED: 'failed',
+    PENDING: 'pending'
+  };
+
   const renderStatusIcon = () => {
     if (!isUser) return null;
-    const isRead = status === 'read';
-    if (status === 'sent' || status === 'pending') return <Check className="w-3 h-3 opacity-60" />;
-    return <CheckCheck className={cn("w-3 h-3", isRead ? "text-blue-200" : "opacity-60")} />;
+
+    const messageStatus = status || MESSAGE_STATUS.SENT;
+
+    switch (messageStatus) {
+      case MESSAGE_STATUS.SENDING:
+        return <Loader2 className="w-3 h-3 animate-spin text-primary-foreground/50" />;
+
+      case MESSAGE_STATUS.PENDING:
+        return <Clock className="w-3 h-3 text-primary-foreground/50" />;
+
+      case MESSAGE_STATUS.FAILED:
+        return <AlertCircle className="w-3 h-3 text-red-400" />;
+
+      case MESSAGE_STATUS.SENT:
+        return <Check className="w-3 h-3 text-primary-foreground/70" />;
+
+      case MESSAGE_STATUS.DELIVERED:
+        return <CheckCheck className="w-3 h-3 text-primary-foreground/70" />;
+
+      case MESSAGE_STATUS.READ:
+        return <CheckCheck className="w-3 h-3 text-blue-400" />;
+
+      default:
+        return <Check className="w-3 h-3 text-primary-foreground/70" />;
+    }
+  };
+
+  // Status text para screen readers
+  const getStatusText = () => {
+    if (!isUser) return '';
+
+    const messageStatus = status || MESSAGE_STATUS.SENT;
+
+    switch (messageStatus) {
+      case MESSAGE_STATUS.SENDING: return 'Enviando...';
+      case MESSAGE_STATUS.PENDING: return 'Pendente';
+      case MESSAGE_STATUS.FAILED: return 'Falhou ao enviar';
+      case MESSAGE_STATUS.SENT: return 'Enviada';
+      case MESSAGE_STATUS.DELIVERED: return 'Entregue';
+      case MESSAGE_STATUS.READ: return 'Lida';
+      default: return '';
+    }
   };
 
     return (

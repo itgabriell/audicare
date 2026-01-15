@@ -1,0 +1,326 @@
+import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
+
+// Funções helper para emissão de notas fiscais
+
+async function emitNFSeFono(accessToken: string, paciente: any, servico: any) {
+  console.log('Emitindo NFS-e REAL para Fonoaudiologia');
+
+  const nfsePayload = {
+    ambiente: 'producao',
+    serie: '1',
+    numero: Math.floor(Math.random() * 1000000).toString(), // Número sequencial - implementar controle adequado
+    data_emissao: new Date().toISOString(),
+    prestador: {
+      cpf_cnpj: '45582340000106', // CNPJ real da Audicare
+      inscricao_municipal: '123456', // Ajustar conforme necessário
+      nome_fantasia: 'Audicare Clínica Auditiva',
+      razao_social: 'Audicare Clínica Auditiva Ltda',
+      endereco: {
+        logradouro: 'Rua Example',
+        numero: '123',
+        complemento: '',
+        bairro: 'Centro',
+        codigo_municipio: '3550308', // São Paulo
+        uf: 'SP',
+        cep: '01234567'
+      }
+    },
+    tomador: {
+      cpf_cnpj: paciente.patient_document.replace(/\D/g, ''), // Remove formatação
+      nome: paciente.patient_name,
+      email: paciente.patient_email,
+      endereco: {
+        logradouro: paciente.address?.street || '',
+        numero: paciente.address?.number || '',
+        complemento: paciente.address?.complement || '',
+        bairro: paciente.address?.neighborhood || '',
+        codigo_municipio: '3550308', // São Paulo - ajustar conforme endereço do paciente
+        uf: paciente.address?.state || 'SP',
+        cep: paciente.address?.zip_code?.replace(/\D/g, '') || ''
+      }
+    },
+    servicos: [{
+      item_lista_servico: '04.08',
+      discriminacao: 'Avaliação e Terapia Fonoaudiológica',
+      quantidade: 1,
+      valor_unitario: parseFloat(servico.amount),
+      valor_servicos: parseFloat(servico.amount)
+    }]
+  };
+
+  const response = await fetch('https://api.nuvemfiscal.com.br/nfse/emissoes', {
+    method: 'POST',
+    headers: {
+      'Authorization': `Bearer ${accessToken}`,
+      'Content-Type': 'application/json'
+    },
+    body: JSON.stringify(nfsePayload)
+  });
+
+  if (!response.ok) {
+    const errorData = await response.text();
+    throw new Error(`Erro na API Nuvem Fiscal: ${response.status} - ${errorData}`);
+  }
+
+  const result = await response.json();
+
+  return {
+    numero: result.numero,
+    status: result.status,
+    link: result.link,
+    tipo: 'nfs-e',
+    servico: '04.08 - Fonoaudiologia',
+    discriminacao: 'Avaliação e Terapia Fonoaudiológica'
+  };
+}
+
+async function emitNFSeMaintenance(accessToken: string, paciente: any, servico: any) {
+  console.log('Emitindo NFS-e REAL para Manutenção');
+
+  const nfsePayload = {
+    ambiente: 'producao',
+    serie: '1',
+    numero: Math.floor(Math.random() * 1000000).toString(), // Número sequencial - implementar controle adequado
+    data_emissao: new Date().toISOString(),
+    prestador: {
+      cpf_cnpj: '45582340000106', // CNPJ real da Audicare
+      inscricao_municipal: '123456', // Ajustar conforme necessário
+      nome_fantasia: 'Audicare Clínica Auditiva',
+      razao_social: 'Audicare Clínica Auditiva Ltda',
+      endereco: {
+        logradouro: 'Rua Example',
+        numero: '123',
+        complemento: '',
+        bairro: 'Centro',
+        codigo_municipio: '3550308', // São Paulo
+        uf: 'SP',
+        cep: '01234567'
+      }
+    },
+    tomador: {
+      cpf_cnpj: paciente.patient_document.replace(/\D/g, ''), // Remove formatação
+      nome: paciente.patient_name,
+      email: paciente.patient_email,
+      endereco: {
+        logradouro: paciente.address?.street || '',
+        numero: paciente.address?.number || '',
+        complemento: paciente.address?.complement || '',
+        bairro: paciente.address?.neighborhood || '',
+        codigo_municipio: '3550308', // São Paulo - ajustar conforme endereço do paciente
+        uf: paciente.address?.state || 'SP',
+        cep: paciente.address?.zip_code?.replace(/\D/g, '') || ''
+      }
+    },
+    servicos: [{
+      item_lista_servico: '14.01',
+      cnae: '3312-1/03',
+      discriminacao: 'Manutenção de Aparelho Auditivo',
+      quantidade: 1,
+      valor_unitario: parseFloat(servico.amount),
+      valor_servicos: parseFloat(servico.amount)
+    }]
+  };
+
+  const response = await fetch('https://api.nuvemfiscal.com.br/nfse/emissoes', {
+    method: 'POST',
+    headers: {
+      'Authorization': `Bearer ${accessToken}`,
+      'Content-Type': 'application/json'
+    },
+    body: JSON.stringify(nfsePayload)
+  });
+
+  if (!response.ok) {
+    const errorData = await response.text();
+    throw new Error(`Erro na API Nuvem Fiscal: ${response.status} - ${errorData}`);
+  }
+
+  const result = await response.json();
+
+  return {
+    numero: result.numero,
+    status: result.status,
+    link: result.link,
+    tipo: 'nfs-e',
+    servico: '14.01 - Manutenção de aparelhos',
+    cnae: '3312-1/03',
+    discriminacao: 'Manutenção de Aparelho Auditivo'
+  };
+}
+
+async function emitNFeSale(accessToken: string, paciente: any, servico: any) {
+  console.log('Emitindo NF-e REAL para Venda de Aparelho');
+
+  const quantidade = parseInt(servico.quantity || 1);
+  const valorUnitario = parseFloat(servico.amount) / quantidade;
+
+  const nfePayload = {
+    ambiente: 'producao',
+    natureza_operacao: 'Venda de Mercadoria',
+    serie: '1',
+    numero: Math.floor(Math.random() * 1000000).toString(), // Número sequencial - implementar controle adequado
+    data_emissao: new Date().toISOString(),
+    data_saida_entrada: new Date().toISOString(),
+    tipo_operacao: '1', // Saída
+    finalidade_emissao: '1', // Normal
+    consumidor_final: '1', // Consumidor final
+    presenca_comprador: '9', // Operação não presencial
+    destinatario: {
+      cpf_cnpj: paciente.patient_document.replace(/\D/g, ''), // Remove formatação
+      nome: paciente.patient_name,
+      email: paciente.patient_email,
+      endereco: {
+        logradouro: paciente.address?.street || '',
+        numero: paciente.address?.number || '',
+        complemento: paciente.address?.complement || '',
+        bairro: paciente.address?.neighborhood || '',
+        codigo_municipio: '3550308', // São Paulo - ajustar conforme endereço do paciente
+        uf: paciente.address?.state || 'SP',
+        cep: paciente.address?.zip_code?.replace(/\D/g, '') || ''
+      }
+    },
+    itens: [{
+      numero_item: 1,
+      codigo_ncm: '9021.40.00',
+      cfop: '5.102',
+      unidade_comercial: 'UN',
+      quantidade_comercial: quantidade,
+      valor_unitario_comercial: valorUnitario,
+      valor_total: parseFloat(servico.amount),
+      indicacao_cst_csosn: '102', // Simples Nacional CSOSN 102
+      codigo_cst_csosn: '102'
+    }],
+    totais: {
+      valor_produtos: parseFloat(servico.amount),
+      valor_total: parseFloat(servico.amount)
+    }
+  };
+
+  const response = await fetch('https://api.nuvemfiscal.com.br/nfe/emissoes', {
+    method: 'POST',
+    headers: {
+      'Authorization': `Bearer ${accessToken}`,
+      'Content-Type': 'application/json'
+    },
+    body: JSON.stringify(nfePayload)
+  });
+
+  if (!response.ok) {
+    const errorData = await response.text();
+    throw new Error(`Erro na API Nuvem Fiscal: ${response.status} - ${errorData}`);
+  }
+
+  const result = await response.json();
+
+  return {
+    numero: result.numero,
+    status: result.status,
+    link: result.link,
+    tipo: 'nf-e',
+    natureza_operacao: 'Venda de Mercadoria',
+    cfop: '5.102',
+    ncm: '9021.40.00',
+    csosn: '102',
+    discriminacao: `Aparelho Auditivo - ${servico.model || 'Modelo XYZ'}`
+  };
+}
+
+serve(async (req) => {
+  // CORS headers
+  if (req.method === 'OPTIONS') {
+    return new Response('ok', {
+      headers: {
+        'Access-Control-Allow-Origin': '*',
+        'Access-Control-Allow-Methods': 'POST',
+        'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
+      },
+    });
+  }
+
+  try {
+    // Receber dados do body
+    const { type, paciente, servico } = await req.json();
+
+    // Ler variáveis de ambiente
+    const clientId = Deno.env.get('NUVEM_CLIENT_ID');
+    const clientSecret = Deno.env.get('NUVEM_CLIENT_SECRET');
+    const scope = Deno.env.get('NUVEM_SCOPE');
+
+    if (!clientId || !clientSecret || !scope) {
+      return new Response(JSON.stringify({ error: 'Variáveis de ambiente não configuradas' }), {
+        status: 500,
+        headers: { 'Content-Type': 'application/json' },
+      });
+    }
+
+    // Passo A: Autenticação OAuth2
+    const authResponse = await fetch('https://auth.nuvemfiscal.com.br/oauth/token', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/x-www-form-urlencoded',
+      },
+      body: new URLSearchParams({
+        grant_type: 'client_credentials',
+        client_id: clientId,
+        client_secret: clientSecret,
+        scope: scope,
+      }),
+    });
+
+    if (!authResponse.ok) {
+      return new Response(JSON.stringify({ error: 'Falha na autenticação com Nuvem Fiscal' }), {
+        status: 401,
+        headers: { 'Content-Type': 'application/json' },
+      });
+    }
+
+    const authData = await authResponse.json();
+    const accessToken = authData.access_token;
+
+    console.log('Autenticação bem-sucedida, access_token obtido');
+
+    // Passo B: Emissão baseada no tipo
+    let invoiceResult;
+
+    switch (type) {
+      case 'fono':
+        // NFS-e para Fonoaudiologia
+        invoiceResult = await emitNFSeFono(accessToken, paciente, servico);
+        break;
+
+      case 'maintenance':
+        // NFS-e para Manutenção
+        invoiceResult = await emitNFSeMaintenance(accessToken, paciente, servico);
+        break;
+
+      case 'sale':
+        // NF-e para Venda de Aparelho
+        invoiceResult = await emitNFeSale(accessToken, paciente, servico);
+        break;
+
+      default:
+        throw new Error(`Tipo de nota fiscal não suportado: ${type}`);
+    }
+
+    // Retornar resultado
+    return new Response(JSON.stringify({
+      success: true,
+      paciente,
+      servico,
+      invoice: invoiceResult,
+    }), {
+      headers: {
+        'Content-Type': 'application/json',
+        'Access-Control-Allow-Origin': '*',
+        'Access-Control-Allow-Methods': 'POST',
+        'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
+      },
+    });
+
+  } catch (error) {
+    return new Response(JSON.stringify({ error: error.message }), {
+      status: 500,
+      headers: { 'Content-Type': 'application/json' },
+    });
+  }
+});

@@ -2,6 +2,7 @@ import React, { Suspense, lazy, useEffect } from 'react';
 import { Routes, Route, Navigate } from 'react-router-dom';
 import { useAuth } from '@/contexts/SupabaseAuthContext';
 import { useTheme } from '@/contexts/ThemeContext';
+import { QueryProvider } from '@/contexts/QueryProvider';
 import DashboardLayout from '@/layouts/DashboardLayout';
 import ErrorBoundary from '@/components/ErrorBoundary';
 import { cacheManager } from '@/utils/cacheManager';
@@ -32,6 +33,7 @@ const SocialMedia = lazy(() => import('@/pages/SocialMedia'));
 const Automations = lazy(() => import('@/pages/Automations'));
 const EmailCampaigns = lazy(() => import('@/pages/EmailCampaigns'));
 const NotificationsAdmin = lazy(() => import('@/pages/NotificationsAdmin'));
+const Invoices = lazy(() => import('@/pages/Invoices'));
 const Profile = lazy(() => import('@/pages/Profile'));
 
 // Settings Pages & Components
@@ -98,6 +100,7 @@ function App() {
             <Route path="social-media" element={<SocialMedia />} />
             <Route path="email-campaigns" element={<EmailCampaigns />} />
             <Route path="automations" element={<Automations />} />
+            <Route path="invoices" element={<Invoices />} />
             <Route path="notifications" element={<NotificationsAdmin />} />
             <Route path="users" element={<Users />} />
             <Route path="import" element={<ImportData />} />

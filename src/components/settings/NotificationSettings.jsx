@@ -5,54 +5,52 @@ import { Label } from '@/components/ui/label';
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from '@/components/ui/card';
 import { useToast } from '@/components/ui/use-toast';
 import { useAuth } from '@/contexts/SupabaseAuthContext';
-import { supabase } from '@/lib/customSupabaseClient';
-import { Loader2, Bell, Save } from 'lucide-react';
+import {
+  getNotificationSettings,
+  updateNotificationSettings
+} from '@/database';
+import { Loader2, Bell, Save, MessageSquare, Calendar, Users, CheckCheck, AlertCircle } from 'lucide-react';
 
 const NotificationSettings = () => {
-  const { user, profile } = useAuth();
+  const { user } = useAuth();
   const { toast } = useToast();
   const [loading, setLoading] = useState(false);
-  const [prefs, setPrefs] = useState({
-    email_appointments: true,
-    email_marketing: false,
-    browser_push: true,
-    whatsapp_alerts: true
+  const [settings, setSettings] = useState({
+    appointment: true,
+    message: true,
+    task: true,
+    system: true,
+    patient: true
   });
 
   useEffect(() => {
-    const loadPreferences = async () => {
-      if (!user) return;
+    const loadSettings = async () => {
+      if (!user?.id) return;
 
       try {
-        // Buscar preferências atualizadas do banco
-        const { data, error } = await supabase
-          .from('profiles')
-          .select('preferences')
-          .eq('id', user.id)
-          .single();
-
-        if (error && error.code !== 'PGRST116') {
-          console.error('Error loading preferences:', error);
-        } else if (data?.preferences) {
-          setPrefs(prev => ({ ...prev, ...data.preferences }));
-        } else if (profile?.preferences) {
-          // Fallback para dados do contexto
-      setPrefs(prev => ({ ...prev, ...profile.preferences }));
-    }
+        const data = await getNotificationSettings(user.id);
+        if (data) {
+          setSettings(data);
+        }
       } catch (error) {
-        console.error('Error in loadPreferences:', error);
+        console.error('Error loading notification settings:', error);
+        toast({
+          variant: 'destructive',
+          title: 'Erro ao carregar configurações',
+          description: 'Não foi possível carregar suas preferências de notificação.',
+        });
       }
     };
 
-    loadPreferences();
-  }, [user, profile]);
+    loadSettings();
+  }, [user?.id, toast]);
 
-  const handleToggle = (key) => {
-    setPrefs(prev => ({ ...prev, [key]: !prev[key] }));
+  const handleToggle = (type) => {
+    setSettings(prev => ({ ...prev, [type]: !prev[type] }));
   };
 
   const handleSave = async () => {
-    if (!user) {
+    if (!user?.id) {
       toast({
         variant: 'destructive',
         title: 'Erro',
@@ -60,93 +58,112 @@ const NotificationSettings = () => {
       });
       return;
     }
-    
+
     setLoading(true);
 
     try {
-      const { error } = await supabase
-        .from('profiles')
-        .update({ 
-          preferences: prefs,
-          updated_at: new Date().toISOString(),
-        })
-        .eq('id', user.id);
-
-      if (error) throw error;
+      await updateNotificationSettings(user.id, settings);
 
       toast({
-        title: 'Preferências salvas',
-        description: 'Suas configurações de notificação foram atualizadas com sucesso.',
+        title: 'Configurações salvas',
+        description: 'Suas preferências de notificação foram atualizadas com sucesso.',
         className: 'bg-green-100 border-green-500',
       });
     } catch (error) {
-      console.error('Error saving preferences:', error);
+      console.error('Error saving notification settings:', error);
       toast({
         variant: 'destructive',
         title: 'Erro ao salvar',
-        description: error.message || 'Não foi possível atualizar as preferências. Tente novamente.',
+        description: error.message || 'Não foi possível atualizar as configurações. Tente novamente.',
       });
     } finally {
       setLoading(false);
     }
   };
 
+  const notificationTypes = [
+    {
+      key: 'message',
+      icon: MessageSquare,
+      label: 'Novas Mensagens',
+      description: 'Notificar quando receber novas mensagens no chat',
+      color: 'text-blue-500'
+    },
+    {
+      key: 'appointment',
+      icon: Calendar,
+      label: 'Agendamentos',
+      description: 'Notificar sobre novos agendamentos e alterações',
+      color: 'text-green-500'
+    },
+    {
+      key: 'patient',
+      icon: Users,
+      label: 'Pacientes',
+      description: 'Notificar sobre novos pacientes e atualizações',
+      color: 'text-purple-500'
+    },
+    {
+      key: 'task',
+      icon: CheckCheck,
+      label: 'Tarefas',
+      description: 'Notificar sobre tarefas atribuídas e prazos',
+      color: 'text-orange-500'
+    },
+    {
+      key: 'system',
+      icon: AlertCircle,
+      label: 'Sistema',
+      description: 'Notificar sobre alertas do sistema e manutenções',
+      color: 'text-red-500'
+    }
+  ];
+
   return (
     <Card>
       <CardHeader>
         <CardTitle className="flex items-center gap-2">
           <Bell className="h-5 w-5" />
-          Preferências de Notificação
+          Configurações de Notificação
         </CardTitle>
-        <CardDescription>Escolha como e quando você deseja ser notificado.</CardDescription>
+        <CardDescription>
+          Configure quais tipos de notificações você deseja receber no sistema.
+        </CardDescription>
       </CardHeader>
       <CardContent>
         <div className="space-y-6">
           <div className="space-y-4">
-            <h3 className="text-sm font-medium text-muted-foreground uppercase tracking-wide">Email</h3>
-            <div className="flex items-center justify-between">
-              <div className="space-y-0.5">
-                <Label>Novos Agendamentos</Label>
-                <p className="text-sm text-muted-foreground">Receber email quando um paciente agendar online.</p>
+            <h3 className="text-sm font-medium text-muted-foreground uppercase tracking-wide">
+              Tipos de Notificação
+            </h3>
+
+            {notificationTypes.map(({ key, icon: Icon, label, description, color }) => (
+              <div key={key} className="flex items-center justify-between p-4 border rounded-lg">
+                <div className="flex items-center gap-3">
+                  <Icon className={`h-5 w-5 ${color}`} />
+                  <div className="space-y-0.5">
+                    <Label className="text-sm font-medium">{label}</Label>
+                    <p className="text-xs text-muted-foreground">{description}</p>
+                  </div>
+                </div>
+                <Switch
+                  checked={settings[key]}
+                  onCheckedChange={() => handleToggle(key)}
+                />
               </div>
-              <Switch 
-                checked={prefs.email_appointments}
-                onCheckedChange={() => handleToggle('email_appointments')}
-              />
-            </div>
-            <div className="flex items-center justify-between">
-              <div className="space-y-0.5">
-                <Label>Marketing e Novidades</Label>
-                <p className="text-sm text-muted-foreground">Receber dicas e novidades sobre a plataforma.</p>
-              </div>
-              <Switch 
-                checked={prefs.email_marketing}
-                onCheckedChange={() => handleToggle('email_marketing')}
-              />
-            </div>
+            ))}
           </div>
 
-          <div className="space-y-4">
-            <h3 className="text-sm font-medium text-muted-foreground uppercase tracking-wide">Sistema</h3>
-            <div className="flex items-center justify-between">
-              <div className="space-y-0.5">
-                <Label>Notificações no Navegador</Label>
-                <p className="text-sm text-muted-foreground">Alertas visuais enquanto utiliza o sistema.</p>
+          <div className="bg-muted/50 p-4 rounded-lg">
+            <div className="flex items-start gap-3">
+              <AlertCircle className="h-5 w-5 text-muted-foreground mt-0.5" />
+              <div className="space-y-1">
+                <p className="text-sm font-medium">Sobre as notificações</p>
+                <p className="text-xs text-muted-foreground">
+                  As notificações aparecem no sino do sistema e na central de notificações da inbox.
+                  Você pode desativar tipos específicos sem perder funcionalidades importantes.
+                </p>
               </div>
-              <Switch 
-                checked={prefs.browser_push}
-                onCheckedChange={() => handleToggle('browser_push')}
-              />
-            </div>
-            <div className="flex items-center justify-between">
-              <div className="space-y-0.5">
-                <Label>Alertas do WhatsApp</Label>
-                <p className="text-sm text-muted-foreground">Notificar sobre falhas de conexão ou desconexão.</p>
-              </div>
-              <Switch 
-                checked={prefs.whatsapp_alerts}
-                onCheckedChange={() => handleToggle('whatsapp_alerts')}
-              />
             </div>
           </div>
         </div>
@@ -155,7 +172,7 @@ const NotificationSettings = () => {
           <Button onClick={handleSave} disabled={loading}>
             {loading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
             {!loading && <Save className="mr-2 h-4 w-4" />}
-            Salvar Preferências
+            Salvar Configurações
           </Button>
         </div>
       </CardContent>

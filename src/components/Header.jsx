@@ -1,6 +1,7 @@
 import React from 'react';
 import { useNavigate } from 'react-router-dom';
 import { ThemeToggle } from '@/components/ThemeToggle';
+import { NotificationBell } from '@/components/notifications';
 import { useAuth } from '@/contexts/SupabaseAuthContext';
 import { Button } from '@/components/ui/button';
 import {
@@ -13,6 +14,7 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { User, LogOut, Settings, Search } from 'lucide-react';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
+import SocialLinks from '@/components/SocialLinks';
 
 const Header = ({ children, onCommandPaletteOpen }) => {
   const [title, ...rest] = React.Children.toArray(children);
@@ -52,9 +54,17 @@ const Header = ({ children, onCommandPaletteOpen }) => {
 
   return (
     <header className="sticky top-0 z-20 flex items-center justify-between px-6 py-4 border-b border-border/50 bg-card/95 backdrop-blur supports-[backdrop-filter]:bg-card/60 shadow-sm">
+      {/* Lado esquerdo - Título */}
       <div className="flex items-center gap-2">
         <h1 className="text-lg font-semibold text-foreground">{title}</h1>
       </div>
+
+      {/* Centro - Redes Sociais */}
+      <div className="flex-1 flex justify-center">
+        <SocialLinks />
+      </div>
+
+      {/* Lado direito - Controles */}
       <div className="flex items-center gap-3">
         {rest}
 
@@ -69,8 +79,11 @@ const Header = ({ children, onCommandPaletteOpen }) => {
           <Search className="h-4 w-4" />
         </Button>
 
+        {/* Notifications */}
+        {user && <NotificationBell />}
+
         <ThemeToggle />
-        
+
         {/* User Menu */}
         {user && (
           <DropdownMenu>

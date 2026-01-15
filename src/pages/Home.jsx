@@ -204,7 +204,7 @@ const Home = () => {
 
       const [patientsCount, appointmentsCount, tasksCount] = await Promise.all([
         fetchCount('patients'),
-        fetchCount('appointments', (q) => q.gte('appointment_date', new Date().toISOString())),
+        fetchCount('appointments', (q) => q.gte('start_time', new Date().toISOString())),
         fetchCount('tasks', (q) => q.eq('status', 'pending'))
       ]);
 

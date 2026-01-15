@@ -75,14 +75,29 @@ export const AuthProvider = ({ children }) => {
     const getSessionAndProfile = async () => {
       try {
         const { data: { session: currentSession }, error } = await supabase.auth.getSession();
-        if (error) throw error;
-        
-        if (mounted) {
+        if (error) {
+          // If there's an auth error (like invalid refresh token), clear storage and reset
+          if (error.message?.includes('Invalid Refresh Token') || error.message?.includes('refresh_token_not_found')) {
+            console.warn('Invalid refresh token detected, clearing auth storage');
+            Object.keys(localStorage).forEach(key => {
+              if (key.startsWith('sb-') && key.includes('-auth-token')) {
+                localStorage.removeItem(key);
+              }
+            });
+            // Try to get session again after clearing
+            const { data: { session: retrySession } } = await supabase.auth.getSession();
+            if (mounted) setSession(retrySession);
+          } else {
+            throw error;
+          }
+        } else {
+          if (mounted) {
             setSession(currentSession);
             if (currentSession) {
               const userProfile = await fetchUserProfile(currentSession);
               if (mounted) setUser(userProfile);
             }
+          }
         }
       } catch (error) {
         console.error('Error getting initial session:', error);

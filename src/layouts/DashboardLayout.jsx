@@ -8,6 +8,7 @@ import { Button } from "@/components/ui/button";
 import ConfigValidationBanner from '@/components/Debug/ConfigValidationBanner';
 import { CommandPalette } from '@/components/ui/command-palette';
 import { useCommandPalette } from '@/hooks/useCommandPalette';
+import { AIAssistant } from '@/components/AIAssistant';
 
 const DashboardLayout = () => {
   const [sidebarOpen, setSidebarOpen] = useState(false);
@@ -61,6 +62,9 @@ const DashboardLayout = () => {
         open={commandPaletteOpen}
         onOpenChange={setCommandPaletteOpen}
       />
+
+      {/* AI Assistant */}
+      <AIAssistant />
     </div>
   );
 };

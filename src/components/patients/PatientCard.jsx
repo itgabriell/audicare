@@ -37,6 +37,8 @@ const PatientCard = ({ patient, onEdit, onDelete }) => {
     onDelete(patient.id);
   }, [patient.id, onDelete]);
 
+
+
   return (
     <motion.div
       initial={{ opacity: 0, scale: 0.95 }}
@@ -104,29 +106,19 @@ const PatientCard = ({ patient, onEdit, onDelete }) => {
         </div>
       </div>
 
-      <div className="flex gap-2 pt-4 border-t">
-        <Button variant="outline" size="sm" className="flex-1" onClick={handleEdit}>
-          <Edit className="h-4 w-4 mr-1" /> Editar
-        </Button>
-        <Button variant="outline" size="sm" onClick={handleDelete}>
-          <Trash2 className="h-4 w-4" />
-        </Button>
+      <div className="space-y-2 pt-4 border-t">
+        <div className="flex gap-2">
+          <Button variant="outline" size="sm" className="flex-1" onClick={handleEdit}>
+            <Edit className="h-4 w-4 mr-1" /> Editar
+          </Button>
+          <Button variant="outline" size="sm" onClick={handleDelete}>
+            <Trash2 className="h-4 w-4" />
+          </Button>
+        </div>
+
       </div>
     </motion.div>
   );
 };
 
-export default memo(PatientCard, (prevProps, nextProps) => {
-  // Otimização: só re-renderiza se realmente mudou
-  const prevPhones = JSON.stringify(prevProps.patient?.phones || []);
-  const nextPhones = JSON.stringify(nextProps.patient?.phones || []);
-  
-  return (
-    prevProps.patient?.id === nextProps.patient?.id &&
-    prevProps.patient?.name === nextProps.patient?.name &&
-    prevProps.patient?.phone === nextProps.patient?.phone &&
-    prevPhones === nextPhones &&
-    prevProps.patient?.email === nextProps.patient?.email &&
-    prevProps.patient?.cpf === nextProps.patient?.cpf
-  );
-});
+export default memo(PatientCard);
