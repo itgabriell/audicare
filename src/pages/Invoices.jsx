@@ -49,7 +49,7 @@ const Invoices = () => {
             document
           )
         `)
-        .order('issue_date', { ascending: false });
+        .order('issued_at', { ascending: false });
 
       if (invoicesError) {
         console.warn('Erro ao buscar invoices:', invoicesError);
@@ -123,7 +123,7 @@ const Invoices = () => {
 
       if (filters.dateRange !== 'all') {
         filtered = filtered.filter(invoice =>
-          new Date(invoice.issue_date) >= filterDate
+          new Date(invoice.issued_at) >= filterDate
         );
       }
     }
@@ -407,7 +407,7 @@ const Invoices = () => {
                     <TableCell>
                       <div className="flex items-center gap-2">
                         <Calendar className="h-4 w-4 text-muted-foreground" />
-                        {formatDate(invoice.issue_date)}
+                        {formatDate(invoice.issued_at)}
                       </div>
                     </TableCell>
                     <TableCell>
@@ -522,7 +522,7 @@ const Invoices = () => {
                   <p className="text-sm text-muted-foreground">Este Mês</p>
                   <p className="text-2xl font-bold">
                     {filteredInvoices.filter(inv => {
-                      const invoiceDate = new Date(inv.issue_date);
+                      const invoiceDate = new Date(inv.issued_at);
                       const now = new Date();
                       return invoiceDate.getMonth() === now.getMonth() &&
                              invoiceDate.getFullYear() === now.getFullYear();
