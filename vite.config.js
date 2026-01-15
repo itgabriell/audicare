@@ -1,13 +1,13 @@
 import { defineConfig } from 'vite';
 import react from '@vitejs/plugin-react';
-import { VitePWA } from 'vite-plugin-pwa';
+// import { VitePWA } from 'vite-plugin-pwa';
 import path from 'path';
 
 // https://vitejs.dev/config/
 export default defineConfig({
   plugins: [
     react(),
-    VitePWA({
+    /*VitePWA({
       registerType: 'autoUpdate',
       includeAssets: ['favicon.ico', 'apple-touch-icon.png', 'masked-icon.svg'],
       manifest: {
@@ -40,11 +40,11 @@ export default defineConfig({
         ]
       },
       workbox: {
-        globPatterns: ['**/*.{js,css,html,ico,png,svg,woff2}'],
+        globPatterns: ['**//**.{js,css,html,ico,png,svg,woff2}'],
         runtimeCaching: [
           // API do Supabase - Network First
           {
-            urlPattern: /^https:\/\/.*\.supabase\.co\/.*/i,
+            urlPattern: /^https:\/\/.*\.supabase\.co\/.*//*i,
             handler: 'NetworkFirst',
             options: {
               cacheName: 'supabase-api-cache',
@@ -94,7 +94,7 @@ export default defineConfig({
       devOptions: {
         enabled: false // Desabilitar PWA em desenvolvimento
       }
-    })
+    }) */
   ],
   resolve: {
     alias: {
