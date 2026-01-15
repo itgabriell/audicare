@@ -42,7 +42,7 @@ const Invoices = () => {
         .from('invoices')
         .select(`
           *,
-          patients:patient_id (
+          patients (
             id,
             name,
             document
