@@ -1,98 +1,33 @@
 import { defineConfig } from 'vite';
 import react from '@vitejs/plugin-react';
-// import { VitePWA } from 'vite-plugin-pwa';
+import { VitePWA } from 'vite-plugin-pwa';
 import path from 'path';
 
 // https://vitejs.dev/config/
 export default defineConfig({
   plugins: [
     react(),
-    /VitePWA({
+    VitePWA({
       registerType: 'autoUpdate',
-      includeAssets: ['favicon.ico', 'apple-touch-icon.png', 'masked-icon.svg'],
-      manifest: {
-        name: 'Audicare - Sistema de Clínica',
-        short_name: 'Audicare',
-        description: 'Sistema completo de gestão para clínicas audiológicas',
-        theme_color: '#3b82f6',
-        background_color: '#ffffff',
-        display: 'standalone',
-        orientation: 'portrait-primary',
-        scope: '/',
-        start_url: '/',
-        icons: [
-          {
-            src: 'pwa-192x192.png',
-            sizes: '192x192',
-            type: 'image/png'
-          },
-          {
-            src: 'pwa-512x512.png',
-            sizes: '512x512',
-            type: 'image/png'
-          },
-          {
-            src: 'pwa-512x512.png',
-            sizes: '512x512',
-            type: 'image/png',
-            purpose: 'any maskable'
-          }
-        ]
-      },
+      injectRegister: 'auto',
       workbox: {
-        globPatterns: ['**/*.{js,css,html,ico,png,svg,woff2}'],
-        runtimeCaching: [
-          // API do Supabase - Network First
-          {
-            urlPattern: /^https:\/\/.*\.supabase\.co\/.*/i,
-            handler: 'NetworkFirst',
-            options: {
-              cacheName: 'supabase-api-cache',
-              expiration: {
-                maxEntries: 100,
-                maxAgeSeconds: 60 * 60 * 24 // 24 horas
-              },
-              cacheKeyWillBeUsed: async ({ request }) => {
-                // Personalizar chave de cache baseada no método e URL
-                const url = new URL(request.url);
-                return `${request.method}-${url.pathname}${url.search}`;
-              }
-            }
-          },
-          // Assets estáticos - Cache First
-          {
-            urlPattern: /^https:\/\/.*\.(?:png|jpg|jpeg|svg|gif|webp|ico)$/,
-            handler: 'CacheFirst',
-            options: {
-              cacheName: 'images-cache',
-              expiration: {
-                maxEntries: 200,
-                maxAgeSeconds: 60 * 60 * 24 * 30 // 30 dias
-              }
-            }
-          },
-          // Fontes - Cache First
-          {
-            urlPattern: /^https:\/\/.*\.(?:woff|woff2|ttf|eot)$/,
-            handler: 'CacheFirst',
-            options: {
-              cacheName: 'fonts-cache',
-              expiration: {
-                maxEntries: 10,
-                maxAgeSeconds: 60 * 60 * 24 * 365 // 1 ano
-              }
-            }
-          }
-        ],
-        // Estratégia de cache offline
-        navigateFallback: '/index.html',
-        navigateFallbackDenylist: [/^\/api\//],
-        cleanupOutdatedCaches: true,
-        skipWaiting: true,
-        clientsClaim: true
+        globPatterns: ['**/*.{js,css,html,ico,png,svg}']
       },
       devOptions: {
-        enabled: false // Desabilitar PWA em desenvolvimento
+        enabled: false
+      },
+      // O truque: um manifesto mínimo para não dar erro de validação
+      manifest: {
+        name: 'Audicare',
+        short_name: 'Audicare',
+        theme_color: '#ffffff',
+        icons: [
+            {
+                src: 'favicon.ico',
+                sizes: '64x64 32x32 24x24 16x16',
+                type: 'image/x-icon'
+            }
+        ]
       }
     })
   ],
