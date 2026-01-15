@@ -42,31 +42,6 @@ export default defineConfig({
     // Otimização de build para performance
     rollupOptions: {
       output: {
-        // Code splitting inteligente por rotas
-        manualChunks: {
-          // Vendor chunks
-          'react-vendor': ['react', 'react-dom', 'react-router-dom'],
-          'ui-vendor': ['@radix-ui/react-dialog', '@radix-ui/react-dropdown-menu', '@radix-ui/react-tooltip'],
-          'supabase-vendor': ['@supabase/supabase-js'],
-
-          // Feature chunks - carregamento lazy
-          'dashboard': ['./src/pages/Dashboard.jsx'],
-          'inbox': ['./src/pages/Inbox.jsx'],
-          'appointments': ['./src/pages/Appointments.jsx'],
-          'patients': ['./src/pages/Patients.jsx'],
-          'crm': ['./src/pages/CRM.jsx'],
-          'tasks': ['./src/pages/Tasks.jsx'],
-
-          // Utility chunks
-          'charts': ['recharts'],
-          'forms': ['react-hook-form', '@hookform/resolvers'],
-          'utils': ['date-fns', 'clsx', 'tailwind-merge'],
-
-          // Large libraries
-          'xlsx': ['xlsx'],
-          'jspdf': ['jspdf']
-        },
-
         // Nomes de arquivos otimizados
         chunkFileNames: 'assets/[name]-[hash].js',
         entryFileNames: 'assets/[name]-[hash].js',
