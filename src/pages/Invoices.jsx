@@ -42,9 +42,10 @@ const Invoices = () => {
         .from('invoices')
         .select(`
           *,
-          patients (
+          contacts (
             id,
             name,
+            phone,
             document
           )
         `)
@@ -75,8 +76,9 @@ const Invoices = () => {
     if (searchTerm) {
       filtered = filtered.filter(invoice =>
         invoice.numero?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        invoice.patients?.name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        invoice.patients?.document?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        invoice.contacts?.name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        invoice.contacts?.document?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        invoice.contacts?.phone?.toLowerCase().includes(searchTerm.toLowerCase()) ||
         invoice.description?.toLowerCase().includes(searchTerm.toLowerCase())
       );
     }
@@ -412,9 +414,9 @@ const Invoices = () => {
                       <div className="flex items-center gap-2">
                         <User className="h-4 w-4 text-muted-foreground" />
                         <div>
-                          <p className="font-medium">{invoice.patients?.name || 'N/A'}</p>
+                          <p className="font-medium">{invoice.contacts?.name || 'N/A'}</p>
                           <p className="text-sm text-muted-foreground">
-                            {invoice.patients?.document || ''}
+                            {invoice.contacts?.document || invoice.contacts?.phone || ''}
                           </p>
                         </div>
                       </div>
