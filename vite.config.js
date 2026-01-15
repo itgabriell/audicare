@@ -8,26 +8,25 @@ export default defineConfig({
   plugins: [
     react(),
     VitePWA({
-      registerType: 'autoUpdate',
-      injectRegister: 'auto',
+      registerType: 'prompt',
       workbox: {
-        globPatterns: ['**/*.{js,css,html,ico,png,svg}']
+        globPatterns: ['**/*.{js,css,html,ico,png,svg}'],
+        cleanupOutdatedCaches: true
       },
-      devOptions: {
-        enabled: false
-      },
-      // O truque: um manifesto mínimo para não dar erro de validação
       manifest: {
         name: 'Audicare',
         short_name: 'Audicare',
         theme_color: '#ffffff',
         icons: [
-            {
-                src: 'favicon.ico',
-                sizes: '64x64 32x32 24x24 16x16',
-                type: 'image/x-icon'
-            }
+          {
+            src: 'favicon.ico',
+            sizes: '64x64 32x32 24x24 16x16',
+            type: 'image/x-icon'
+          }
         ]
+      },
+      devOptions: {
+        enabled: false
       }
     })
   ],
