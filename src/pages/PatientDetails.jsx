@@ -7,7 +7,7 @@ import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Badge } from '@/components/ui/badge';
 import { useToast } from '@/components/ui/use-toast';
 import { ArrowLeft, Edit, Trash2, User, MessageCircle, Stethoscope } from 'lucide-react';
-import { getPatientById, deletePatient, updatePatient, getContactByPatientId } from '@/database';
+import { getPatientById, deletePatient, updatePatient, getContactByPatientId, getPatientTags } from '@/database';
 
 import PatientInfo from '@/components/patients/PatientInfo';
 import PatientHistory from '@/components/patients/PatientHistory';
@@ -24,6 +24,7 @@ const PatientDetails = () => {
   
   const [patient, setPatient] = useState(null);
   const [contact, setContact] = useState(null);
+  const [patientTags, setPatientTags] = useState([]);
   const [loading, setLoading] = useState(true);
   const [isDialogOpen, setIsDialogOpen] = useState(false);
 
@@ -34,6 +35,16 @@ const PatientDetails = () => {
         setPatient(data);
         const associatedContact = await getContactByPatientId(data.id);
         setContact(associatedContact);
+
+        // Buscar tags do paciente
+        try {
+          const tags = await getPatientTags(data.id);
+          const formattedTags = tags.map(item => item.tags).filter(Boolean);
+          setPatientTags(formattedTags);
+        } catch (tagError) {
+          console.warn('Não foi possível carregar tags do paciente:', tagError);
+          setPatientTags([]);
+        }
       } else {
         toast({ variant: 'destructive', title: 'Erro', description: 'Paciente não encontrado.' });
         navigate('/patients');
@@ -144,6 +155,25 @@ const PatientDetails = () => {
                </Badge>
             )}
             {contact && <Badge variant="outline" className="bg-green-50 text-green-700 border-green-200">WhatsApp Vinculado</Badge>}
+            {/* Tags do Paciente */}
+            {patientTags.length > 0 && patientTags.map(tag => (
+              <Badge
+                key={tag.id}
+                variant="outline"
+                className="text-xs"
+                style={{
+                  backgroundColor: `${tag.color}20`,
+                  borderColor: tag.color,
+                  color: tag.color
+                }}
+              >
+                <div
+                  className="w-2 h-2 rounded-full mr-1"
+                  style={{ backgroundColor: tag.color }}
+                />
+                {tag.name}
+              </Badge>
+            ))}
           </div>
           <p className="text-muted-foreground text-sm">{patient.notes || 'Sem observações adicionais.'}</p>
         </div>
