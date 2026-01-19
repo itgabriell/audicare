@@ -3,7 +3,7 @@ import { Helmet } from 'react-helmet';
 import { motion } from 'framer-motion';
 import {
     Plus, Search, RefreshCcw, Download, Upload,
-    ChevronLeft, ChevronRight, ArrowUpDown, RefreshCw, Eye
+    ChevronLeft, ChevronRight, ArrowUpDown, RefreshCw, Eye, Tag, X
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -23,10 +23,11 @@ import { useToast } from '@/components/ui/use-toast';
 import { useAuth } from '@/contexts/SupabaseAuthContext';
 import { supabase } from '@/lib/customSupabaseClient';
 import { useNavigate } from 'react-router-dom';
-import { getPatients, addPatient, updatePatient, deletePatient, checkDuplicatePatient } from '@/database';
+import { getPatients, addPatient, updatePatient, deletePatient, checkDuplicatePatient, getTags, getPatientsByTags } from '@/database';
 import { useDevice } from '@/hooks/useDevice';
 import { DataTableMobile } from '@/components/ui/data-table-mobile';
 import { useVirtualScroll } from '@/hooks/useOfflineCache';
+import { Badge } from '@/components/ui/badge';
 
 const Patients = () => {
   const { profile } = useAuth();
@@ -68,6 +69,8 @@ const Patients = () => {
 
   // Filter & Sort State
   const [searchTerm, setSearchTerm] = useState('');
+  const [selectedTagIds, setSelectedTagIds] = useState([]);
+  const [availableTags, setAvailableTags] = useState([]);
   const [page, setPage] = useState(1);
   const [pageSize] = useState(12);
   const [sortBy, setSortBy] = useState('name');
@@ -83,6 +86,16 @@ const Patients = () => {
   const useVirtual = totalCount > 100; // Use virtual scrolling for large lists
   const virtualScroll = useVirtualScroll(patients, 60, 600); // itemHeight: 60px, containerHeight: 600px
 
+  // Load available tags
+  const loadAvailableTags = useCallback(async () => {
+    try {
+      const { data } = await getTags(1, 100); // Load up to 100 tags
+      setAvailableTags(data || []);
+    } catch (error) {
+      console.error('Error loading available tags:', error);
+    }
+  }, []);
+
   // --- Load Data ---
   const loadPatients = useCallback(async () => {
     if (!profile?.clinic_id) {
@@ -95,25 +108,39 @@ const Patients = () => {
     try {
       setLoading(true);
 
-      let query = supabase
-        .from('patients')
-        .select('*', { count: 'exact' })
-        .eq('clinic_id', profile.clinic_id)
-        .order(sortBy, { ascending: sortOrder === 'asc' });
+      let data, count, error;
 
-      // Apply search filter
-      if (searchTerm) {
-        query = query.or(
-          `name.ilike.%${searchTerm}%,cpf.ilike.%${searchTerm}%,phone.ilike.%${searchTerm}%,email.ilike.%${searchTerm}%`
-        );
+      if (selectedTagIds.length > 0) {
+        // Filter by tags
+        const result = await getPatientsByTags(selectedTagIds, page, pageSize, searchTerm);
+        data = result.data;
+        count = result.count;
+        error = null; // getPatientsByTags doesn't return error in the same format
+      } else {
+        // Normal query
+        let query = supabase
+          .from('patients')
+          .select('*', { count: 'exact' })
+          .eq('clinic_id', profile.clinic_id)
+          .order(sortBy, { ascending: sortOrder === 'asc' });
+
+        // Apply search filter
+        if (searchTerm) {
+          query = query.or(
+            `name.ilike.%${searchTerm}%,cpf.ilike.%${searchTerm}%,phone.ilike.%${searchTerm}%,email.ilike.%${searchTerm}%`
+          );
+        }
+
+        // Apply pagination
+        const from = (page - 1) * pageSize;
+        const to = from + pageSize - 1;
+        query = query.range(from, to);
+
+        const result = await query;
+        data = result.data;
+        error = result.error;
+        count = result.count;
       }
-
-      // Apply pagination
-      const from = (page - 1) * pageSize;
-      const to = from + pageSize - 1;
-      query = query.range(from, to);
-
-      const { data, error, count } = await query;
 
       if (error) {
         console.error('[Patients] Load Error:', error);
@@ -137,9 +164,13 @@ const Patients = () => {
     } finally {
       setLoading(false);
     }
-  }, [page, pageSize, searchTerm, sortBy, sortOrder, profile?.clinic_id, toast]);
+  }, [page, pageSize, searchTerm, selectedTagIds, sortBy, sortOrder, profile?.clinic_id, toast]);
 
   // --- Effects ---
+  useEffect(() => {
+    loadAvailableTags();
+  }, [loadAvailableTags]);
+
   useEffect(() => {
     loadPatients();
   }, [loadPatients]);
@@ -396,45 +427,132 @@ const Patients = () => {
         </div>
 
         {/* Controls Bar */}
-        <div className="flex flex-col md:flex-row gap-4 items-center bg-card p-4 rounded-lg border shadow-sm">
-            <div className="relative w-full md:w-96">
-                <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                <Input 
-                    placeholder="Buscar nome, CPF, telefone..." 
-                    value={searchTerm}
-                    onChange={(e) => { setSearchTerm(e.target.value); setPage(1); }} // Reset page on search
-                    className="pl-9"
-                />
+        <div className="flex flex-col gap-4 bg-card p-4 rounded-lg border shadow-sm">
+            <div className="flex flex-col md:flex-row gap-4 items-start md:items-center">
+                <div className="relative w-full md:w-96">
+                    <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                    <Input
+                        placeholder="Buscar nome, CPF, telefone..."
+                        value={searchTerm}
+                        onChange={(e) => { setSearchTerm(e.target.value); setPage(1); }} // Reset page on search
+                        className="pl-9"
+                    />
+                </div>
+
+                <div className="flex gap-2 w-full md:w-auto md:ml-auto">
+                     <Button variant="ghost" size="icon" onClick={loadPatients} title="Recarregar lista">
+                        <RefreshCw className={`h-4 w-4 ${loading ? 'animate-spin' : ''}`} />
+                     </Button>
+
+                     <Select value={sortBy} onValueChange={(val) => { setSortBy(val); setPage(1); }}>
+                        <SelectTrigger className="w-[140px]">
+                            <ArrowUpDown className="mr-2 h-4 w-4" />
+                            <SelectValue placeholder="Ordenar" />
+                        </SelectTrigger>
+                        <SelectContent>
+                            <SelectItem value="created_at">Data Criação</SelectItem>
+                            <SelectItem value="name">Nome</SelectItem>
+                            <SelectItem value="updated_at">Última Edição</SelectItem>
+                        </SelectContent>
+                     </Select>
+
+                     <Button
+                        variant="ghost"
+                        size="icon"
+                        onClick={() => setSortOrder(prev => {
+                            setPage(1);
+                            return prev === 'asc' ? 'desc' : 'asc';
+                        })}
+                        title={sortOrder === 'asc' ? "Crescente" : "Decrescente"}
+                     >
+                        {sortOrder === 'asc' ? <ChevronLeft className="h-4 w-4 rotate-90" /> : <ChevronRight className="h-4 w-4 rotate-90" />}
+                     </Button>
+                </div>
             </div>
-            
-            <div className="flex gap-2 w-full md:w-auto ml-auto">
-                 <Button variant="ghost" size="icon" onClick={loadPatients} title="Recarregar lista">
-                    <RefreshCw className={`h-4 w-4 ${loading ? 'animate-spin' : ''}`} />
-                 </Button>
-                 
-                 <Select value={sortBy} onValueChange={(val) => { setSortBy(val); setPage(1); }}>
-                    <SelectTrigger className="w-[140px]">
-                        <ArrowUpDown className="mr-2 h-4 w-4" />
-                        <SelectValue placeholder="Ordenar" />
-                    </SelectTrigger>
-                    <SelectContent>
-                        <SelectItem value="created_at">Data Criação</SelectItem>
-                        <SelectItem value="name">Nome</SelectItem>
-                        <SelectItem value="updated_at">Última Edição</SelectItem>
-                    </SelectContent>
-                 </Select>
-                 
-                 <Button 
-                    variant="ghost" 
-                    size="icon" 
-                    onClick={() => setSortOrder(prev => {
-                        setPage(1);
-                        return prev === 'asc' ? 'desc' : 'asc';
-                    })}
-                    title={sortOrder === 'asc' ? "Crescente" : "Decrescente"}
-                 >
-                    {sortOrder === 'asc' ? <ChevronLeft className="h-4 w-4 rotate-90" /> : <ChevronRight className="h-4 w-4 rotate-90" />}
-                 </Button>
+
+            {/* Tags Filter Section */}
+            <div className="flex flex-col gap-2">
+                <div className="flex items-center gap-2 flex-wrap">
+                    <Tag className="h-4 w-4 text-muted-foreground" />
+                    <span className="text-sm font-medium">Filtrar por tags:</span>
+
+                    {availableTags.slice(0, 8).map(tag => (
+                        <Badge
+                            key={tag.id}
+                            variant={selectedTagIds.includes(tag.id) ? "default" : "outline"}
+                            className="cursor-pointer hover:bg-primary/80 transition-colors"
+                            style={{
+                                backgroundColor: selectedTagIds.includes(tag.id) ? tag.color : 'transparent',
+                                borderColor: tag.color,
+                                color: selectedTagIds.includes(tag.id) ? 'white' : tag.color
+                            }}
+                            onClick={() => {
+                                setSelectedTagIds(prev =>
+                                    prev.includes(tag.id)
+                                        ? prev.filter(id => id !== tag.id)
+                                        : [...prev, tag.id]
+                                );
+                                setPage(1); // Reset to first page when filtering
+                            }}
+                        >
+                            {tag.name}
+                        </Badge>
+                    ))}
+
+                    {availableTags.length > 8 && (
+                        <Select
+                            onValueChange={(tagId) => {
+                                if (tagId && !selectedTagIds.includes(tagId)) {
+                                    setSelectedTagIds(prev => [...prev, tagId]);
+                                    setPage(1);
+                                }
+                            }}
+                        >
+                            <SelectTrigger className="w-[120px] h-6 text-xs">
+                                <SelectValue placeholder="+ Mais tags" />
+                            </SelectTrigger>
+                            <SelectContent>
+                                {availableTags.slice(8).map(tag => (
+                                    <SelectItem key={tag.id} value={tag.id}>
+                                        <div className="flex items-center gap-2">
+                                            <div
+                                                className="w-3 h-3 rounded-full"
+                                                style={{ backgroundColor: tag.color }}
+                                            />
+                                            {tag.name}
+                                        </div>
+                                    </SelectItem>
+                                ))}
+                            </SelectContent>
+                        </Select>
+                    )}
+
+                    {selectedTagIds.length > 0 && (
+                        <Button
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => {
+                                setSelectedTagIds([]);
+                                setPage(1);
+                            }}
+                            className="text-xs h-6 px-2"
+                        >
+                            <X className="h-3 w-3 mr-1" />
+                            Limpar filtros
+                        </Button>
+                    )}
+                </div>
+
+                {selectedTagIds.length > 0 && (
+                    <div className="text-xs text-muted-foreground">
+                        Filtrando por {selectedTagIds.length} tag{selectedTagIds.length > 1 ? 's' : ''}: {
+                            selectedTagIds.map(id => {
+                                const tag = availableTags.find(t => t.id === id);
+                                return tag?.name;
+                            }).filter(Boolean).join(', ')
+                        }
+                    </div>
+                )}
             </div>
         </div>
 

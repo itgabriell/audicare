@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import {
   Dialog,
   DialogContent,
+  DialogDescription,
   DialogHeader,
   DialogTitle,
   DialogFooter,
@@ -13,10 +14,12 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Textarea } from '@/components/ui/textarea';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
+import { Badge } from '@/components/ui/badge';
 import { useToast } from '@/components/ui/use-toast';
 import { formatPhoneE164, validatePhoneE164 } from '@/lib/phoneUtils';
-import { Loader2, AlertCircle } from 'lucide-react';
+import { Loader2, AlertCircle, X, Plus } from 'lucide-react';
 import PatientPhonesManager from './PatientPhonesManager';
+import PatientTagsManager from './PatientTagsManager';
 import { supabase } from '@/lib/customSupabaseClient';
 
 const PatientDialog = ({ open, onOpenChange, patient, onSave, initialData }) => {
@@ -229,6 +232,9 @@ const PatientDialog = ({ open, onOpenChange, patient, onSave, initialData }) => 
       <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle>{patient ? 'Editar Paciente' : 'Novo Paciente'}</DialogTitle>
+          <DialogDescription>
+            {patient ? 'Atualize as informações do paciente conforme necessário.' : 'Preencha os dados para cadastrar um novo paciente.'}
+          </DialogDescription>
         </DialogHeader>
 
         <form onSubmit={handleSubmit}>
@@ -306,6 +312,16 @@ const PatientDialog = ({ open, onOpenChange, patient, onSave, initialData }) => 
                 <PatientPhonesManager
                   phones={phones}
                   onChange={setPhones}
+                />
+
+                {/* Gerenciador de Tags */}
+                <PatientTagsManager
+                  patientId={patient?.id}
+                  patientTags={[]} // Será carregado internamente
+                  onTagsChange={(tags) => {
+                    // Opcional: armazenar tags selecionadas se necessário
+                    console.log('Tags do paciente:', tags);
+                  }}
                 />
 
                 <div className="space-y-2">

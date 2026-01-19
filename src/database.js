@@ -834,4 +834,222 @@ export const getConversations = async (f={}) => {
     if(error) throw error; return data;
 };
 
+// ======================================================================
+// Tags System
+// ======================================================================
+
+export const getTags = async (page = 1, pageSize = 10, searchTerm = '', sortBy = 'name', sortOrder = 'asc') => {
+  const clinicId = await getClinicId();
+  if (!clinicId) return { data: [], count: 0 };
+
+  let query = supabase
+    .from('tags')
+    .select('*', { count: 'exact' })
+    .eq('clinic_id', clinicId)
+    .eq('is_active', true);
+
+  if (searchTerm) {
+    query = query.ilike('name', `%${searchTerm}%`);
+  }
+
+  query = query.order(sortBy, { ascending: sortOrder === 'asc' });
+
+  const from = (page - 1) * pageSize;
+  const to = from + pageSize - 1;
+  query = query.range(from, to);
+
+  const { data, error, count } = await query;
+
+  if (error) {
+    console.error("[DB] Error fetching tags:", error);
+    throw error;
+  }
+
+  return { data: data || [], count: count || 0 };
+};
+
+export const addTag = async (tagData) => {
+  const clinicId = await getClinicId();
+  if (!clinicId) throw new Error('User is not associated with a clinic.');
+
+  const { data, error } = await supabase
+    .from('tags')
+    .insert([{ ...tagData, clinic_id: clinicId }])
+    .select()
+    .single();
+
+  if (error) {
+    console.error("[DB] Error adding tag:", error);
+    throw error;
+  }
+
+  return data;
+};
+
+export const updateTag = async (id, tagData) => {
+  const clinicId = await getClinicId();
+  if (!clinicId) throw new Error('User is not associated with a clinic.');
+
+  const { data, error } = await supabase
+    .from('tags')
+    .update(tagData)
+    .eq('id', id)
+    .eq('clinic_id', clinicId)
+    .select()
+    .single();
+
+  if (error) {
+    console.error("[DB] Error updating tag:", error);
+    throw error;
+  }
+
+  return data;
+};
+
+export const deleteTag = async (id) => {
+  const clinicId = await getClinicId();
+  if (!clinicId) throw new Error('User is not associated with a clinic.');
+
+  const { error } = await supabase
+    .from('tags')
+    .delete()
+    .eq('id', id)
+    .eq('clinic_id', clinicId);
+
+  if (error) {
+    console.error("[DB] Error deleting tag:", error);
+    throw error;
+  }
+};
+
+// Patient Tags functions
+export const getPatientTags = async (patientId) => {
+  try {
+    const { data, error } = await supabase
+      .from('patient_tags')
+      .select(`
+        id,
+        tag_id,
+        tags (
+          id,
+          name,
+          color,
+          description
+        )
+      `)
+      .eq('patient_id', patientId);
+
+    if (error) {
+      console.error("[DB] Error fetching patient tags:", error);
+      return [];
+    }
+
+    return data || [];
+  } catch (error) {
+    console.error("[DB] Error fetching patient tags:", error);
+    return [];
+  }
+};
+
+export const addPatientTag = async (patientId, tagId) => {
+  const { data, error } = await supabase
+    .from('patient_tags')
+    .insert({ patient_id: patientId, tag_id: tagId })
+    .select()
+    .single();
+
+  if (error) {
+    console.error("[DB] Error adding patient tag:", error);
+    throw error;
+  }
+
+  return data;
+};
+
+export const removePatientTag = async (patientId, tagId) => {
+  const { error } = await supabase
+    .from('patient_tags')
+    .delete()
+    .eq('patient_id', patientId)
+    .eq('tag_id', tagId);
+
+  if (error) {
+    console.error("[DB] Error removing patient tag:", error);
+    throw error;
+  }
+};
+
+// Função para buscar pacientes por tags (para filtros)
+export const getPatientsByTags = async (tagIds = [], page = 1, pageSize = 10, searchTerm = '') => {
+  const clinicId = await getClinicId();
+  if (!clinicId) return { data: [], count: 0 };
+
+  try {
+    let query;
+
+    if (tagIds.length > 0) {
+      // Buscar pacientes que têm pelo menos uma das tags especificadas
+      query = supabase
+        .from('patient_tags')
+        .select(`
+          patient_id,
+          patients!inner (
+            id,
+            name,
+            cpf,
+            phone,
+            email,
+            created_at,
+            notes
+          )
+        `, { count: 'exact' })
+        .in('tag_id', tagIds)
+        .eq('patients.clinic_id', clinicId);
+    } else {
+      // Buscar todos os pacientes da clínica
+      query = supabase
+        .from('patients')
+        .select('*', { count: 'exact' })
+        .eq('clinic_id', clinicId);
+    }
+
+    if (searchTerm) {
+      if (tagIds.length > 0) {
+        query = query.ilike('patients.name', `%${searchTerm}%`);
+      } else {
+        query = query.or(`name.ilike.%${searchTerm}%,cpf.ilike.%${searchTerm}%,phone.ilike.%${searchTerm}%`);
+      }
+    }
+
+    const from = (page - 1) * pageSize;
+    const to = from + pageSize - 1;
+    query = query.range(from, to);
+
+    const { data, error, count } = await query;
+
+    if (error) {
+      console.error("[DB] Error fetching patients by tags:", error);
+      throw error;
+    }
+
+    // Se filtrou por tags, os dados vêm aninhados
+    let patients = data;
+    if (tagIds.length > 0 && data) {
+      patients = data.map(item => item.patients).filter(Boolean);
+      // Remover duplicatas (caso paciente tenha múltiplas tags)
+      const seen = new Set();
+      patients = patients.filter(patient => {
+        if (seen.has(patient.id)) return false;
+        seen.add(patient.id);
+        return true;
+      });
+    }
+
+    return { data: patients || [], count: count || 0 };
+  } catch (error) {
+    console.error("[DB] Critical error fetching patients by tags:", error);
+    return { data: [], count: 0 };
+  }
+};
+
 export { supabase, getClinicId };
