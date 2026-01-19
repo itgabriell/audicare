@@ -12,11 +12,11 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import { User, LogOut, Settings, Search } from 'lucide-react';
+import { User, LogOut, Settings, Search, Menu } from 'lucide-react';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
 import SocialLinks from '@/components/SocialLinks';
 
-const Header = ({ children, onCommandPaletteOpen }) => {
+const Header = ({ children, onMenuClick, showMenuButton, onCommandPaletteOpen }) => {
   const [title, ...rest] = React.Children.toArray(children);
   const { user, signOut } = useAuth();
   const navigate = useNavigate();
@@ -54,8 +54,19 @@ const Header = ({ children, onCommandPaletteOpen }) => {
 
   return (
     <header className="sticky top-0 z-20 flex items-center justify-between px-6 py-4 border-b border-border/50 bg-card/95 backdrop-blur supports-[backdrop-filter]:bg-card/60 shadow-sm">
-      {/* Lado esquerdo - Título */}
-      <div className="flex items-center gap-2">
+      {/* Lado esquerdo - Menu + Título */}
+      <div className="flex items-center gap-3">
+        {showMenuButton && (
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={onMenuClick}
+            className="md:hidden h-9 w-9 p-0 hover:bg-muted/80 transition-all duration-200 hover:scale-105 active:scale-95"
+            title="Abrir menu"
+          >
+            <Menu className="h-5 w-5" />
+          </Button>
+        )}
         <h1 className="text-lg font-semibold text-foreground">{title}</h1>
       </div>
 

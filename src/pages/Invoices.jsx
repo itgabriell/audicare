@@ -42,11 +42,12 @@ const Invoices = () => {
         .from('invoices')
         .select(`
           *,
-          contacts!fk_invoices_patient (
+          patients (
             id,
             name,
             phone,
-            document
+            document,
+            cpf
           )
         `)
         .order('issued_at', { ascending: false });
@@ -76,9 +77,10 @@ const Invoices = () => {
     if (searchTerm) {
       filtered = filtered.filter(invoice =>
         invoice.numero?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        invoice.contacts?.name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        invoice.contacts?.document?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        invoice.contacts?.phone?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        invoice.patients?.name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        invoice.patients?.document?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        invoice.patients?.cpf?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        invoice.patients?.phone?.toLowerCase().includes(searchTerm.toLowerCase()) ||
         invoice.description?.toLowerCase().includes(searchTerm.toLowerCase())
       );
     }
@@ -414,9 +416,9 @@ const Invoices = () => {
                       <div className="flex items-center gap-2">
                         <User className="h-4 w-4 text-muted-foreground" />
                         <div>
-                          <p className="font-medium">{invoice.contacts?.name || 'N/A'}</p>
+                          <p className="font-medium">{invoice.patients?.name || 'N/A'}</p>
                           <p className="text-sm text-muted-foreground">
-                            {invoice.contacts?.document || invoice.contacts?.phone || ''}
+                            {invoice.patients?.document || invoice.patients?.cpf || invoice.patients?.phone || ''}
                           </p>
                         </div>
                       </div>

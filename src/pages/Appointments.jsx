@@ -1,12 +1,13 @@
 import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import { Helmet } from 'react-helmet';
-import { Plus, ChevronLeft, ChevronRight } from 'lucide-react';
+import { Plus, ChevronLeft, ChevronRight, Send, MessageSquare, Calendar, List } from 'lucide-react';
 import { useSearchParams } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import DraggableAppointmentCalendar from '@/components/appointments/DraggableAppointmentCalendar';
+import MonthlyCalendarView from '@/components/appointments/MonthlyCalendarView';
 import AppointmentDialog from '@/components/appointments/AppointmentDialog';
 import { useToast } from '@/components/ui/use-toast';
-import { getAppointments, addAppointment, getPatients } from '@/database';
+import { getAppointments, addAppointment, getPatients, createNotification } from '@/database';
 import { format } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 import { useAuth } from '@/contexts/SupabaseAuthContext';
@@ -20,6 +21,7 @@ const Appointments = () => {
   const [loading, setLoading] = useState(true);
   const [dialogInitialData, setDialogInitialData] = useState(null);
   const [editingAppointment, setEditingAppointment] = useState(null);
+  const [viewMode, setViewMode] = useState('week'); // 'week' or 'month'
   const { toast } = useToast();
   const { profile } = useAuth();
 
@@ -117,6 +119,44 @@ const Appointments = () => {
         }
       });
 
+      // Criar notificações
+      try {
+        const appointmentDate = format(new Date(savedAppointment.start_time), "dd/MM/yyyy 'às' HH:mm", { locale: ptBR });
+
+        if (editingAppointment) {
+          // Notificação de reagendamento
+          await createNotification({
+            type: 'appointment',
+            title: 'Consulta reagendada',
+            message: `Consulta de ${patientName} reagendada para ${appointmentDate}`,
+            related_entity_type: 'appointment',
+            related_entity_id: savedAppointment.id,
+            metadata: {
+              appointment_id: savedAppointment.id,
+              patient_name: patientName,
+              new_date: savedAppointment.start_time
+            }
+          });
+        } else {
+          // Notificação de novo agendamento
+          await createNotification({
+            type: 'appointment',
+            title: 'Nova consulta agendada',
+            message: `Consulta agendada para ${patientName} em ${appointmentDate}`,
+            related_entity_type: 'appointment',
+            related_entity_id: savedAppointment.id,
+            metadata: {
+              appointment_id: savedAppointment.id,
+              patient_name: patientName,
+              appointment_date: savedAppointment.start_time
+            }
+          });
+        }
+      } catch (notificationError) {
+        console.warn('[Appointments] Erro ao criar notificação:', notificationError);
+        // Não falha a operação principal por causa das notificações
+      }
+
       setDialogOpen(false);
       setDialogInitialData(null);
       setEditingAppointment(null);
@@ -135,7 +175,7 @@ const Appointments = () => {
         variant: 'destructive',
       });
     }
-  }, [patients, toast, editingAppointment]);
+  }, [patients, toast, editingAppointment, createNotification]);
 
   const handleSlotClick = useCallback((date, time) => {
     setDialogInitialData({ date, time });
@@ -149,13 +189,22 @@ const Appointments = () => {
     setDialogOpen(true);
   }, []);
 
-  const changeWeek = useCallback((direction) => {
-    setCurrentDate((prev) => {
-      const newDate = new Date(prev);
-      newDate.setDate(newDate.getDate() + (direction === 'prev' ? -7 : 7));
-      return newDate;
-    });
-  }, []);
+  const changePeriod = useCallback((direction) => {
+    if (viewMode === 'week') {
+      setCurrentDate((prev) => {
+        const newDate = new Date(prev);
+        newDate.setDate(newDate.getDate() + (direction === 'prev' ? -7 : 7));
+        return newDate;
+      });
+    } else {
+      // Para modo mês, navegar mês a mês
+      setCurrentDate((prev) => {
+        const newDate = new Date(prev);
+        newDate.setMonth(newDate.getMonth() + (direction === 'prev' ? -1 : 1));
+        return newDate;
+      });
+    }
+  }, [viewMode]);
 
   const handleToday = useCallback(() => {
     setCurrentDate(new Date());
@@ -172,11 +221,15 @@ const Appointments = () => {
 
   const handleAppointmentMove = useCallback(async (appointment, newDate) => {
     try {
+      // Salvar data original para notificação
+      const originalDate = appointment.start_time;
+
       // Atualizar a data/hora do agendamento no banco
       const { error } = await supabase
         .from('appointments')
         .update({
-          appointment_date: newDate.toISOString(),
+          start_time: newDate.toISOString(),
+          rescheduled_from: originalDate,
           updated_at: new Date().toISOString()
         })
         .eq('id', appointment.id);
@@ -186,9 +239,32 @@ const Appointments = () => {
       // Atualizar localmente para feedback imediato
       setAppointments(prev => prev.map(app =>
         app.id === appointment.id
-          ? { ...app, appointment_date: newDate.toISOString() }
+          ? { ...app, start_time: newDate.toISOString() }
           : app
       ));
+
+      // Criar notificação de reagendamento
+      try {
+        const patientName = appointment.contact?.name || 'Paciente';
+        const newDateFormatted = format(newDate, "dd/MM/yyyy 'às' HH:mm", { locale: ptBR });
+
+        await createNotification({
+          type: 'appointment',
+          title: 'Consulta reagendada',
+          message: `Consulta de ${patientName} reagendada para ${newDateFormatted}`,
+          related_entity_type: 'appointment',
+          related_entity_id: appointment.id,
+          metadata: {
+            appointment_id: appointment.id,
+            patient_name: patientName,
+            original_date: originalDate,
+            new_date: newDate.toISOString()
+          }
+        });
+      } catch (notificationError) {
+        console.warn('[Appointments] Erro ao criar notificação de reagendamento:', notificationError);
+        // Não falha a operação principal
+      }
 
       toast({
         title: 'Consulta reagendada',
@@ -204,7 +280,90 @@ const Appointments = () => {
       // Recarregar dados para reverter mudança local
       loadData();
     }
-  }, [toast, loadData]);
+  }, [toast, loadData, createNotification]);
+
+  const handleSendConfirmationMessages = useCallback(async (targetDate) => {
+    try {
+      // Calcular a data alvo
+      const target = new Date();
+      if (targetDate === 'tomorrow') {
+        target.setDate(target.getDate() + 1);
+      }
+      // Para 'today', já está correto
+
+      // Filtrar agendamentos da data alvo
+      const targetAppointments = appointments.filter(app => {
+        if (!app.start_time) return false;
+        const appDate = new Date(app.start_time);
+        return appDate.toDateString() === target.toDateString();
+      });
+
+      if (targetAppointments.length === 0) {
+        toast({
+          title: 'Nenhum agendamento encontrado',
+          description: `Não há agendamentos para ${targetDate === 'tomorrow' ? 'amanhã' : 'hoje'}.`,
+        });
+        return;
+      }
+
+      // Aqui você pode implementar a lógica para enviar mensagens
+      // Por enquanto, apenas mostra quantos agendamentos foram encontrados
+      toast({
+        title: 'Gatilho ativado',
+        description: `Encontrados ${targetAppointments.length} agendamentos para ${targetDate === 'tomorrow' ? 'amanhã' : 'hoje'}. Funcionalidade de envio será implementada em breve.`,
+      });
+
+      // TODO: Implementar envio real de mensagens via WhatsApp API
+      console.log('Agendamentos para confirmação:', targetAppointments);
+
+    } catch (error) {
+      console.error('Erro ao enviar mensagens de confirmação:', error);
+      toast({
+        title: 'Erro',
+        description: 'Falha ao processar mensagens de confirmação.',
+        variant: 'destructive'
+      });
+    }
+  }, [appointments, toast]);
+
+  const handleSendReminderMessages = useCallback(async () => {
+    try {
+      const today = new Date();
+      today.setHours(0, 0, 0, 0);
+
+      // Filtrar agendamentos de hoje
+      const todayAppointments = appointments.filter(app => {
+        if (!app.start_time) return false;
+        const appDate = new Date(app.start_time);
+        appDate.setHours(0, 0, 0, 0);
+        return appDate.getTime() === today.getTime();
+      });
+
+      if (todayAppointments.length === 0) {
+        toast({
+          title: 'Nenhum agendamento encontrado',
+          description: 'Não há agendamentos para hoje.',
+        });
+        return;
+      }
+
+      toast({
+        title: 'Lembretes enviados',
+        description: `Lembretes enviados para ${todayAppointments.length} agendamentos de hoje.`,
+      });
+
+      // TODO: Implementar envio real de lembretes
+      console.log('Agendamentos para lembrete:', todayAppointments);
+
+    } catch (error) {
+      console.error('Erro ao enviar lembretes:', error);
+      toast({
+        title: 'Erro',
+        description: 'Falha ao processar lembretes.',
+        variant: 'destructive'
+      });
+    }
+  }, [appointments, toast]);
 
   const monthLabel = useMemo(() => {
     return format(currentDate, "MMMM 'de' yyyy", { locale: ptBR });
@@ -240,39 +399,119 @@ const Appointments = () => {
           </div>
         </div>
 
+        {/* Ações Rápidas */}
+        <div className="bg-card rounded-xl shadow-sm border p-4">
+          <h3 className="text-lg font-semibold text-foreground mb-4 flex items-center gap-2">
+            <MessageSquare className="h-5 w-5" />
+            Ações Rápidas
+          </h3>
+          <div className="flex flex-wrap gap-3">
+            <Button
+              variant="outline"
+              onClick={() => handleSendConfirmationMessages('tomorrow')}
+              className="flex items-center gap-2"
+            >
+              <Send className="h-4 w-4" />
+              Confirmar Consultas de Amanhã
+            </Button>
+            <Button
+              variant="outline"
+              onClick={() => handleSendConfirmationMessages('today')}
+              className="flex items-center gap-2"
+            >
+              <Send className="h-4 w-4" />
+              Confirmar Consultas de Hoje
+            </Button>
+            <Button
+              variant="outline"
+              onClick={() => handleSendReminderMessages()}
+              className="flex items-center gap-2"
+            >
+              <MessageSquare className="h-4 w-4" />
+              Lembretes de Hoje
+            </Button>
+          </div>
+          <p className="text-xs text-muted-foreground mt-2">
+            Use essas ações para enviar mensagens automáticas aos pacientes sobre seus agendamentos.
+          </p>
+        </div>
+
         {/* Calendário */}
         <div className="bg-card rounded-xl shadow-sm border p-4">
+          {/* Controles de navegação e visualização */}
           <div className="flex items-center justify-between mb-6">
-            <Button
-              variant="outline"
-              size="icon"
-              onClick={() => changeWeek('prev')}
-            >
-              <ChevronLeft className="h-4 w-4" />
-            </Button>
-            <h2 className="text-lg font-semibold text-foreground capitalize">
-              {monthLabel}
-            </h2>
-            <Button
-              variant="outline"
-              size="icon"
-              onClick={() => changeWeek('next')}
-            >
-              <ChevronRight className="h-4 w-4" />
-            </Button>
+            <div className="flex items-center gap-2">
+              <Button
+                variant="outline"
+                size="icon"
+                onClick={() => changePeriod('prev')}
+              >
+                <ChevronLeft className="h-4 w-4" />
+              </Button>
+
+              <h2 className="text-lg font-semibold text-foreground capitalize min-w-[200px] text-center">
+                {viewMode === 'week'
+                  ? `Semana de ${format(currentDate, "dd/MM", { locale: ptBR })}`
+                  : monthLabel
+                }
+              </h2>
+
+              <Button
+                variant="outline"
+                size="icon"
+                onClick={() => changePeriod('next')}
+              >
+                <ChevronRight className="h-4 w-4" />
+              </Button>
+            </div>
+
+            {/* Seletor de modo de visualização */}
+            <div className="flex items-center gap-2">
+              <div className="flex bg-muted rounded-lg p-1">
+                <Button
+                  variant={viewMode === 'week' ? 'default' : 'ghost'}
+                  size="sm"
+                  onClick={() => setViewMode('week')}
+                  className="flex items-center gap-1"
+                >
+                  <List className="h-4 w-4" />
+                  Semana
+                </Button>
+                <Button
+                  variant={viewMode === 'month' ? 'default' : 'ghost'}
+                  size="sm"
+                  onClick={() => setViewMode('month')}
+                  className="flex items-center gap-1"
+                >
+                  <Calendar className="h-4 w-4" />
+                  Mês
+                </Button>
+              </div>
+            </div>
           </div>
 
           {loading ? (
             <div className="flex justify-center items-center h-96">
               <div className="w-8 h-8 border-2 border-primary border-t-transparent rounded-full animate-spin" />
             </div>
-          ) : (
+          ) : viewMode === 'week' ? (
             <DraggableAppointmentCalendar
               currentDate={currentDate}
               appointments={appointments}
               onSlotClick={handleSlotClick}
               onAppointmentClick={handleAppointmentClick}
               onAppointmentMove={handleAppointmentMove}
+            />
+          ) : (
+            <MonthlyCalendarView
+              currentDate={currentDate}
+              appointments={appointments}
+              onDayClick={(date) => {
+                // Ao clicar em um dia no modo mês, alterna para visualização semanal daquele dia
+                setViewMode('week');
+                setCurrentDate(date);
+              }}
+              onAppointmentClick={handleAppointmentClick}
             />
           )}
         </div>

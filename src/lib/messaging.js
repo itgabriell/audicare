@@ -64,7 +64,7 @@ export async function fetchContactDetails(contactId) {
         .from('contacts')
         .select('*')
         .eq('id', contactId)
-        .single();
+        .maybeSingle();
 
     if (error) throw error;
     if (!contact) return null;
@@ -111,7 +111,7 @@ export async function linkContactToPatient(contactId, patientId) {
         .from('contacts')
         .select('phone')
         .eq('id', contactId)
-        .single();
+        .maybeSingle();
     
     if (contactError) throw contactError;
     if (!contact) throw new Error('Contact not found');

@@ -66,44 +66,8 @@ export const getPatients = async (page = 1, pageSize = 10, searchTerm = '', sort
         throw error;
     }
 
-    // Buscar telefones para cada paciente (opcional, pode falhar se tabela não existir)
-    if (data && data.length > 0) {
-      try {
-        const patientIds = data.map(p => p.id);
-        const { data: phonesData } = await supabase
-          .from('patient_phones')
-          .select('*')
-          .in('patient_id', patientIds)
-          .order('is_primary', { ascending: false })
-          .order('created_at', { ascending: true });
-
-        // Agrupar telefones por paciente
-        const phonesByPatient = {};
-        if (phonesData) {
-          phonesData.forEach(phone => {
-            if (!phonesByPatient[phone.patient_id]) {
-              phonesByPatient[phone.patient_id] = [];
-            }
-            phonesByPatient[phone.patient_id].push(phone);
-          });
-        }
-
-        // Adicionar telefones aos pacientes e manter compatibilidade
-        data.forEach(patient => {
-          patient.phones = phonesByPatient[patient.id] || [];
-          // Manter telefone principal no campo phone para compatibilidade
-          const primaryPhone = patient.phones.find(p => p.is_primary);
-          if (primaryPhone) {
-            patient.phone = primaryPhone.phone;
-          } else if (patient.phones.length > 0) {
-            patient.phone = patient.phones[0].phone;
-          }
-        });
-      } catch (phonesError) {
-        console.warn("[DB] Could not fetch patient phones, continuing without:", phonesError);
-        // Continue sem telefones se a tabela não existir
-      }
-    }
+    // REMOVIDO: Busca de telefones em lote causa URLs muito longas
+    // Os telefones serão carregados individualmente quando necessário
 
     return { data, count };
   } catch (error) {
@@ -336,11 +300,8 @@ export const getAppointments = async (filters = {}) => {
     const sampleAppointment = testData?.[0];
     console.log("[DB] Sample appointment structure:", sampleAppointment);
 
-    // Determinar qual coluna usar para data (tentar várias possibilidades)
-    const dateColumn = sampleAppointment?.appointment_date ? 'appointment_date' :
-                      sampleAppointment?.scheduled_at ? 'scheduled_at' :
-                      sampleAppointment?.start_time ? 'start_time' :
-                      sampleAppointment?.created_at ? 'created_at' : null;
+    // Determinar qual coluna usar para data (usar start_time)
+    const dateColumn = sampleAppointment?.start_time ? 'start_time' : 'created_at';
 
     console.log("[DB] Using date column:", dateColumn);
 
@@ -371,30 +332,30 @@ export const getAppointments = async (filters = {}) => {
       return [];
     }
 
-    // Buscar dados dos pacientes separadamente
+    // Buscar dados dos contatos separadamente
     try {
-      const patientIds = [...new Set(appointmentsData.map(app => app.patient_id).filter(Boolean))];
+      const contactIds = [...new Set(appointmentsData.map(app => app.contact_id).filter(Boolean))];
 
-      if (patientIds.length > 0) {
-        const { data: patientsData, error: patientsError } = await supabase
-          .from('patients')
+      if (contactIds.length > 0) {
+        const { data: contactsData, error: contactsError } = await supabase
+          .from('contacts')
           .select('id, name, phone')
-          .in('id', patientIds)
+          .in('id', contactIds)
           .eq('clinic_id', clinicId);
 
-        if (!patientsError && patientsData) {
-          // Criar mapa de pacientes
-          const patientsMap = {};
-          patientsData.forEach(patient => {
-            patientsMap[patient.id] = patient;
+        if (!contactsError && contactsData) {
+          // Criar mapa de contatos
+          const contactsMap = {};
+          contactsData.forEach(contact => {
+            contactsMap[contact.id] = contact;
           });
 
           // Combinar dados
           return appointmentsData.map(appointment => ({
             ...appointment,
-            contact: appointment.patient_id ? {
-              name: patientsMap[appointment.patient_id]?.name || 'Paciente não encontrado',
-              phone: patientsMap[appointment.patient_id]?.phone || ''
+            contact: appointment.contact_id ? {
+              name: contactsMap[appointment.contact_id]?.name || 'Contato não encontrado',
+              phone: contactsMap[appointment.contact_id]?.phone || ''
             } : null
           }));
         }

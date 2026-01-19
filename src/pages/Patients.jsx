@@ -40,16 +40,16 @@ const Patients = () => {
     {
       accessorKey: 'name',
       header: 'Nome',
-      render: (value) => <span className="font-medium">{value || '-'}</span>
+      render: (value) => <span className="font-bold text-lg">{value || '-'}</span>
     },
     {
       accessorKey: 'cpf',
       header: 'CPF',
-      hideOnMobile: true,
+      hideOnMobile: false,
     },
     {
       accessorKey: 'phone',
-      header: 'Celular',
+      header: 'Telefone',
       render: (value) => formatPhone(value)
     },
     {
@@ -57,6 +57,12 @@ const Patients = () => {
       header: 'Cidade/Estado',
       hideOnMobile: true,
       render: (value) => value ? value.split(',')[2] || value : '-'
+    },
+    {
+      accessorKey: 'status',
+      header: 'Status',
+      isStatus: true,
+      render: () => <Badge variant="secondary" className="text-xs">Ativo</Badge>
     }
   ], []);
 
@@ -395,34 +401,34 @@ const Patients = () => {
         {/* Top Header */}
         <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
           <div>
-            <h1 className="text-3xl font-bold tracking-tight">Pacientes</h1>
-            <p className="text-muted-foreground">
+            <h1 className="text-2xl md:text-3xl font-bold tracking-tight">Pacientes</h1>
+            <p className="text-muted-foreground text-sm md:text-base">
               Gerencie sua base de {totalCount} pacientes cadastrados.
             </p>
           </div>
 
-          <div className="flex gap-2 w-full md:w-auto">
-             <input 
-                type="file" 
-                id="file-upload" 
-                accept=".csv" 
-                className="hidden" 
-                onChange={handleFileChange} 
-             />
-             <Button variant="outline" onClick={handleImportClick} disabled={isImporting || loading}>
+          <div className="flex flex-col gap-2 w-full md:w-auto">
+            <input
+              type="file"
+              id="file-upload"
+              accept=".csv"
+              className="hidden"
+              onChange={handleFileChange}
+            />
+            <div className="flex flex-col sm:flex-row gap-2">
+              <Button variant="outline" onClick={handleImportClick} disabled={isImporting || loading} className="flex-1">
                 {isImporting ? <RefreshCcw className="mr-2 h-4 w-4 animate-spin" /> : <Upload className="mr-2 h-4 w-4" />}
                 Importar
-             </Button>
-             
-             <Button variant="outline" onClick={handleExportCSV} disabled={isExporting || loading}>
+              </Button>
+              <Button variant="outline" onClick={handleExportCSV} disabled={isExporting || loading} className="flex-1">
                 {isExporting ? <RefreshCcw className="mr-2 h-4 w-4 animate-spin" /> : <Download className="mr-2 h-4 w-4" />}
                 Exportar
-             </Button>
-             
-             <Button onClick={() => { setEditingPatient(null); setDialogOpen(true); }}>
-                <Plus className="mr-2 h-4 w-4" />
-                Novo Paciente
-             </Button>
+              </Button>
+            </div>
+            <Button onClick={() => { setEditingPatient(null); setDialogOpen(true); }} className="w-full">
+              <Plus className="mr-2 h-4 w-4" />
+              Novo Paciente
+            </Button>
           </div>
         </div>
 

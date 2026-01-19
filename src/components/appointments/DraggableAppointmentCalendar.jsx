@@ -44,12 +44,38 @@ const DraggableAppointment = memo(({ appointment, onAppointmentClick }) => {
     opacity: isDragging ? 0.5 : 1,
   };
 
+  const getStatusColor = (status) => {
+    switch (status) {
+      case 'confirmed': return 'bg-green-500';
+      case 'arrived': return 'bg-blue-500';
+      case 'completed': return 'bg-gray-500';
+      case 'no_show': return 'bg-red-500';
+      case 'cancelled': return 'bg-gray-400';
+      case 'rescheduled': return 'bg-yellow-500';
+      case 'not_confirmed': return 'bg-orange-500';
+      default: return 'bg-primary';
+    }
+  };
+
+  const getStatusLabel = (status) => {
+    switch (status) {
+      case 'confirmed': return 'Confirmado';
+      case 'arrived': return 'Chegou';
+      case 'completed': return 'Concluído';
+      case 'no_show': return 'Não Compareceu';
+      case 'cancelled': return 'Cancelado';
+      case 'rescheduled': return 'Reagendado';
+      case 'not_confirmed': return 'Não Confirmado';
+      default: return 'Agendado';
+    }
+  };
+
   return (
     <div
       ref={setNodeRef}
       style={style}
       {...attributes}
-      className="bg-primary/10 text-primary-foreground p-1.5 rounded-md text-xs mb-1 hover:bg-primary/20 transition-colors group cursor-move"
+      className={`${getStatusColor(appointment.status)}/20 text-primary-foreground p-2 rounded-md text-xs mb-1 hover:bg-opacity-30 transition-colors group cursor-move border-l-4 ${getStatusColor(appointment.status)}`}
     >
       <div className="flex items-start gap-1">
         <GripVertical
@@ -63,8 +89,22 @@ const DraggableAppointment = memo(({ appointment, onAppointmentClick }) => {
             onAppointmentClick(appointment);
           }}
         >
+          {/* Horário */}
+          <p className="font-bold text-primary text-xs">
+            {format(new Date(appointment.start_time || appointment.appointment_date), 'HH:mm')}
+          </p>
+
+          {/* Nome do paciente */}
           <p className="font-semibold text-primary truncate">{appointment.contact?.name || 'Paciente'}</p>
-          <p className="text-primary/80 truncate">{appointment.appointment_type}</p>
+
+          {/* Tipo de consulta */}
+          <p className="text-primary/80 truncate text-xs">{appointment.title || appointment.appointment_type}</p>
+
+          {/* Status */}
+          <div className="flex items-center gap-1 mt-1">
+            <div className={`w-2 h-2 rounded-full ${getStatusColor(appointment.status)}`}></div>
+            <span className="text-xs text-primary/70 truncate">{getStatusLabel(appointment.status)}</span>
+          </div>
         </div>
       </div>
     </div>
@@ -152,7 +192,8 @@ const DraggableAppointmentCalendar = ({
   const appointmentsBySlot = useMemo(() => {
     const map = new Map();
     appointments.forEach(app => {
-      const appDate = new Date(app.appointment_date);
+      // Usar start_time ou appointment_date como fallback
+      const appDate = new Date(app.start_time || app.appointment_date);
       const dateKey = appDate.toDateString();
       const hour = appDate.getHours();
       const slotKey = `${dateKey}_${hour}`;
@@ -187,7 +228,7 @@ const DraggableAppointmentCalendar = ({
     if (over.data.current?.type === 'appointment') {
       const targetAppointment = appointments.find(app => app.id === over.id);
       if (targetAppointment) {
-        const targetDate = new Date(targetAppointment.appointment_date);
+        const targetDate = new Date(targetAppointment.start_time || targetAppointment.appointment_date);
         targetSlot = {
           type: 'slot',
           date: targetDate,
@@ -204,7 +245,7 @@ const DraggableAppointmentCalendar = ({
     newDate.setHours(targetSlot.timeHour, 0, 0, 0);
 
     // Check if it's a different time slot
-    const currentDate = new Date(activeAppointment.appointment_date);
+    const currentDate = new Date(activeAppointment.start_time || activeAppointment.appointment_date);
     const isDifferentSlot = currentDate.getTime() !== newDate.getTime();
 
     if (isDifferentSlot && onAppointmentMove) {
@@ -222,7 +263,7 @@ const DraggableAppointmentCalendar = ({
     if (over.data.current?.type === 'appointment') {
       const targetAppointment = appointments.find(app => app.id === over.id);
       if (targetAppointment) {
-        const targetDate = new Date(targetAppointment.appointment_date);
+        const targetDate = new Date(targetAppointment.start_time || targetAppointment.appointment_date);
         const slotId = `${targetDate.toDateString()}_${targetDate.getHours()}`;
 
         // Find the slot element and trigger hover

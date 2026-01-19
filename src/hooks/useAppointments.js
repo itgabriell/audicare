@@ -61,16 +61,17 @@ export const useAppointments = () => {
 
     const {
         patient_id,
-        appointment_date,
+        contact_id,
+        start_time,
         status = 'scheduled',
-        type,
-        notes,
+        title,
+        obs,
         professional_id
     } = appointmentData;
 
     // Validate professional_id is UUID or null
-    const validProfessionalId = professional_id && /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(professional_id) 
-        ? professional_id 
+    const validProfessionalId = professional_id && /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(professional_id)
+        ? professional_id
         : null;
 
     const { data, error } = await supabase
@@ -78,18 +79,19 @@ export const useAppointments = () => {
         .insert({
             clinic_id: user.profile.clinic_id,
             patient_id,
-            appointment_date,
+            contact_id,
+            start_time,
             status,
-            appointment_type: type,
-            notes,
+            title,
+            obs,
             professional_id: validProfessionalId,
-            scheduled_by: user.id
+            // scheduled_by: será preenchido pelo trigger do banco
         })
         .select()
         .single();
 
     if (error) throw error;
-    
+
     return data;
   };
 

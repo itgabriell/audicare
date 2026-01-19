@@ -229,13 +229,34 @@ const PatientDialog = ({ open, onOpenChange, patient, onSave, initialData }) => 
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
-        <DialogHeader>
+      <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto md:max-w-2xl md:max-h-[90vh] w-full h-full md:h-auto md:w-auto p-0 md:p-6">
+        {/* Mobile Header with Close Button */}
+        <div className="md:hidden flex items-center justify-between p-4 border-b bg-card/95 backdrop-blur supports-[backdrop-filter]:bg-card/60 sticky top-0 z-10">
+          <DialogTitle className="text-lg font-semibold">{patient ? 'Editar Paciente' : 'Novo Paciente'}</DialogTitle>
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={() => onOpenChange(false)}
+            className="h-8 w-8 p-0"
+          >
+            <X className="h-4 w-4" />
+          </Button>
+        </div>
+
+        {/* Desktop Header */}
+        <div className="hidden md:block">
+          <DialogHeader>
+            <DialogTitle>{patient ? 'Editar Paciente' : 'Novo Paciente'}</DialogTitle>
+            <DialogDescription>
+              {patient ? 'Atualize as informações do paciente conforme necessário.' : 'Preencha os dados para cadastrar um novo paciente.'}
+            </DialogDescription>
+          </DialogHeader>
+        </div>
+
+        {/* Hidden title for screen readers when mobile header is shown */}
+        <div className="sr-only md:not-sr-only">
           <DialogTitle>{patient ? 'Editar Paciente' : 'Novo Paciente'}</DialogTitle>
-          <DialogDescription>
-            {patient ? 'Atualize as informações do paciente conforme necessário.' : 'Preencha os dados para cadastrar um novo paciente.'}
-          </DialogDescription>
-        </DialogHeader>
+        </div>
 
         <form onSubmit={handleSubmit}>
           <TooltipProvider>

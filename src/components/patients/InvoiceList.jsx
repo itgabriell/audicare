@@ -41,24 +41,24 @@ const InvoiceList = ({ patientId }) => {
   const mockInvoices = [
     {
       id: '1',
-      issue_date: '2024-01-15',
-      value: 150.00,
+      issued_at: '2024-01-15',
+      amount: 150.00,
       status: 'authorized',
-      pdf_url: 'https://example.com/invoice1.pdf'
+      link: 'https://example.com/invoice1.pdf'
     },
     {
       id: '2',
-      issue_date: '2024-01-10',
-      value: 250.00,
+      issued_at: '2024-01-10',
+      amount: 250.00,
       status: 'processing',
-      pdf_url: null
+      link: null
     },
     {
       id: '3',
-      issue_date: '2024-01-05',
-      value: 89.90,
+      issued_at: '2024-01-05',
+      amount: 89.90,
       status: 'error',
-      pdf_url: null
+      link: null
     }
   ];
 
@@ -75,7 +75,7 @@ const InvoiceList = ({ patientId }) => {
         .from('invoices')
         .select('*')
         .eq('patient_id', patientId)
-        .order('issue_date', { ascending: false });
+        .order('issued_at', { ascending: false });
 
       if (error) {
         console.warn('Erro ao buscar invoices do Supabase:', error);
@@ -330,7 +330,7 @@ Tem certeza que deseja continuar?`;
           model: invoiceForm.model,
           quantity: parseInt(invoiceForm.quantity),
           status: 'authorized',
-          issue_date: new Date().toISOString(),
+          issued_at: new Date().toISOString(),
           numero: result.invoice.numero,
           link: result.invoice.link,
           created_at: new Date().toISOString()
@@ -945,7 +945,7 @@ Tem certeza que deseja continuar?`;
                       Nota Fiscal #{invoice.id}
                     </CardTitle>
                     <p className="text-sm text-muted-foreground">
-                      Emitida em {formatDate(invoice.issue_date)}
+                      Emitida em {formatDate(invoice.issued_at)}
                     </p>
                   </div>
                   <div className="flex items-center gap-3">
@@ -953,8 +953,8 @@ Tem certeza que deseja continuar?`;
                     <Button
                       variant="outline"
                       size="sm"
-                      onClick={() => handleDownload(invoice.pdf_url)}
-                      disabled={!invoice.pdf_url}
+                      onClick={() => handleDownload(invoice.link)}
+                      disabled={!invoice.link}
                     >
                       <Download className="h-4 w-4" />
                     </Button>
@@ -965,11 +965,11 @@ Tem certeza que deseja continuar?`;
                 <div className="flex justify-between items-center">
                   <div>
                     <p className="text-2xl font-bold text-green-600">
-                      {formatCurrency(invoice.value)}
+                      {formatCurrency(invoice.amount)}
                     </p>
                   </div>
                   <div className="text-right text-sm text-muted-foreground">
-                    {invoice.status === 'authorized' && invoice.pdf_url && (
+                    {invoice.status === 'authorized' && invoice.link && (
                       <p>PDF disponível para download</p>
                     )}
                     {invoice.status === 'processing' && (

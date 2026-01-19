@@ -1,0 +1,44 @@
+﻿ID;Data do Agendamento;Paciente;Especialista;Tipo de consulta;Serviços;Entidade;Nome Entidade;Status Atual;Cancelado;Recorrência;Agendado;Agenda Finalizada;Confirmado;Reagendado;Não compareceu;Chegou;Criado por: ;Data de Criação
+1501;12/01/2026 10:30;Antonio Casimiro Formiga;Karine Ribeiro Dias Brandao;Retorno pós compra;Serviços;1;;Agendado;;;✓;;;;;;Karine Ribeiro Dias Brandao;11/12/2025 11:22
+1539;12/01/2026 12:10;Maria Helena de oliveira;Karine Ribeiro Dias Brandao;Primeira Agendamento/Avaliação;Serviços;1;;Agendado;;;✓;;;;;;Patricia Felix;22/12/2025 9:42
+1518;12/01/2026 14:00;Divina Moreira Cardoso de Araujo;Karine Ribeiro Dias Brandao;Retorno pós compra;Serviços;1;;Chegou;;;✓;;✓;;;✓;Patricia Felix;17/12/2025 11:01
+1545;12/01/2026 14:30;Rosa José Marcos;Karine Ribeiro Dias Brandao;Retorno;Serviços;1;;Agendado;;;✓;;;;;;Karine Ribeiro Dias Brandao;12/01/2026 8:44
+1549;12/01/2026 16:00;Danielle Persoli Cavalcante Sales;Karine Ribeiro Dias Brandao;Molde;Serviços;1;;Agendado;;;✓;;;;;;Gabriel Brandão;12/01/2026 10:34
+1547;13/01/2026 10:00;Lucia emilia veras muniz;Karine Ribeiro Dias Brandao;Retorno;Serviços;1;;Chegou;;;✓;;;;;✓;Gabriel Brandão;12/01/2026 10:03
+1551;13/01/2026 10:30;Marizelha Martins de Souza;Karine Ribeiro Dias Brandao;Retorno;Serviços;1;;Chegou;;;✓;;;;;✓;Gabriel Brandão;12/01/2026 10:46
+1548;13/01/2026 11:00;Luiza Francisca da Conceição;Karine Ribeiro Dias Brandao;Retorno;Serviços;1;;Chegou;;;✓;;;;;✓;Gabriel Brandão;12/01/2026 10:12
+1550;13/01/2026 14:00;Nélio dos Santos;Karine Ribeiro Dias Brandao;Revisão;Serviços;1;;Chegou;;;✓;;;;;✓;Gabriel Brandão;12/01/2026 10:42
+1552;13/01/2026 15:30;Ione Silva Rospa;Karine Ribeiro Dias Brandao;Primeira Agendamento/Avaliação;Serviços;1;;Confirmado;;;✓;;✓;;;;Gabriel Brandão;12/01/2026 14:02
+1556;13/01/2026 16:00;Maria Zélia da Silva;Karine Ribeiro Dias Brandao;Primeira Agendamento/Avaliação;Serviços;1;;Agendado;;;✓;;;;;;Patricia Felix;13/01/2026 11:47
+1565;14/01/2026 9:30;Maria das Neves Oliveira;Karine Ribeiro Dias Brandao;Retorno;Serviços;1;;Chegou;;;✓;;;;;✓;Patricia Felix;14/01/2026 9:45
+1557;14/01/2026 10:30;Epitácio Alves dos Santos;Karine Ribeiro Dias Brandao;Retorno;Serviços;1;;Chegou;;;✓;;✓;;;✓;Patricia Felix;13/01/2026 11:57
+1563;14/01/2026 11:00;Maria Zélia da Silva;Karine Ribeiro Dias Brandao;Primeira Agendamento/Avaliação;Serviços;1;;Chegou;;;✓;;;;;✓;Patricia Felix;13/01/2026 17:29
+1564;14/01/2026 11:30;Camila Souza da Silva;Karine Ribeiro Dias Brandao;Retorno;Serviços;1;;Chegou;;;✓;;;;;✓;Patricia Felix;14/01/2026 8:48
+1553;14/01/2026 14:00;Francisco Carlos Ferreira Matos;Karine Ribeiro Dias Brandao;Ajuste;Serviços;1;;Chegou;;;✓;;✓;;;✓;Gabriel Brandão;12/01/2026 14:04
+1570;14/01/2026 14:30;Ambrosina Pereira Cardoso;Karine Ribeiro Dias Brandao;Primeira Agendamento/Avaliação;Serviços;1;;Chegou;;;✓;;;;;✓;Patricia Felix;14/01/2026 14:44
+1561;14/01/2026 16:30;REUNIAO ADM;Karine Ribeiro Dias Brandao;Primeira Agendamento/Avaliação;Serviços;1;;Agendado;;;✓;;;;;;Karine Ribeiro Dias Brandao;13/01/2026 15:05
+1558;15/01/2026 9:30;Sonia Regina Cardoso Ribeiro(HOSPITAL NAVAL);Karine Ribeiro Dias Brandao;Ajuste;Serviços;1;;Chegou;;;✓;;✓;;;✓;Patricia Felix;13/01/2026 13:51
+1573;15/01/2026 10:00;Nei Gustavo Albuquerque Lima;Karine Ribeiro Dias Brandao;Retorno;Serviços;1;;Chegou;;;✓;;;;;✓;Patricia Felix;15/01/2026 9:11
+1574;15/01/2026 10:40;CLEDSON MARTINS DAS GRAÇAS;Karine Ribeiro Dias Brandao;Ajuste;Serviços;1;;Chegou;;;✓;;;;;✓;Patricia Felix;15/01/2026 9:58
+1575;15/01/2026 11:00;Damião Ferreira Nobre;Karine Ribeiro Dias Brandao;Retorno;Serviços;1;;Chegou;;;✓;;;;;✓;Patricia Felix;15/01/2026 10:47
+1560;15/01/2026 11:30;Laura D Escragnolle Taunay;Karine Ribeiro Dias Brandao;Molde;Serviços;1;;Chegou;;;✓;;✓;;;✓;Patricia Felix;13/01/2026 14:41
+1555;15/01/2026 14:00;Maria da Conceição Oliveira;Karine Ribeiro Dias Brandao;Retorno;Serviços;1;;Confirmado;;;✓;;✓;;;;Patricia Felix;13/01/2026 10:19
+1567;15/01/2026 15:00;Condorset Ferreira;Karine Ribeiro Dias Brandao;Retorno;Serviços;1;;Chegou;;;✓;;✓;;;✓;Patricia Felix;14/01/2026 11:46
+1580;15/01/2026 17:45;Jorge Guimarães Estruc;Karine Ribeiro Dias Brandao;Primeira Agendamento/Avaliação;Serviços;1;;Chegou;;;✓;;;;;✓;Karine Ribeiro Dias Brandao;15/01/2026 23:14
+1568;16/01/2026 10:00;Jose Vieira de Sousa;Karine Ribeiro Dias Brandao;Retorno;Serviços;1;;Chegou;;;✓;;✓;;;✓;Patricia Felix;14/01/2026 11:48
+1569;16/01/2026 10:30;Mauro Alves Pinheiro;Karine Ribeiro Dias Brandao;Retorno;Serviços;1;;Chegou;;;✓;;;;;✓;Patricia Felix;14/01/2026 14:17
+1578;16/01/2026 11:30;Artur Augusto Lobão;Karine Ribeiro Dias Brandao;Retorno;Serviços;1;;Chegou;;;✓;;;;;✓;Patricia Felix;15/01/2026 16:18
+1572;17/01/2026 10:00;Romeu Maluhy Junior;Karine Ribeiro Dias Brandao;Primeira Agendamento/Avaliação;Serviços;1;;Agendado;;;✓;;;;;;Patricia Felix;14/01/2026 16:44
+1581;19/01/2026 8:40;Euridres Fernandes Portugal;Karine Ribeiro Dias Brandao;Primeira Agendamento/Avaliação;Serviços;1;;Não compareceu;;;✓;;;;✓;;Patricia Felix;16/01/2026 10:40
+1584;19/01/2026 10:30;Pedro José Dias;Karine Ribeiro Dias Brandao;Retorno;Serviços;1;;Chegou;;;✓;;;;;✓;Patricia Felix;16/01/2026 17:08
+1582;19/01/2026 11:00;Carla Coutinho da Rosa;Karine Ribeiro Dias Brandao;Molde;Serviços;1;;Chegou;;;✓;;;;;✓;Patricia Felix;16/01/2026 15:17
+1576;19/01/2026 14:30;Jorge Issao Sasaki;Karine Ribeiro Dias Brandao;Retorno pós compra;Serviços;1;;Confirmado;;;✓;;✓;✓;;;Patricia Felix;15/01/2026 15:16
+1559;19/01/2026 15:30;Umbelina Pereira Cruz;Karine Ribeiro Dias Brandao;Ajuste;Serviços;1;;Confirmado;;;✓;;✓;✓;;;Patricia Felix;13/01/2026 14:26
+1583;19/01/2026 16:00;Ana Lúcia Alves Ferreira;Karine Ribeiro Dias Brandao;Primeira Agendamento/Avaliação;Serviços;1;;Chegou;;;✓;;;;;✓;Patricia Felix;16/01/2026 16:32
+1587;20/01/2026 10:00;Joelina Maria de Souza furtado;Karine Ribeiro Dias Brandao;Ajuste;Serviços;1;;Confirmado;;;✓;;✓;;;;Gabriel Brandão;19/01/2026 11:10
+1585;20/01/2026 14:00;Lienir Alves dos Santos;Karine Ribeiro Dias Brandao;Retorno;Serviços;1;;Confirmado;;;✓;;✓;;;;Patricia Felix;19/01/2026 8:42
+1586;20/01/2026 15:00;Darcy de Jesus Cabral Castro;Karine Ribeiro Dias Brandao;Primeira Agendamento/Avaliação;Serviços;1;;Confirmado;;;✓;;✓;;;;Gabriel Brandão;19/01/2026 11:06
+1588;21/01/2026 10:00;Enilde Miranda Leite;Karine Ribeiro Dias Brandao;Ajuste;Serviços;1;;Agendado;;;✓;;;;;;Gabriel Brandão;19/01/2026 14:02
+1571;23/01/2026 10:00;Alessandro Nogueira Exposto;Karine Ribeiro Dias Brandao;Primeira Agendamento/Avaliação;Serviços;1;;Agendado;;;✓;;;;;;Patricia Felix;14/01/2026 16:42
+1531;27/01/2026 11:00;Cleuza Neres de Sousa Cordeiro;Karine Ribeiro Dias Brandao;Retorno;Serviços;1;;Agendado;;;✓;;;;;;Patricia Felix;19/12/2025 11:45
+1589;02/02/2026 14:00;Jorge Issao Sasaki;Karine Ribeiro Dias Brandao;Retorno;Serviços;1;;Agendado;;;✓;;;;;;Karine Ribeiro Dias Brandao;19/01/2026 14:43

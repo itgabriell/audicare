@@ -3,8 +3,8 @@ import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import * as z from 'zod';
 import { format } from 'date-fns';
-import { 
-  Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter 
+import {
+  Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter
 } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -13,6 +13,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { useToast } from '@/components/ui/use-toast';
 import { supabase } from '@/lib/customSupabaseClient';
+import { getClinicId } from '@/database';
 import { MessageCircle } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import PatientCombobox from '@/components/patients/PatientCombobox';
@@ -21,9 +22,11 @@ const appointmentSchema = z.object({
   contact_id: z.string().min(1, "Paciente é obrigatório"),
   professional_name: z.string().min(1, "Profissional é obrigatório"),
   start_time: z.string().min(1, "Data e hora são obrigatórias"),
-  appointment_type: z.string().min(1, "Tipo de agendamento é obrigatório"),
+  title: z.string().min(1, "Tipo de agendamento é obrigatório"),
   status: z.string().default('scheduled'),
   obs: z.string().optional(),
+  professional_id: z.string().optional(),
+  patient_id: z.string().optional(),
 });
 
 const AppointmentDialog = ({ open, onOpenChange, appointment, onSuccess, initialData, patients = [] }) => {
@@ -38,7 +41,7 @@ const AppointmentDialog = ({ open, onOpenChange, appointment, onSuccess, initial
       contact_id: '',
       professional_name: '',
       start_time: '',
-      appointment_type: '',
+      title: '',
       status: 'scheduled',
       obs: '',
     }
@@ -50,7 +53,7 @@ const AppointmentDialog = ({ open, onOpenChange, appointment, onSuccess, initial
         contact_id: appointment.contact_id,
         professional_name: appointment.professional_name || 'Dra. Karine Brandão',
         start_time: appointment.start_time ? new Date(appointment.start_time).toISOString().slice(0, 16) : '',
-        appointment_type: appointment.appointment_type || '',
+        title: appointment.title || appointment.appointment_type || '',
         status: appointment.status || 'scheduled',
         obs: appointment.obs || '',
       });
@@ -63,7 +66,7 @@ const AppointmentDialog = ({ open, onOpenChange, appointment, onSuccess, initial
         contact_id: initialData.contact_id || '',
         professional_name: 'Dra. Karine Brandão',
         start_time: initialData.start_time || '',
-        appointment_type: initialData.appointment_type || '',
+        title: initialData.title || initialData.appointment_type || '',
         status: 'scheduled',
         obs: initialData.obs || '',
       });
@@ -75,7 +78,7 @@ const AppointmentDialog = ({ open, onOpenChange, appointment, onSuccess, initial
         contact_id: '',
         professional_name: 'Dra. Karine Brandão',
         start_time: '',
-        appointment_type: '',
+        title: '',
         status: 'scheduled',
         obs: '',
       });
@@ -84,23 +87,83 @@ const AppointmentDialog = ({ open, onOpenChange, appointment, onSuccess, initial
   }, [appointment, initialData, open]);
 
   const fetchPatient = async (id) => {
-      const { data } = await supabase.from('patients').select('*').eq('id', id).single();
-      setSelectedPatient(data);
+      if (!id) {
+        setSelectedPatient(null);
+        return;
+      }
+
+      try {
+        // Primeiro tenta buscar como contact_id (tabela contacts)
+        const { data: contactData, error: contactError } = await supabase
+          .from('contacts')
+          .select('id, name, phone')
+          .eq('id', id)
+          .maybeSingle();
+
+        if (contactData && !contactError) {
+          setSelectedPatient({ ...contactData, source: 'contacts' });
+          return;
+        }
+
+        // Se não encontrou em contacts, tenta patients como fallback
+        const { data: patientData, error: patientError } = await supabase
+          .from('patients')
+          .select('id, name, phone')
+          .eq('id', id)
+          .maybeSingle();
+
+        if (patientData && !patientError) {
+          setSelectedPatient({ ...patientData, source: 'patients' });
+          return;
+        }
+
+        // Se chegou aqui, não encontrou em nenhuma tabela
+        console.warn('[AppointmentDialog] Patient/contact not found:', id);
+        setSelectedPatient(null);
+
+      } catch (error) {
+        // Trata erros silenciosamente para não travar a UI
+        console.warn('[AppointmentDialog] Error fetching patient data (continuing without data):', error.message);
+        setSelectedPatient(null);
+      }
   };
 
   const onSubmit = async (data) => {
     setLoading(true);
     try {
-      const { data: { user } } = await supabase.auth.getUser();
-      const clinicId = user?.user_metadata?.clinic_id;
+      const clinicId = await getClinicId();
 
       if (!clinicId) throw new Error("Clínica não identificada");
 
+      // Determinar patient_id e contact_id baseado na origem do paciente selecionado
+      let patientId = null;
+      let contactId = data.contact_id;
+
+      // Se o paciente foi encontrado na tabela patients, usar patient_id
+      if (selectedPatient?.source === 'patients') {
+        patientId = selectedPatient.id;
+        contactId = null; // Não usar contact_id quando temos patient_id
+      } else if (selectedPatient?.source === 'contacts') {
+        // Se veio de contacts, manter contact_id e deixar patient_id null
+        contactId = selectedPatient.id;
+        patientId = null;
+      }
+
+      // PAYLOAD FINAL conforme solicitado
       const payload = {
-        ...data,
         clinic_id: clinicId,
-        scheduled_by: user.id,
+        title: data.title,
+        start_time: data.start_time,
+        end_time: data.start_time ? new Date(new Date(data.start_time).getTime() + 30 * 60 * 1000).toISOString() : null,
+        status: data.status,
+        obs: data.obs || null,
+        professional_id: null, // Por enquanto null - aguardando implementação de select de profissionais com IDs
+        patient_id: patientId,           // ID do paciente da tabela patients (UUID)
+        contact_id: contactId,           // Mantém para retrocompatibilidade (UUID ou null)
+        // scheduled_by: NÃO ENVIAR - o trigger resolve automaticamente
       };
+
+      console.log('[AppointmentDialog] Payload final para banco:', payload);
 
       let error;
       if (appointment?.id) {
@@ -122,7 +185,7 @@ const AppointmentDialog = ({ open, onOpenChange, appointment, onSuccess, initial
       onSuccess?.();
       onOpenChange(false);
     } catch (error) {
-      console.error(error);
+      console.error('[AppointmentDialog] Erro ao salvar:', error);
       toast({ variant: "destructive", title: "Erro", description: "Falha ao salvar agendamento." });
     } finally {
       setLoading(false);
@@ -151,6 +214,9 @@ const AppointmentDialog = ({ open, onOpenChange, appointment, onSuccess, initial
       <DialogContent className="sm:max-w-[500px]">
         <DialogHeader>
           <DialogTitle>{appointment ? 'Editar Agendamento' : 'Novo Agendamento'}</DialogTitle>
+          <DialogDescription>
+            {appointment ? 'Edite os detalhes do agendamento existente.' : 'Preencha os dados para criar um novo agendamento.'}
+          </DialogDescription>
         </DialogHeader>
         
         <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4 py-4">
@@ -200,10 +266,13 @@ const AppointmentDialog = ({ open, onOpenChange, appointment, onSuccess, initial
                     </SelectTrigger>
                     <SelectContent>
                         <SelectItem value="scheduled">Agendado</SelectItem>
+                        <SelectItem value="not_confirmed">Não Confirmado</SelectItem>
                         <SelectItem value="confirmed">Confirmado</SelectItem>
+                        <SelectItem value="arrived">Paciente Chegou</SelectItem>
                         <SelectItem value="completed">Concluído</SelectItem>
-                        <SelectItem value="cancelled">Cancelado</SelectItem>
                         <SelectItem value="no_show">Não Compareceu</SelectItem>
+                        <SelectItem value="rescheduled">Reagendado</SelectItem>
+                        <SelectItem value="cancelled">Cancelado</SelectItem>
                     </SelectContent>
                 </Select>
             </div>
@@ -219,9 +288,9 @@ const AppointmentDialog = ({ open, onOpenChange, appointment, onSuccess, initial
 
           <div className="space-y-2">
             <Label>Tipo de Consulta</Label>
-            <Select 
-                onValueChange={(val) => form.setValue('appointment_type', val)}
-                defaultValue={form.watch('appointment_type')}
+            <Select
+                onValueChange={(val) => form.setValue('title', val)}
+                defaultValue={form.watch('title')}
             >
                 <SelectTrigger>
                     <SelectValue placeholder="Selecione o tipo" />
@@ -234,8 +303,8 @@ const AppointmentDialog = ({ open, onOpenChange, appointment, onSuccess, initial
                     <SelectItem value="Terapia">Terapia</SelectItem>
                 </SelectContent>
             </Select>
-             {form.formState.errors.appointment_type && (
-                <span className="text-xs text-red-500">{form.formState.errors.appointment_type.message}</span>
+             {form.formState.errors.title && (
+                <span className="text-xs text-red-500">{form.formState.errors.title.message}</span>
             )}
           </div>
 
