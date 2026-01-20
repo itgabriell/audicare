@@ -23,7 +23,11 @@ import {
 
 const AutomationSettings = () => {
   const { toast } = useToast();
-  const [settings, setSettings] = useState({
+  const [settings, setSettings] = useState(null);
+  const [loading, setLoading] = useState(true);
+
+  // Configurações padrão como fallback
+  const defaultSettings = {
     birthday: {
       enabled: false,
       message: '🎉 Feliz Aniversário! 🎂\n\nQue seu dia seja repleto de alegria e saúde! Que tal agendar uma consulta para verificar seus aparelhos?\n\nAtenciosamente,\nClínica Audicare'
@@ -41,9 +45,14 @@ const AutomationSettings = () => {
       enabled: false,
       message: 'Olá {{nome}}! 👋\n\nObrigado por confiar na Clínica Audicare!\n\nEsperamos te ver novamente em breve. Cuide-se bem! 💙\n\nAtenciosamente,\nClínica Audicare'
     }
-  });
+  };
 
-  const [loading, setLoading] = useState(false);
+  // Função para obter configurações seguras
+  const getSafeSettings = () => {
+    if (!settings) return defaultSettings;
+    return { ...defaultSettings, ...settings };
+  };
+
   const [testing, setTesting] = useState(false);
   const [testPhone, setTestPhone] = useState('11999999999');
 
@@ -60,13 +69,19 @@ const AutomationSettings = () => {
       if (response.ok) {
         const data = await response.json();
         setSettings(data);
+      } else {
+        // Se a API falhar, usar configurações padrão
+        console.warn('API não respondeu, usando configurações padrão');
+        setSettings(defaultSettings);
       }
     } catch (error) {
       console.error('Erro ao carregar configurações:', error);
+      // Em caso de erro, usar configurações padrão
+      setSettings(defaultSettings);
       toast({
         variant: "destructive",
         title: "Erro",
-        description: "Não foi possível carregar as configurações das automações."
+        description: "Usando configurações padrão. Verifique a conexão com o backend."
       });
     } finally {
       setLoading(false);
@@ -208,8 +223,8 @@ const AutomationSettings = () => {
             <CardHeader>
               <CardTitle className="flex items-center gap-2">
                 🎂 Aniversários
-                <Badge variant={settings.birthday.enabled ? "default" : "secondary"}>
-                  {settings.birthday.enabled ? "Ativo" : "Inativo"}
+                <Badge variant={getSafeSettings().birthday.enabled ? "default" : "secondary"}>
+                  {getSafeSettings().birthday.enabled ? "Ativo" : "Inativo"}
                 </Badge>
               </CardTitle>
               <p className="text-sm text-muted-foreground">
@@ -220,7 +235,7 @@ const AutomationSettings = () => {
               <div className="flex items-center space-x-2">
                 <Switch
                   id="birthday-enabled"
-                  checked={settings.birthday.enabled}
+                  checked={getSafeSettings().birthday.enabled}
                   onCheckedChange={(checked) => updateSetting('birthday', 'enabled', checked)}
                 />
                 <Label htmlFor="birthday-enabled">Habilitar automação de aniversários</Label>
@@ -229,11 +244,11 @@ const AutomationSettings = () => {
               <div className="space-y-2">
                 <Label>Mensagem de Aniversário</Label>
                 <Textarea
-                  value={settings.birthday.message}
+                  value={getSafeSettings().birthday.message}
                   onChange={(e) => updateSetting('birthday', 'message', e.target.value)}
                   placeholder="Digite a mensagem de aniversário..."
                   rows={6}
-                  disabled={!settings.birthday.enabled}
+                  disabled={!getSafeSettings().birthday.enabled}
                 />
                 <p className="text-xs text-muted-foreground">
                   Use {'{{nome}}'} para inserir o nome do paciente automaticamente
@@ -249,8 +264,8 @@ const AutomationSettings = () => {
             <CardHeader>
               <CardTitle className="flex items-center gap-2">
                 📅 Confirmação de Consultas
-                <Badge variant={settings.appointment_confirmation.enabled ? "default" : "secondary"}>
-                  {settings.appointment_confirmation.enabled ? "Ativo" : "Inativo"}
+                <Badge variant={getSafeSettings().appointment_confirmation.enabled ? "default" : "secondary"}>
+                  {getSafeSettings().appointment_confirmation.enabled ? "Ativo" : "Inativo"}
                 </Badge>
               </CardTitle>
               <p className="text-sm text-muted-foreground">
@@ -261,7 +276,7 @@ const AutomationSettings = () => {
               <div className="flex items-center space-x-2">
                 <Switch
                   id="confirmation-enabled"
-                  checked={settings.appointment_confirmation.enabled}
+                  checked={getSafeSettings().appointment_confirmation.enabled}
                   onCheckedChange={(checked) => updateSetting('appointment_confirmation', 'enabled', checked)}
                 />
                 <Label htmlFor="confirmation-enabled">Habilitar confirmação de consultas</Label>
@@ -274,9 +289,9 @@ const AutomationSettings = () => {
                     type="number"
                     min="1"
                     max="30"
-                    value={settings.appointment_confirmation.daysAhead}
+                    value={getSafeSettings().appointment_confirmation.daysAhead}
                     onChange={(e) => updateSetting('appointment_confirmation', 'daysAhead', parseInt(e.target.value) || 2)}
-                    disabled={!settings.appointment_confirmation.enabled}
+                    disabled={!getSafeSettings().appointment_confirmation.enabled}
                   />
                   <p className="text-xs text-muted-foreground">
                     Dias antes da consulta para enviar o lembrete
@@ -287,11 +302,11 @@ const AutomationSettings = () => {
               <div className="space-y-2">
                 <Label>Mensagem de Confirmação</Label>
                 <Textarea
-                  value={settings.appointment_confirmation.message}
+                  value={getSafeSettings().appointment_confirmation.message}
                   onChange={(e) => updateSetting('appointment_confirmation', 'message', e.target.value)}
                   placeholder="Digite a mensagem de confirmação..."
                   rows={6}
-                  disabled={!settings.appointment_confirmation.enabled}
+                  disabled={!getSafeSettings().appointment_confirmation.enabled}
                 />
                 <p className="text-xs text-muted-foreground">
                   Placeholders disponíveis: {'{{nome}}'}, {'{{data}}'}, {'{{hora}}'}
@@ -307,8 +322,8 @@ const AutomationSettings = () => {
             <CardHeader>
               <CardTitle className="flex items-center gap-2">
                 🏥 Check-in (Chegada)
-                <Badge variant={settings.welcome_checkin.enabled ? "default" : "secondary"}>
-                  {settings.welcome_checkin.enabled ? "Ativo" : "Inativo"}
+                <Badge variant={getSafeSettings().welcome_checkin.enabled ? "default" : "secondary"}>
+                  {getSafeSettings().welcome_checkin.enabled ? "Ativo" : "Inativo"}
                 </Badge>
               </CardTitle>
               <p className="text-sm text-muted-foreground">
@@ -319,7 +334,7 @@ const AutomationSettings = () => {
               <div className="flex items-center space-x-2">
                 <Switch
                   id="welcome-enabled"
-                  checked={settings.welcome_checkin.enabled}
+                  checked={getSafeSettings().welcome_checkin.enabled}
                   onCheckedChange={(checked) => updateSetting('welcome_checkin', 'enabled', checked)}
                 />
                 <Label htmlFor="welcome-enabled">Habilitar mensagem de boas-vindas</Label>
@@ -328,11 +343,11 @@ const AutomationSettings = () => {
               <div className="space-y-2">
                 <Label>Mensagem de Boas-vindas</Label>
                 <Textarea
-                  value={settings.welcome_checkin.message}
+                  value={getSafeSettings().welcome_checkin.message}
                   onChange={(e) => updateSetting('welcome_checkin', 'message', e.target.value)}
                   placeholder="Digite a mensagem de boas-vindas..."
                   rows={6}
-                  disabled={!settings.welcome_checkin.enabled}
+                  disabled={!getSafeSettings().welcome_checkin.enabled}
                 />
                 <p className="text-xs text-muted-foreground">
                   Use {'{{nome}}'} para inserir o nome do paciente automaticamente
@@ -348,8 +363,8 @@ const AutomationSettings = () => {
             <CardHeader>
               <CardTitle className="flex items-center gap-2">
                 👋 Check-out (Saída)
-                <Badge variant={settings.goodbye_checkout.enabled ? "default" : "secondary"}>
-                  {settings.goodbye_checkout.enabled ? "Ativo" : "Inativo"}
+                <Badge variant={getSafeSettings().goodbye_checkout.enabled ? "default" : "secondary"}>
+                  {getSafeSettings().goodbye_checkout.enabled ? "Ativo" : "Inativo"}
                 </Badge>
               </CardTitle>
               <p className="text-sm text-muted-foreground">
@@ -360,7 +375,7 @@ const AutomationSettings = () => {
               <div className="flex items-center space-x-2">
                 <Switch
                   id="goodbye-enabled"
-                  checked={settings.goodbye_checkout.enabled}
+                  checked={getSafeSettings().goodbye_checkout.enabled}
                   onCheckedChange={(checked) => updateSetting('goodbye_checkout', 'enabled', checked)}
                 />
                 <Label htmlFor="goodbye-enabled">Habilitar mensagem de despedida</Label>
@@ -369,11 +384,11 @@ const AutomationSettings = () => {
               <div className="space-y-2">
                 <Label>Mensagem de Despedida</Label>
                 <Textarea
-                  value={settings.goodbye_checkout.message}
+                  value={getSafeSettings().goodbye_checkout.message}
                   onChange={(e) => updateSetting('goodbye_checkout', 'message', e.target.value)}
                   placeholder="Digite a mensagem de despedida..."
                   rows={6}
-                  disabled={!settings.goodbye_checkout.enabled}
+                  disabled={!getSafeSettings().goodbye_checkout.enabled}
                 />
                 <p className="text-xs text-muted-foreground">
                   Use {'{{nome}}'} para inserir o nome do paciente automaticamente
@@ -410,7 +425,7 @@ const AutomationSettings = () => {
           <div className="grid grid-cols-2 md:grid-cols-4 gap-2">
             <Button
               onClick={() => testAutomation('birthday')}
-              disabled={testing || !settings.birthday.enabled}
+              disabled={testing || !getSafeSettings().birthday.enabled}
               variant="outline"
               className="flex items-center gap-2"
             >
@@ -420,7 +435,7 @@ const AutomationSettings = () => {
 
             <Button
               onClick={() => testAutomation('appointment_confirmation')}
-              disabled={testing || !settings.appointment_confirmation.enabled}
+              disabled={testing || !getSafeSettings().appointment_confirmation.enabled}
               variant="outline"
               className="flex items-center gap-2"
             >
@@ -430,7 +445,7 @@ const AutomationSettings = () => {
 
             <Button
               onClick={() => testAutomation('welcome_checkin')}
-              disabled={testing || !settings.welcome_checkin.enabled}
+              disabled={testing || !getSafeSettings().welcome_checkin.enabled}
               variant="outline"
               className="flex items-center gap-2"
             >
@@ -440,7 +455,7 @@ const AutomationSettings = () => {
 
             <Button
               onClick={() => testAutomation('goodbye_checkout')}
-              disabled={testing || !settings.goodbye_checkout.enabled}
+              disabled={testing || !getSafeSettings().goodbye_checkout.enabled}
               variant="outline"
               className="flex items-center gap-2"
             >
