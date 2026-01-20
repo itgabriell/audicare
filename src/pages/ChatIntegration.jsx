@@ -11,12 +11,16 @@ const ChatIntegration = () => {
           <Loader2 className="h-8 w-8 animate-spin text-primary" />
         </div>
       )}
-      <iframe
-        src="https://chat.audicarefono.com.br"
-        className="w-full h-full border-none"
-        title="Chatwoot Inbox"
-        onLoad={() => setIsLoading(false)}
-      />
+      <div className="w-full h-full overflow-hidden">
+        <iframe
+          src="https://chat.audicarefono.com.br"
+          className="w-full h-full border-none"
+          style={{ width: 'calc(100% + 260px)', marginLeft: '-260px' }}
+          title="Chatwoot Inbox"
+          allow="camera; microphone; geolocation; keyboard-map"
+          onLoad={() => setIsLoading(false)}
+        />
+      </div>
     </div>
   );
 };
