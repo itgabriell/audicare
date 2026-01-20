@@ -1,6 +1,4 @@
 import { supabase } from './lib/customSupabaseClient';
-import chatwootBackendService from '../backend/services/ChatwootBackendService.js';
-import patientEngagementAutomation from '../backend/services/PatientEngagementAutomation.js';
 
 const getClinicId = async () => {
   try {
@@ -187,13 +185,8 @@ export const addPatient = async (patientData) => {
     await savePatientPhones(data.id, phones);
   }
 
-  // Sincronizar com Chatwoot (não bloquear operação se falhar)
-  try {
-    console.log('[DB] Sincronizando paciente recém-criado com Chatwoot...');
-    await chatwootBackendService.syncContact(data);
-  } catch (syncError) {
-    console.warn('[DB] Falha na sincronização com Chatwoot (não crítica):', syncError.message);
-  }
+  // NOTA: A sincronização com Chatwoot acontece no backend via triggers automáticos
+  // Não precisamos chamar aqui pois seria executado no frontend
 
   return data;
 };
@@ -272,13 +265,8 @@ export const updatePatient = async (patientId, updates) => {
     await savePatientPhones(patientId, phones);
   }
 
-  // Sincronizar com Chatwoot (não bloquear operação se falhar)
-  try {
-    console.log('[DB] Sincronizando paciente atualizado com Chatwoot...');
-    await chatwootBackendService.syncContact(data);
-  } catch (syncError) {
-    console.warn('[DB] Falha na sincronização com Chatwoot (não crítica):', syncError.message);
-  }
+  // NOTA: A sincronização com Chatwoot acontece no backend via triggers automáticos
+  // Não precisamos chamar aqui pois seria executado no frontend
 
   return data;
 };
@@ -505,15 +493,8 @@ export const updateAppointment = async (id, u) => {
     const { data, error } = await supabase.from('appointments').update(u).eq('id', id).eq('clinic_id', cid).select().single();
     if(error) throw error;
 
-    // Disparar automações se o status mudou
-    if (oldStatus !== newStatus) {
-        try {
-            console.log(`[DB] Status do agendamento ${id} mudou: ${oldStatus} → ${newStatus}`);
-            await patientEngagementAutomation.processAppointmentStatusChange(id, newStatus, oldStatus);
-        } catch (automationError) {
-            console.warn('[DB] Erro na automação (não crítica):', automationError.message);
-        }
-    }
+    // NOTA: As automações são disparadas automaticamente no backend via database triggers
+    // Não precisamos chamar aqui pois seria executado no frontend
 
     return data;
 };
