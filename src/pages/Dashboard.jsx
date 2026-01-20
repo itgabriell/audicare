@@ -139,10 +139,10 @@ const Dashboard = () => {
       // Appointments do dia
       const appointmentsToday = Array.isArray(appointments)
         ? appointments.filter((apt) => {
-            if (!apt.appointment_date) return false;
-            const aptDate = new Date(apt.appointment_date);
+            if (!apt.start_time) return false;
+            const aptDate = new Date(apt.start_time);
             return isToday(aptDate);
-          }).sort((a, b) => new Date(a.appointment_date) - new Date(b.appointment_date))
+          }).sort((a, b) => new Date(a.start_time) - new Date(b.start_time))
         : [];
 
       // Próximos 5 agendamentos de hoje
@@ -150,7 +150,7 @@ const Dashboard = () => {
         .slice(0, 5)
         .map(apt => ({
           ...apt,
-          time: format(new Date(apt.appointment_date), 'HH:mm', { locale: ptBR }),
+          time: format(new Date(apt.start_time), 'HH:mm', { locale: ptBR }),
           patientName: apt.patient?.name || 'Paciente não encontrado'
         }));
 
@@ -160,9 +160,9 @@ const Dashboard = () => {
       
       const recentAppointments = Array.isArray(appointments)
         ? appointments.filter((apt) => {
-            if (!apt.appointment_date) return false;
-            const aptDate = new Date(apt.appointment_date);
-            return aptDate >= thirtyDaysAgo && 
+            if (!apt.start_time) return false;
+            const aptDate = new Date(apt.start_time);
+            return aptDate >= thirtyDaysAgo &&
                    ['completed', 'cancelled', 'no_show'].includes(apt.status);
           })
         : [];
@@ -258,16 +258,16 @@ const Dashboard = () => {
       // Calcular taxa de retorno (comparação temporal)
       const lastMonthAppointments = Array.isArray(appointments)
         ? appointments.filter((apt) => {
-            if (!apt.appointment_date) return false;
-            const aptDate = new Date(apt.appointment_date);
+            if (!apt.start_time) return false;
+            const aptDate = new Date(apt.start_time);
             return aptDate >= startOfLastMonth && aptDate <= endOfLastMonth;
           })
         : [];
-      
+
       const currentMonthAppointments = Array.isArray(appointments)
         ? appointments.filter((apt) => {
-            if (!apt.appointment_date) return false;
-            const aptDate = new Date(apt.appointment_date);
+            if (!apt.start_time) return false;
+            const aptDate = new Date(apt.start_time);
             return aptDate >= startOfCurrentMonth && aptDate <= endOfCurrentMonth;
           })
         : [];

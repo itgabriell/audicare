@@ -85,7 +85,11 @@ const ContactInfoPanel = ({ conversation, contact }) => {
         found = data;
       }
       if (!found && phoneE164) {
-        const { data } = await supabase.from('patients').select('*').eq('phone', phoneE164).maybeSingle();
+        const { data } = await supabase
+          .rpc('find_patient_by_phone', {
+            phone_number: phoneE164
+          })
+          .maybeSingle();
         found = data;
       }
       if (!found && phoneE164) {

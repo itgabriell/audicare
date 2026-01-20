@@ -279,6 +279,60 @@ export const deletePatient = async (patientId) => {
   if (error) throw error;
 };
 
+export const getPatientAppointments = async (patientId) => {
+  const clinicId = await getClinicId();
+  if (!clinicId) return [];
+
+  try {
+    // Buscar agendamentos do paciente específico usando patient_id
+    let query = supabase
+      .from('appointments')
+      .select(`
+        id,
+        start_time,
+        end_time,
+        title,
+        status,
+        professional_id,
+        obs,
+        created_at,
+        profiles:professional_id (
+          id,
+          full_name
+        )
+      `)
+      .eq('clinic_id', clinicId)
+      .eq('patient_id', patientId)
+      .order('start_time', { ascending: false }); // Mais recentes primeiro
+
+    const { data: appointmentsData, error } = await query;
+
+    if (error) {
+      console.error("[DB] Error fetching patient appointments:", error);
+      throw error;
+    }
+
+    if (!appointmentsData || appointmentsData.length === 0) {
+      return [];
+    }
+
+    // Processar dados dos profissionais
+    return appointmentsData.map(appointment => ({
+      ...appointment,
+      professional: appointment.profiles ? {
+        id: appointment.profiles.id,
+        name: appointment.profiles.full_name || 'Profissional não informado'
+      } : {
+        name: 'Profissional não informado'
+      }
+    }));
+
+  } catch (error) {
+    console.error("[DB] Critical error fetching patient appointments:", error);
+    return [];
+  }
+};
+
 export const getAppointments = async (filters = {}) => {
   const clinicId = await getClinicId();
   if (!clinicId) return [];

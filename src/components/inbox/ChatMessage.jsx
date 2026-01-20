@@ -2,11 +2,13 @@ import React, { useState, memo, useEffect } from 'react';
 import { cn } from '@/lib/utils';
 import { format } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
-import { Check, CheckCheck, FileText, Download, Clock, AlertCircle, Loader2 } from 'lucide-react';
+import { Check, CheckCheck, FileText, Download, Clock, AlertCircle, AlertTriangle, Loader2, Play, Volume2, Image as ImageIcon } from 'lucide-react';
 import MessageActionsMenu from './MessageActionsMenu';
+import { AdvancedModal } from '@/components/ui/advanced-modal';
 
 const ChatMessage = ({ message, highlight, onEdit, onDelete, onForward }) => {
   const [showActions, setShowActions] = useState(false);
+  const [lightboxOpen, setLightboxOpen] = useState(false);
   const { content, created_at, sender_type, message_type, media_url, status, direction } = message;
 
   // Usar direction se disponível, senão fallback para sender_type
@@ -100,19 +102,121 @@ const ChatMessage = ({ message, highlight, onEdit, onDelete, onForward }) => {
             onForward={() => onForward?.(message)}
           />
         </div>
-        <div className={cn("flex flex-col gap-2 w-full", (isImage || isVideo || isDocument) ? "mb-1" : "")}>
+        {/* RENDERIZAÇÃO DE MÍDIAS */}
+        <div className={cn("flex flex-col gap-2 w-full", (isImage || isVideo || isAudio || isDocument) ? "mb-1" : "")}>
+            {/* IMAGEM com Lightbox */}
             {isImage && (
-              <a href={media_url} target="_blank" rel="noreferrer" className="block overflow-hidden rounded-xl bg-black/5">
-                  <img src={media_url} alt="Imagem" className="w-full h-auto object-cover max-h-[300px]" />
-              </a>
+              <div className="relative">
+                <button
+                  onClick={() => setLightboxOpen(true)}
+                  className="block overflow-hidden rounded-xl bg-black/5 hover:bg-black/10 transition-colors cursor-pointer group"
+                >
+                  <img
+                    src={media_url}
+                    alt="Imagem"
+                    className="w-full h-auto object-cover max-h-[300px] group-hover:scale-105 transition-transform duration-200"
+                    loading="lazy"
+                  />
+                  <div className="absolute inset-0 bg-black/0 group-hover:bg-black/20 transition-colors flex items-center justify-center opacity-0 group-hover:opacity-100">
+                    <ImageIcon className="w-8 h-8 text-white drop-shadow-lg" />
+                  </div>
+                </button>
+
+                {/* Lightbox Modal */}
+                <AdvancedModal
+                  open={lightboxOpen}
+                  onOpenChange={setLightboxOpen}
+                  title="Imagem"
+                  size="xl"
+                  closeOnOutsideClick={true}
+                  glassEffect={true}
+                >
+                  <div className="flex items-center justify-center p-4">
+                    <img
+                      src={media_url}
+                      alt="Imagem ampliada"
+                      className="max-w-full max-h-[80vh] object-contain rounded-lg"
+                    />
+                  </div>
+                </AdvancedModal>
+              </div>
             )}
-            {/* ... Video/Audio mantidos ... */}
+
+            {/* VÍDEO */}
+            {isVideo && (
+              <div className="relative bg-black/5 rounded-xl overflow-hidden">
+                <video
+                  controls
+                  className="w-full max-w-sm h-auto rounded-xl"
+                  preload="metadata"
+                >
+                  <source src={media_url} type="video/mp4" />
+                  Seu navegador não suporta a reprodução de vídeo.
+                </video>
+              </div>
+            )}
+
+            {/* ÁUDIO */}
+            {isAudio && (
+              <div className={cn(
+                "flex items-center gap-3 p-3 rounded-xl border w-full max-w-sm",
+                isUser
+                  ? "bg-primary-foreground/10 border-primary-foreground/20"
+                  : "bg-muted/50 border-border"
+              )}>
+                <div className="flex-shrink-0">
+                  <Volume2 className={cn(
+                    "w-5 h-5",
+                    isUser ? "text-primary-foreground" : "text-muted-foreground"
+                  )} />
+                </div>
+                <audio
+                  controls
+                  className="flex-1 h-8"
+                  preload="metadata"
+                >
+                  <source src={media_url} type="audio/mpeg" />
+                  Seu navegador não suporta a reprodução de áudio.
+                </audio>
+              </div>
+            )}
+
+            {/* DOCUMENTO */}
             {isDocument && (
-                <a href={media_url} target="_blank" rel="noreferrer" className={cn("flex items-center gap-3 p-3 rounded-lg border transition-colors w-full overflow-hidden", isUser ? "bg-primary-foreground/10 border-primary-foreground/20 hover:bg-primary-foreground/20" : "bg-muted/50 border-border hover:bg-muted")}>
-                    <FileText className="h-5 w-5 shrink-0" />
-                    <span className="truncate flex-1 text-xs">{content || 'Documento'}</span>
-                    <Download className="h-4 w-4 shrink-0" />
+              <div className={cn(
+                "flex items-center gap-3 p-3 rounded-lg border transition-colors w-full overflow-hidden cursor-pointer hover:shadow-md",
+                isUser
+                  ? "bg-primary-foreground/10 border-primary-foreground/20 hover:bg-primary-foreground/20"
+                  : "bg-muted/50 border-border hover:bg-muted"
+              )}>
+                <FileText className={cn(
+                  "h-5 w-5 shrink-0",
+                  isUser ? "text-primary-foreground" : "text-muted-foreground"
+                )} />
+                <div className="flex-1 min-w-0">
+                  <p className="truncate text-xs font-medium">
+                    {content || 'Documento'}
+                  </p>
+                  <p className="text-[10px] text-muted-foreground">
+                    Clique para baixar
+                  </p>
+                </div>
+                <a
+                  href={media_url}
+                  download
+                  target="_blank"
+                  rel="noreferrer"
+                  className={cn(
+                    "p-1.5 rounded-md transition-colors shrink-0",
+                    isUser
+                      ? "hover:bg-primary-foreground/20 text-primary-foreground"
+                      : "hover:bg-background text-muted-foreground"
+                  )}
+                  onClick={(e) => e.stopPropagation()}
+                >
+                  <Download className="h-4 w-4" />
                 </a>
+              </div>
             )}
         </div>
 

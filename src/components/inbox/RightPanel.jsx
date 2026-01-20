@@ -10,6 +10,7 @@ import { cn } from '@/lib/utils';
 import { useContactDetails } from '@/hooks/useContactDetails';
 import AppointmentModal from './AppointmentModal';
 import AssociatePatientDialog from './AssociatePatientDialog';
+import PatientFullDetailsModal from './PatientFullDetailsModal';
 import { linkContactToPatient } from '@/lib/messaging';
 import { useNavigate } from 'react-router-dom';
 import { format } from 'date-fns';
@@ -22,6 +23,7 @@ const RightPanel = ({ contactId, onClose }) => {
     const navigate = useNavigate();
     const [isAppointmentOpen, setIsAppointmentOpen] = useState(false);
     const [isAssociateDialogOpen, setIsAssociateDialogOpen] = useState(false);
+    const [isPatientModalOpen, setIsPatientModalOpen] = useState(false);
 
     const {
         contact,
@@ -167,9 +169,20 @@ const RightPanel = ({ contactId, onClose }) => {
                                 <MessageSquareText className="h-4 w-4 mr-2" />
                                 Template
                             </Button>
-                             <Button 
-                                variant={safeContact.patient_id ? "outline" : "default"} 
-                                size="sm" 
+                            {!safeContact.patient_id && (
+                                <Button
+                                    variant="outline"
+                                    size="sm"
+                                    onClick={() => setIsPatientModalOpen(true)}
+                                    className="border-green-500 text-green-700 hover:bg-green-50"
+                                >
+                                    <PlusCircle className="h-4 w-4 mr-2" />
+                                    Criar Perfil
+                                </Button>
+                            )}
+                             <Button
+                                variant={safeContact.patient_id ? "outline" : "default"}
+                                size="sm"
                                 className={cn("col-span-2", !safeContact.patient_id && "bg-blue-600 hover:bg-blue-700")}
                                 onClick={handleProfileClick}
                              >
@@ -228,6 +241,21 @@ const RightPanel = ({ contactId, onClose }) => {
                 initialData={{
                     name: safeContact.name,
                     phone: safeContact.phone
+                }}
+            />
+            <PatientFullDetailsModal
+                open={isPatientModalOpen}
+                onOpenChange={setIsPatientModalOpen}
+                initialData={{
+                    name: safeContact.name,
+                    phone: safeContact.phone,
+                    email: safeContact.email
+                }}
+                contactId={contactId}
+                onPatientCreated={(patientId) => {
+                    // Após criar o paciente, associar automaticamente ao contato
+                    handleAssociatePatient(patientId);
+                    setIsPatientModalOpen(false);
                 }}
             />
         </aside>

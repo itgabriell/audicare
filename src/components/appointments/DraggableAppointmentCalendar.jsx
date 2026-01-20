@@ -75,7 +75,7 @@ const DraggableAppointment = memo(({ appointment, onAppointmentClick }) => {
       ref={setNodeRef}
       style={style}
       {...attributes}
-      className={`${getStatusColor(appointment.status)}/20 text-primary-foreground p-2 rounded-md text-xs mb-1 hover:bg-opacity-30 transition-colors group cursor-move border-l-4 ${getStatusColor(appointment.status)}`}
+      className={`${getStatusColor(appointment.status)}/20 text-primary-foreground p-2 rounded-md text-xs mb-1 hover:bg-opacity-30 transition-colors group cursor-move border-l-4 ${getStatusColor(appointment.status)} overflow-hidden`}
     >
       <div className="flex items-start gap-1">
         <GripVertical

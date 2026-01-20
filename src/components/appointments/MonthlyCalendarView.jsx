@@ -107,7 +107,7 @@ const MonthlyCalendarView = ({
                 {dayAppointments.slice(0, 3).map((appointment, appIndex) => (
                   <div
                     key={appointment.id}
-                    className={`text-xs p-2 rounded text-white hover:opacity-80 transition-opacity cursor-pointer border-l-2 ${getStatusColor(appointment.status)}`}
+                    className={`text-xs p-2 rounded text-white hover:opacity-80 transition-opacity cursor-pointer border-l-2 overflow-hidden ${getStatusColor(appointment.status)}`}
                     title={`${appointment.contact?.name || 'Paciente'}: ${appointment.title || appointment.appointment_type} - ${getStatusLabel(appointment.status)}`}
                     onClick={(e) => {
                       e.stopPropagation();

@@ -49,8 +49,10 @@ const AppointmentDialog = ({ open, onOpenChange, appointment, onSuccess, initial
 
   useEffect(() => {
     if (appointment) {
+      // Para edição: usar o contact.id do objeto appointment (vem do getAppointments)
+      const patientId = appointment.contact?.id || appointment.contact_id || appointment.patient_id;
       form.reset({
-        contact_id: appointment.contact_id,
+        contact_id: patientId,
         professional_name: appointment.professional_name || 'Dra. Karine Brandão',
         start_time: appointment.start_time ? new Date(appointment.start_time).toISOString().slice(0, 16) : '',
         title: appointment.title || appointment.appointment_type || '',
@@ -58,8 +60,8 @@ const AppointmentDialog = ({ open, onOpenChange, appointment, onSuccess, initial
         obs: appointment.obs || '',
       });
       // Fetch patient details for the "Send Message" button context
-      if (appointment.contact_id) {
-          fetchPatient(appointment.contact_id);
+      if (patientId) {
+          fetchPatient(patientId);
       }
     } else if (initialData) {
       form.reset({

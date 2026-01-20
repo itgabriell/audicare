@@ -67,7 +67,11 @@ const ConversationListItem = ({ conversation, isSelected, onSelect }) => {
         >
             <div className="relative mt-1">
                 <Avatar className="h-10 w-10 border-2 border-background shadow-sm">
-                    <AvatarImage src={conversation.contact?.profile_pic_url} alt={contactName} className="object-cover" />
+                    <AvatarImage
+                        src={conversation.contact?.profile_pic_url || conversation.contact?.avatar_url}
+                        alt={contactName}
+                        className="object-cover"
+                    />
                     <AvatarFallback className="text-xs bg-primary/10 text-primary font-medium">
                         {getInitials(contactName)}
                     </AvatarFallback>
@@ -79,7 +83,14 @@ const ConversationListItem = ({ conversation, isSelected, onSelect }) => {
 
             <div className="flex-1 min-w-0 overflow-hidden">
                 <div className="flex justify-between items-center mb-0.5">
-                    <h3 className={cn("font-medium truncate text-sm", isSelected ? "text-primary" : "text-foreground")}>
+                    <h3 className={cn(
+                        "truncate text-sm",
+                        isSelected
+                            ? "text-primary font-medium"
+                            : unreadCount > 0
+                                ? "text-foreground font-semibold" // Negrito apenas se não lida
+                                : "text-foreground font-normal" // Normal se já foi vista
+                    )}>
                         {contactName}
                     </h3>
                     <p className="text-[10px] text-muted-foreground flex-shrink-0 ml-2">

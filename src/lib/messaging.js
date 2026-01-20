@@ -86,12 +86,11 @@ export async function fetchContactDetails(contactId) {
         };
     }
 
-    // Fallback: check patients table directly (legacy phone field)
+    // Fallback: check patients table using RPC for flexible phone matching
     const { data: patient } = await supabase
-        .from('patients')
-        .select('id, name')
-        .eq('phone', contact.phone)
-        .limit(1)
+        .rpc('find_patient_by_phone', {
+            phone_number: contact.phone
+        })
         .maybeSingle();
 
     if (patient) {
