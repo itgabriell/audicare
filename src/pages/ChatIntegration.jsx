@@ -15,7 +15,7 @@ const ChatIntegration = () => {
         <iframe
           src="https://chat.audicarefono.com.br"
           className="w-full h-full border-none"
-          style={{ width: 'calc(100% + 260px)', marginLeft: '-260px' }}
+          style={{ width: 'calc(100% + 240px)', marginLeft: '-240px' }}
           title="Chatwoot Inbox"
           allow="camera; microphone; geolocation; keyboard-map"
           onLoad={() => setIsLoading(false)}
