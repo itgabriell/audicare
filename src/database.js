@@ -1,4 +1,6 @@
 import { supabase } from './lib/customSupabaseClient';
+import chatwootBackendService from '../backend/services/ChatwootBackendService.js';
+import patientEngagementAutomation from '../backend/services/PatientEngagementAutomation.js';
 
 const getClinicId = async () => {
   try {
@@ -185,6 +187,14 @@ export const addPatient = async (patientData) => {
     await savePatientPhones(data.id, phones);
   }
 
+  // Sincronizar com Chatwoot (não bloquear operação se falhar)
+  try {
+    console.log('[DB] Sincronizando paciente recém-criado com Chatwoot...');
+    await chatwootBackendService.syncContact(data);
+  } catch (syncError) {
+    console.warn('[DB] Falha na sincronização com Chatwoot (não crítica):', syncError.message);
+  }
+
   return data;
 };
 
@@ -260,6 +270,14 @@ export const updatePatient = async (patientId, updates) => {
   // Salvar telefones se houver
   if (phones && phones.length > 0) {
     await savePatientPhones(patientId, phones);
+  }
+
+  // Sincronizar com Chatwoot (não bloquear operação se falhar)
+  try {
+    console.log('[DB] Sincronizando paciente atualizado com Chatwoot...');
+    await chatwootBackendService.syncContact(data);
+  } catch (syncError) {
+    console.warn('[DB] Falha na sincronização com Chatwoot (não crítica):', syncError.message);
   }
 
   return data;
@@ -469,8 +487,35 @@ export const addAppointment = async (d) => {
 };
 export const updateAppointment = async (id, u) => {
     const cid = await getClinicId();
+
+    // Buscar status anterior antes da atualização
+    const { data: currentAppointment, error: fetchError } = await supabase
+        .from('appointments')
+        .select('status')
+        .eq('id', id)
+        .eq('clinic_id', cid)
+        .single();
+
+    if (fetchError) throw fetchError;
+
+    const oldStatus = currentAppointment?.status;
+    const newStatus = u.status;
+
+    // Executar atualização
     const { data, error } = await supabase.from('appointments').update(u).eq('id', id).eq('clinic_id', cid).select().single();
-    if(error) throw error; return data;
+    if(error) throw error;
+
+    // Disparar automações se o status mudou
+    if (oldStatus !== newStatus) {
+        try {
+            console.log(`[DB] Status do agendamento ${id} mudou: ${oldStatus} → ${newStatus}`);
+            await patientEngagementAutomation.processAppointmentStatusChange(id, newStatus, oldStatus);
+        } catch (automationError) {
+            console.warn('[DB] Erro na automação (não crítica):', automationError.message);
+        }
+    }
+
+    return data;
 };
 export const deleteAppointment = async (id) => {
     const cid = await getClinicId();

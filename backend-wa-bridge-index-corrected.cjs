@@ -10,6 +10,12 @@ const path = require('path');
 // Importar rotas de webhook
 const webhookRoutes = require('./backend/routes/webhookRoutes.cjs');
 
+// Importar serviço de sincronização Chatwoot
+const chatwootBackendService = require('./backend/services/ChatwootBackendService.js');
+
+// Importar sistema de automação de engajamento
+const patientEngagementAutomation = require('./backend/services/PatientEngagementAutomation.js');
+
 const app = express();
 const PORT = process.env.PORT || 4000;
 
@@ -28,6 +34,55 @@ app.use(express.json());
 
 // --- ROTAS DE WEBHOOK CHATWOOT ---
 app.use('/webhooks', webhookRoutes);
+
+// --- ROTAS DE AUTOMAÇÃO DE ENGAJAMENTO ---
+app.post('/api/automation/test/:type', requireAuth, async (req, res) => {
+  try {
+    const { type } = req.params;
+    const { phone, data } = req.body;
+
+    const result = await patientEngagementAutomation.testAutomation(type, phone, data);
+    res.json(result);
+  } catch (error) {
+    console.error('❌ Erro no teste de automação:', error.message);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+app.get('/api/automation/settings', requireAuth, async (req, res) => {
+  try {
+    const settings = patientEngagementAutomation.getSettings();
+    res.json(settings);
+  } catch (error) {
+    console.error('❌ Erro ao obter configurações:', error.message);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+app.put('/api/automation/settings', requireAuth, async (req, res) => {
+  try {
+    const newSettings = req.body;
+    patientEngagementAutomation.updateSettings(newSettings);
+    res.json({ success: true });
+  } catch (error) {
+    console.error('❌ Erro ao atualizar configurações:', error.message);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// Trigger para mudança de status de agendamento
+app.post('/api/automation/appointment-status/:appointmentId', requireAuth, async (req, res) => {
+  try {
+    const { appointmentId } = req.params;
+    const { newStatus, oldStatus } = req.body;
+
+    const result = await patientEngagementAutomation.processAppointmentStatusChange(appointmentId, newStatus, oldStatus);
+    res.json(result);
+  } catch (error) {
+    console.error('❌ Erro no processamento de status:', error.message);
+    res.status(500).json({ error: error.message });
+  }
+});
 
 // --- FUNÇÕES AUXILIARES PARA UPLOAD DE MÍDIAS ---
 
