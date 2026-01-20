@@ -14,9 +14,10 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { useToast } from '@/components/ui/use-toast';
 import { supabase } from '@/lib/customSupabaseClient';
 import { getClinicId } from '@/database';
-import { MessageCircle } from 'lucide-react';
+import { MessageCircle, Bell } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import PatientCombobox from '@/components/patients/PatientCombobox';
+import { useAppointmentReminders } from '@/hooks/useAppointmentReminders';
 
 const appointmentSchema = z.object({
   contact_id: z.string().min(1, "Paciente é obrigatório"),
@@ -34,6 +35,7 @@ const AppointmentDialog = ({ open, onOpenChange, appointment, onSuccess, initial
   const navigate = useNavigate();
   const [loading, setLoading] = useState(false);
   const [selectedPatient, setSelectedPatient] = useState(null);
+  const { sendAppointmentReminder, loading: reminderLoading } = useAppointmentReminders();
 
   const form = useForm({
     resolver: zodResolver(appointmentSchema),
@@ -315,8 +317,32 @@ const AppointmentDialog = ({ open, onOpenChange, appointment, onSuccess, initial
             <Textarea {...form.register('obs')} placeholder="Detalhes adicionais..." />
           </div>
 
-          <DialogFooter>
-            <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>Cancelar</Button>
+          <DialogFooter className="flex-col sm:flex-row gap-2">
+            <div className="flex gap-2 w-full sm:w-auto">
+              <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>Cancelar</Button>
+              {appointment && selectedPatient && (
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  onClick={async () => {
+                    if (!appointment.id) return;
+
+                    const result = await sendAppointmentReminder(appointment.id);
+                    if (result.success) {
+                      toast({ title: "Sucesso", description: result.message });
+                    } else if (!result.alreadySent) {
+                      toast({ variant: "destructive", title: "Erro", description: result.message });
+                    }
+                  }}
+                  disabled={reminderLoading}
+                  className="flex items-center gap-1"
+                >
+                  <Bell className="h-3 w-3" />
+                  {reminderLoading ? 'Enviando...' : 'Enviar Lembrete'}
+                </Button>
+              )}
+            </div>
             <Button type="submit" disabled={loading}>
                 {loading ? 'Salvando...' : 'Salvar Agendamento'}
             </Button>

@@ -27,7 +27,7 @@ const CRM = lazy(() => import('@/pages/CRM'));
 const Users = lazy(() => import('@/pages/Users'));
 const ImportData = lazy(() => import('@/pages/ImportData'));
 const Tasks = lazy(() => import('@/pages/Tasks'));
-const Inbox = lazy(() => import('@/pages/Inbox'));
+const ChatIntegration = lazy(() => import('@/pages/ChatIntegration'));
 const Repairs = lazy(() => import('@/pages/Repairs'));
 const SocialMedia = lazy(() => import('@/pages/SocialMedia'));
 const Automations = lazy(() => import('@/pages/Automations'));
@@ -96,7 +96,7 @@ function App() {
             <Route path="crm" element={<CRM />} />
             <Route path="tasks" element={<Tasks />} />
             <Route path="repairs" element={<Repairs />} />
-            <Route path="inbox" element={<Inbox />} />
+            <Route path="inbox" element={<ChatIntegration />} />
             <Route path="social-media" element={<SocialMedia />} />
             <Route path="email-campaigns" element={<EmailCampaigns />} />
             <Route path="automations" element={<Automations />} />

@@ -7,6 +7,9 @@ const { createClient } = require('@supabase/supabase-js');
 const fs = require('fs');
 const path = require('path');
 
+// Importar rotas de webhook
+const webhookRoutes = require('./backend/routes/webhookRoutes.cjs');
+
 const app = express();
 const PORT = process.env.PORT || 4000;
 
@@ -22,6 +25,9 @@ const supabase = createClient(supabaseUrl, supabaseKey);
 
 app.use(cors({ origin: true, credentials: true }));
 app.use(express.json());
+
+// --- ROTAS DE WEBHOOK CHATWOOT ---
+app.use('/webhooks', webhookRoutes);
 
 // --- FUNÇÕES AUXILIARES PARA UPLOAD DE MÍDIAS ---
 
