@@ -136,7 +136,7 @@ const DroppableTimeSlot = memo(({
   return (
     <div
       ref={setNodeRef}
-      className={`border-l border-b p-1 h-24 overflow-y-auto cursor-pointer transition-colors ${
+      className={`border-l border-b p-1 min-h-[120px] cursor-pointer transition-colors ${
         isOver ? 'bg-primary/5 border-primary/30' : 'hover:bg-muted/50'
       }`}
       onClick={() => onSlotClick(date, time)}
@@ -307,7 +307,7 @@ const DraggableAppointmentCalendar = ({
             const timeHour = parseInt(time.split(':')[0]);
             return (
               <React.Fragment key={time}>
-                <div className="p-2 border-b text-sm text-muted-foreground text-right sticky left-0 bg-card z-10 h-24 flex items-center justify-end pr-4">
+                <div className="p-2 border-b text-sm text-muted-foreground text-right sticky left-0 bg-card z-10 min-h-[120px] flex items-center justify-end pr-4">
                   {time}
                 </div>
                 {weekDates.map((date, dayIndex) => {
@@ -336,7 +336,7 @@ const DraggableAppointmentCalendar = ({
         {activeAppointment ? (
           <div className="bg-primary/20 text-primary-foreground p-2 rounded-md text-xs shadow-lg rotate-3">
             <p className="font-semibold">{activeAppointment.contact?.name || 'Paciente'}</p>
-            <p className="text-primary/80">{activeAppointment.appointment_type}</p>
+            <p className="text-primary/80">{activeAppointment.title || activeAppointment.appointment_type}</p>
           </div>
         ) : null}
       </DragOverlay>

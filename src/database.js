@@ -332,10 +332,17 @@ export const getAppointments = async (filters = {}) => {
       return [];
     }
 
-    // Buscar dados dos contatos separadamente
+    // Buscar dados dos contatos/pacientes separadamente
     try {
+      // Coletar todos os IDs únicos de contatos e pacientes
       const contactIds = [...new Set(appointmentsData.map(app => app.contact_id).filter(Boolean))];
+      const patientIds = [...new Set(appointmentsData.map(app => app.patient_id).filter(Boolean))];
 
+      // Mapas para armazenar dados
+      const contactsMap = {};
+      const patientsMap = {};
+
+      // Buscar dados dos contatos (tabela contacts)
       if (contactIds.length > 0) {
         const { data: contactsData, error: contactsError } = await supabase
           .from('contacts')
@@ -344,32 +351,52 @@ export const getAppointments = async (filters = {}) => {
           .eq('clinic_id', clinicId);
 
         if (!contactsError && contactsData) {
-          // Criar mapa de contatos
-          const contactsMap = {};
           contactsData.forEach(contact => {
-            contactsMap[contact.id] = contact;
+            contactsMap[contact.id] = { ...contact, source: 'contacts' };
           });
-
-          // Combinar dados
-          return appointmentsData.map(appointment => ({
-            ...appointment,
-            contact: appointment.contact_id ? {
-              name: contactsMap[appointment.contact_id]?.name || 'Contato não encontrado',
-              phone: contactsMap[appointment.contact_id]?.phone || ''
-            } : null
-          }));
         }
       }
 
-      // Se não conseguiu buscar pacientes, retornar sem dados de contato
-      return appointmentsData.map(appointment => ({
-        ...appointment,
-        contact: null
-      }));
+      // Buscar dados dos pacientes (tabela patients)
+      if (patientIds.length > 0) {
+        const { data: patientsData, error: patientsError } = await supabase
+          .from('patients')
+          .select('id, name, phone')
+          .in('id', patientIds)
+          .eq('clinic_id', clinicId);
+
+        if (!patientsError && patientsData) {
+          patientsData.forEach(patient => {
+            patientsMap[patient.id] = { ...patient, source: 'patients' };
+          });
+        }
+      }
+
+      // Combinar dados dos agendamentos com informações do contato/paciente
+      return appointmentsData.map(appointment => {
+        let contactInfo = null;
+
+        // Priorizar patient_id sobre contact_id (pacientes têm prioridade)
+        if (appointment.patient_id && patientsMap[appointment.patient_id]) {
+          contactInfo = patientsMap[appointment.patient_id];
+        } else if (appointment.contact_id && contactsMap[appointment.contact_id]) {
+          contactInfo = contactsMap[appointment.contact_id];
+        }
+
+        return {
+          ...appointment,
+          contact: contactInfo ? {
+            id: contactInfo.id,
+            name: contactInfo.name || 'Nome não informado',
+            phone: contactInfo.phone || '',
+            source: contactInfo.source
+          } : null
+        };
+      });
 
     } catch (joinError) {
-      console.warn("[DB] Could not fetch patient data for appointments, continuing without:", joinError);
-      // Retornar appointments sem dados de pacientes
+      console.warn("[DB] Could not fetch patient/contact data for appointments, continuing without:", joinError);
+      // Retornar appointments sem dados de contato, mas mantendo estrutura
       return appointmentsData.map(appointment => ({
         ...appointment,
         contact: null
