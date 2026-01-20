@@ -482,6 +482,7 @@ class PatientEngagementAutomation {
           break;
 
         default:
+          console.error(`❌ [Automation] Tipo de automação desconhecido: "${automationType}"`);
           throw new Error(`Tipo de automação desconhecido: ${automationType}`);
       }
 
