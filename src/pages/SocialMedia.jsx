@@ -22,6 +22,9 @@ const SocialMedia = () => {
   const [editingPost, setEditingPost] = useState(null);
   const [currentMonth, setCurrentMonth] = useState(new Date());
 
+  // Debug log para verificar se componentes estão carregando
+  console.log('[SocialMedia] Component loaded successfully');
+
   const loadData = useCallback(async () => {
     try {
       setLoading(true);

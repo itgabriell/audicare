@@ -482,6 +482,115 @@ export const getUnreadNotificationCount = async () => {
 };
 
 // ======================================================================
+// Social Media - Campaigns & Posts
+// ======================================================================
+
+export const getCampaigns = async () => {
+  const clinicId = await getClinicId();
+  if (!clinicId) return [];
+
+  try {
+    const { data, error } = await supabase
+      .from('campaigns')
+      .select('*')
+      .eq('clinic_id', clinicId)
+      .order('created_at', { ascending: false });
+
+    if (error) {
+      console.error('[DB] Error fetching campaigns:', error);
+      return [];
+    }
+
+    return data || [];
+  } catch (error) {
+    console.error('[DB] Critical error fetching campaigns:', error);
+    return [];
+  }
+};
+
+export const getSocialPosts = async () => {
+  const clinicId = await getClinicId();
+  if (!clinicId) return [];
+
+  try {
+    const { data, error } = await supabase
+      .from('social_posts')
+      .select(`
+        *,
+        campaigns (
+          id,
+          title,
+          status
+        )
+      `)
+      .eq('clinic_id', clinicId)
+      .order('created_at', { ascending: false });
+
+    if (error) {
+      console.error('[DB] Error fetching social posts:', error);
+      return [];
+    }
+
+    return data || [];
+  } catch (error) {
+    console.error('[DB] Critical error fetching social posts:', error);
+    return [];
+  }
+};
+
+export const addSocialPost = async (postData) => {
+  const clinicId = await getClinicId();
+  if (!clinicId) throw new Error('User is not associated with a clinic.');
+  const userId = await getUserId();
+
+  const { data, error } = await supabase
+    .from('social_posts')
+    .insert([{
+      ...postData,
+      clinic_id: clinicId,
+      created_by: userId,
+      created_at: new Date().toISOString()
+    }])
+    .select()
+    .single();
+
+  if (error) throw error;
+  return data;
+};
+
+export const updateSocialPost = async (postId, updates) => {
+  const clinicId = await getClinicId();
+  if (!clinicId) throw new Error('User is not associated with a clinic.');
+
+  const { data, error } = await supabase
+    .from('social_posts')
+    .update({
+      ...updates,
+      updated_at: new Date().toISOString()
+    })
+    .eq('id', postId)
+    .eq('clinic_id', clinicId)
+    .select()
+    .single();
+
+  if (error) throw error;
+  return data;
+};
+
+export const deleteSocialPost = async (postId) => {
+  const clinicId = await getClinicId();
+  if (!clinicId) throw new Error('User is not associated with a clinic.');
+
+  const { error } = await supabase
+    .from('social_posts')
+    .delete()
+    .eq('id', postId)
+    .eq('clinic_id', clinicId);
+
+  if (error) throw error;
+};
+
+// ======================================================================
 // Notifications - Função de criação
 // ======================================================================
 
