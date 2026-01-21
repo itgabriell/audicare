@@ -68,7 +68,7 @@ router.post('/chatwoot', async (req, res) => {
  * GET /webhooks/health
  * Endpoint de saúde para verificar se os webhooks estão funcionando
  */
-router.get('/health', (req, res) => {
+router.get('/webhooks/health', (req, res) => {
   res.json({
     status: 'ok',
     service: 'Chatwoot-Webhook-Adapter',

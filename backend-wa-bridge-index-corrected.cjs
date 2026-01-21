@@ -9,6 +9,15 @@ const path = require('path');
 
 // Importar rotas de webhook
 const webhookRoutes = require('./backend/routes/webhookRoutes.cjs');
+console.log('✅ Webhook routes loaded:', typeof webhookRoutes);
+
+// Importar rotas de pacientes (para integração Chatwoot)
+const patientRoutes = require('./backend/routes/patientRoutes.cjs');
+console.log('✅ Patient routes loaded:', typeof patientRoutes);
+
+// Importar rotas de webhooks do Supabase
+const supabaseWebhookRoutes = require('./backend/routes/supabaseWebhookRoutes.cjs');
+console.log('✅ Supabase webhook routes loaded:', typeof supabaseWebhookRoutes);
 
 // Importar serviço de sincronização Chatwoot
 const chatwootBackendService = require('./backend/services/ChatwootBackendService.js');
@@ -34,6 +43,12 @@ app.use(express.json());
 
 // --- ROTAS DE WEBHOOK CHATWOOT ---
 app.use('/webhooks', webhookRoutes);
+
+// --- ROTAS DE PACIENTES (PARA INTEGRAÇÃO CHATWOOT) ---
+app.use('/api/patients', patientRoutes);
+
+// --- ROTAS DE WEBHOOKS DO SUPABASE ---
+app.use('/webhooks/supabase', supabaseWebhookRoutes);
 
 // --- ROTAS DE AUTOMAÇÃO DE ENGAJAMENTO ---
 app.post('/api/automation/test/:type', requireAuth, async (req, res) => {
