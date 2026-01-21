@@ -1,6 +1,7 @@
 import React, { useMemo } from 'react';
 import { format, startOfMonth, endOfMonth, startOfWeek, endOfWeek, eachDayOfInterval, isSameMonth, isToday, isSameDay } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
+import { useTheme } from '@/contexts/ThemeContext';
 
 const MonthlyCalendarView = ({
   currentDate,
@@ -8,6 +9,8 @@ const MonthlyCalendarView = ({
   onDayClick,
   onAppointmentClick
 }) => {
+  const { theme } = useTheme();
+
   // Calcular o intervalo do mês incluindo semanas parciais
   const monthStart = startOfMonth(currentDate);
   const monthEnd = endOfMonth(currentDate);
@@ -43,17 +46,24 @@ const MonthlyCalendarView = ({
     return appointmentsByDay.get(dayKey) || [];
   };
 
-  const getStatusColor = (status) => {
-    switch (status) {
-      case 'confirmed': return 'bg-green-500';
-      case 'arrived': return 'bg-blue-500';
-      case 'completed': return 'bg-gray-500';
-      case 'no_show': return 'bg-red-500';
-      case 'cancelled': return 'bg-gray-400';
-      case 'rescheduled': return 'bg-yellow-500';
-      case 'not_confirmed': return 'bg-orange-500';
-      default: return 'bg-primary';
-    }
+  const getAppointmentStyle = (appointment) => {
+    const baseClasses = "text-xs p-2 rounded hover:opacity-80 transition-opacity cursor-pointer border-l-2 overflow-hidden shadow-sm";
+
+    // Cores adaptáveis ao tema
+    const statusColors = {
+      confirmed: theme === 'dark' ? 'bg-green-700 text-white border-green-600' : 'bg-green-600 text-white border-green-500',
+      arrived: theme === 'dark' ? 'bg-blue-700 text-white border-blue-600' : 'bg-blue-600 text-white border-blue-500',
+      completed: theme === 'dark' ? 'bg-gray-700 text-white border-gray-600' : 'bg-gray-600 text-white border-gray-500',
+      no_show: theme === 'dark' ? 'bg-red-700 text-white border-red-600' : 'bg-red-600 text-white border-red-500',
+      cancelled: theme === 'dark' ? 'bg-gray-600 text-white border-gray-500' : 'bg-gray-500 text-white border-gray-400',
+      rescheduled: theme === 'dark' ? 'bg-yellow-700 text-white border-yellow-600' : 'bg-yellow-600 text-white border-yellow-500',
+      not_confirmed: theme === 'dark' ? 'bg-orange-700 text-white border-orange-600' : 'bg-orange-600 text-white border-orange-500',
+      scheduled: theme === 'dark' ? 'bg-slate-700 text-white border-slate-600' : 'bg-slate-600 text-white border-slate-500'
+    };
+
+    const colorClass = statusColors[appointment.status] || statusColors.scheduled;
+
+    return `${baseClasses} ${colorClass}`;
   };
 
   const getStatusLabel = (status) => {
@@ -107,24 +117,26 @@ const MonthlyCalendarView = ({
                 {dayAppointments.slice(0, 3).map((appointment, appIndex) => (
                   <div
                     key={appointment.id}
-                    className={`text-xs p-2 rounded text-white hover:opacity-80 transition-opacity cursor-pointer border-l-2 overflow-hidden ${getStatusColor(appointment.status)}`}
-                    title={`${appointment.contact?.name || 'Paciente'}: ${appointment.title || appointment.appointment_type} - ${getStatusLabel(appointment.status)}`}
+                    className={getAppointmentStyle(appointment)}
+                    title={`${appointment.contact?.name || 'Paciente'} - ${appointment.title || appointment.appointment_type} - ${getStatusLabel(appointment.status)}`}
                     onClick={(e) => {
                       e.stopPropagation();
                       onAppointmentClick(appointment);
                     }}
                   >
-                    <div className="font-bold">
-                      {format(new Date(appointment.start_time || appointment.appointment_date), 'HH:mm')}
+                    <div className="flex items-center justify-between mb-1">
+                      <div className="font-bold">
+                        {format(new Date(appointment.start_time || appointment.appointment_date), 'HH:mm')}
+                      </div>
+                      <div className="text-xs opacity-90 font-medium">
+                        {getStatusLabel(appointment.status)}
+                      </div>
                     </div>
-                    <div className="truncate font-medium">
+                    <div className="truncate font-semibold mb-1">
                       {appointment.contact?.name || 'Paciente'}
                     </div>
-                    <div className="truncate text-xs opacity-90">
+                    <div className="truncate text-xs opacity-90 font-medium">
                       {appointment.title || appointment.appointment_type}
-                    </div>
-                    <div className="text-xs opacity-75 mt-1">
-                      {getStatusLabel(appointment.status)}
                     </div>
                   </div>
                 ))}

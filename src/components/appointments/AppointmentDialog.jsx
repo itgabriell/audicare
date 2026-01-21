@@ -30,7 +30,7 @@ const appointmentSchema = z.object({
   patient_id: z.string().optional(),
 });
 
-const AppointmentDialog = ({ open, onOpenChange, appointment, onSuccess, initialData, patients = [] }) => {
+const AppointmentDialog = ({ open, onOpenChange, appointment, onSuccess, initialData, patients = [], onPatientsUpdate }) => {
   const { toast } = useToast();
   const navigate = useNavigate();
   const [loading, setLoading] = useState(false);
@@ -66,10 +66,25 @@ const AppointmentDialog = ({ open, onOpenChange, appointment, onSuccess, initial
           fetchPatient(patientId);
       }
     } else if (initialData) {
+      // Auto-preencher data/hora baseado no slot clicado
+      let startTimeValue = '';
+      if (initialData.date && initialData.time) {
+        // Se clicou em um slot específico (data + hora)
+        const dateTime = new Date(initialData.date);
+        const [hours, minutes] = initialData.time.split(':');
+        dateTime.setHours(parseInt(hours), parseInt(minutes || 0), 0, 0);
+        startTimeValue = dateTime.toISOString().slice(0, 16);
+      } else if (initialData.date) {
+        // Se clicou apenas em um dia (sem hora específica)
+        const dateTime = new Date(initialData.date);
+        dateTime.setHours(9, 0, 0, 0); // Padrão: 9:00 da manhã
+        startTimeValue = dateTime.toISOString().slice(0, 16);
+      }
+
       form.reset({
         contact_id: initialData.contact_id || '',
         professional_name: 'Dra. Karine Brandão',
-        start_time: initialData.start_time || '',
+        start_time: startTimeValue,
         title: initialData.title || initialData.appointment_type || '',
         status: 'scheduled',
         obs: initialData.obs || '',
@@ -232,6 +247,12 @@ const AppointmentDialog = ({ open, onOpenChange, appointment, onSuccess, initial
                 onChange={(val) => {
                     form.setValue('contact_id', val);
                     fetchPatient(val);
+                }}
+                onPatientAdded={(newPatient) => {
+                    // Atualizar lista de pacientes quando um novo for criado
+                    if (onPatientsUpdate) {
+                        onPatientsUpdate([...patients, newPatient]);
+                    }
                 }}
                 disabled={!!appointment}
             />

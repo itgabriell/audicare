@@ -21,8 +21,11 @@ import {
 } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
 import { GripVertical } from 'lucide-react';
+import { useTheme } from '@/contexts/ThemeContext';
 
 const DraggableAppointment = memo(({ appointment, onAppointmentClick }) => {
+  const { theme } = useTheme();
+
   const {
     attributes,
     listeners,
@@ -46,14 +49,14 @@ const DraggableAppointment = memo(({ appointment, onAppointmentClick }) => {
 
   const getStatusColor = (status) => {
     switch (status) {
-      case 'confirmed': return 'bg-green-500';
-      case 'arrived': return 'bg-blue-500';
-      case 'completed': return 'bg-gray-500';
-      case 'no_show': return 'bg-red-500';
-      case 'cancelled': return 'bg-gray-400';
-      case 'rescheduled': return 'bg-yellow-500';
-      case 'not_confirmed': return 'bg-orange-500';
-      default: return 'bg-primary';
+      case 'confirmed': return theme === 'dark' ? 'bg-green-700' : 'bg-green-500';
+      case 'arrived': return theme === 'dark' ? 'bg-blue-700' : 'bg-blue-500';
+      case 'completed': return theme === 'dark' ? 'bg-gray-700' : 'bg-gray-500';
+      case 'no_show': return theme === 'dark' ? 'bg-red-700' : 'bg-red-500';
+      case 'cancelled': return theme === 'dark' ? 'bg-gray-600' : 'bg-gray-400';
+      case 'rescheduled': return theme === 'dark' ? 'bg-yellow-700' : 'bg-yellow-500';
+      case 'not_confirmed': return theme === 'dark' ? 'bg-orange-700' : 'bg-orange-500';
+      default: return theme === 'dark' ? 'bg-slate-700' : 'bg-primary';
     }
   };
 
