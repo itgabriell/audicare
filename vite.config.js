@@ -5,6 +5,12 @@ import path from 'path';
 
 // https://vitejs.dev/config/
 export default defineConfig({
+  // CORREÇÃO: Define process.env globalmente para evitar o crash "ReferenceError: process is not defined"
+  // Isso é necessário porque algumas bibliotecas (como o chatwootService) esperam um ambiente Node.js
+  define: {
+    'process.env': process.env
+  },
+
   plugins: [
     react(),
     VitePWA({
@@ -36,31 +42,23 @@ export default defineConfig({
     },
   },
   server: {
-    port: 3000, // O site vai rodar em localhost:3000
+    port: 3000,
   },
   build: {
-    // Otimização de build para performance
     rollupOptions: {
       output: {
-        // Nomes de arquivos otimizados
         chunkFileNames: 'assets/[name]-[hash].js',
         entryFileNames: 'assets/[name]-[hash].js',
         assetFileNames: 'assets/[name]-[hash].[ext]'
       }
     },
-
-    // Otimizações de build
-    chunkSizeWarningLimit: 1000, // Avisar sobre chunks grandes
-    minify: 'esbuild', // Minificação rápida
-    sourcemap: false, // Desabilitar sourcemaps em produção
-
-    // Preload modules for better performance
+    chunkSizeWarningLimit: 1000,
+    minify: 'esbuild',
+    sourcemap: false,
     modulePreload: {
       polyfill: false
     }
   },
-
-  // Otimizações de dependências
   optimizeDeps: {
     include: [
       'react',
@@ -71,8 +69,6 @@ export default defineConfig({
       'framer-motion',
       'lucide-react'
     ],
-    exclude: ['xlsx', 'jspdf'] // Lazy load heavy libraries
+    exclude: ['xlsx', 'jspdf']
   },
-
-
 });

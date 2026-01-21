@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback } from 'react';
-import { getAppointments } from '@/database';
+import { getAppointments } from '@/database'; // CORRIGIDO: mudado de getAppointmentsForClinic para getAppointments
 import { useAuth } from '@/contexts/SupabaseAuthContext';
 import { supabase } from '@/lib/customSupabaseClient';
 
@@ -10,15 +10,17 @@ export const useAppointments = () => {
   const { user } = useAuth();
 
   const loadAppointments = useCallback(async () => {
+    // Verifica apenas se o usuário tem profile carregado
     if (!user?.profile?.clinic_id) {
-      setLoading(false);
-      return;
+      // Se não tiver clinic_id ainda, não tenta buscar (evita erro)
+      return; 
     }
 
     try {
       setLoading(true);
       setError(null);
-      const data = await getAppointments();
+      // getAppointments() sem argumentos busca todos os agendamentos da clínica do usuário atual
+      const data = await getAppointments(); 
       setAppointments(data || []);
     } catch (err) {
       console.error('Error loading appointments:', err);
@@ -56,44 +58,5 @@ export const useAppointments = () => {
     };
   }, [user?.profile?.clinic_id, loadAppointments]);
 
-  const createAppointment = async (appointmentData) => {
-    if (!user?.profile?.clinic_id) throw new Error('Clinic ID not found');
-
-    const {
-        patient_id,
-        contact_id,
-        start_time,
-        status = 'scheduled',
-        title,
-        obs,
-        professional_id
-    } = appointmentData;
-
-    // Validate professional_id is UUID or null
-    const validProfessionalId = professional_id && /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(professional_id)
-        ? professional_id
-        : null;
-
-    const { data, error } = await supabase
-        .from('appointments')
-        .insert({
-            clinic_id: user.profile.clinic_id,
-            patient_id,
-            contact_id,
-            start_time,
-            status,
-            title,
-            obs,
-            professional_id: validProfessionalId,
-            // scheduled_by: será preenchido pelo trigger do banco
-        })
-        .select()
-        .single();
-
-    if (error) throw error;
-
-    return data;
-  };
-
-  return { appointments, loading, error, refetch: loadAppointments, createAppointment };
+  return { appointments, loading, error, refetch: loadAppointments };
 };

@@ -11,10 +11,21 @@ export const AuthProvider = ({ children }) => {
   const [user, setUser] = useState(null);
   const [loading, setLoading] = useState(true);
 
+  // Função auxiliar para limpar tudo se der erro fatal de auth
+  const clearLocalSession = () => {
+    console.log("[AuthContext] Clearing invalid session data.");
+    Object.keys(localStorage).forEach(key => {
+        if (key.startsWith('sb-') && key.includes('-auth-token')) {
+            localStorage.removeItem(key);
+        }
+    });
+    setSession(null);
+    setUser(null);
+  };
+
   const fetchUserProfile = async (session) => {
     if (!session) return null;
     try {
-      // Retry mechanism for initial profile fetch to handle transient network errors
       const getProfileWithRetry = async (retries = 3, delay = 1000) => {
         try {
           let { data: profile, error } = await supabase
@@ -24,11 +35,9 @@ export const AuthProvider = ({ children }) => {
             .single();
 
           if (error) {
-            // If error is transient (like Failed to fetch or PGRST116 race condition), retry
             if (error.message?.includes('Failed to fetch') || error.code === 'PGRST116' || error.status === 500) {
                 throw error; 
             }
-            // Permanent error
             return { profile: null, error };
           }
           return { profile, error: null };
@@ -45,8 +54,6 @@ export const AuthProvider = ({ children }) => {
 
       if (error) {
         console.warn("Failed to fetch profile after retries:", error);
-        // Even if profile fetch fails, we return the user object so they aren't locked out entirely,
-        // though functionality might be limited.
         return session.user;
       }
 
@@ -60,11 +67,6 @@ export const AuthProvider = ({ children }) => {
       }
     } catch (e) {
       console.error("Error in fetchUserProfile:", e);
-      toast({
-        variant: "destructive",
-        title: "Erro de conexão",
-        description: "Houve um problema ao conectar com o servidor. Verifique sua internet.",
-      });
       return session.user;
     }
   };
@@ -75,32 +77,29 @@ export const AuthProvider = ({ children }) => {
     const getSessionAndProfile = async () => {
       try {
         const { data: { session: currentSession }, error } = await supabase.auth.getSession();
+        
         if (error) {
-          // If there's an auth error (like invalid refresh token), clear storage and reset
-          if (error.message?.includes('Invalid Refresh Token') || error.message?.includes('refresh_token_not_found')) {
-            console.warn('Invalid refresh token detected, clearing auth storage');
-            Object.keys(localStorage).forEach(key => {
-              if (key.startsWith('sb-') && key.includes('-auth-token')) {
-                localStorage.removeItem(key);
-              }
-            });
-            // Try to get session again after clearing
-            const { data: { session: retrySession } } = await supabase.auth.getSession();
-            if (mounted) setSession(retrySession);
-          } else {
+            // Se o erro for de token inválido, limpamos o storage para evitar loop
+            if (error.message && (error.message.includes('Invalid Refresh Token') || error.message.includes('Refresh Token Not Found'))) {
+                clearLocalSession();
+                return; // Encerra aqui, user vai ficar deslogado
+            }
             throw error;
-          }
-        } else {
-          if (mounted) {
+        }
+        
+        if (mounted) {
             setSession(currentSession);
             if (currentSession) {
               const userProfile = await fetchUserProfile(currentSession);
               if (mounted) setUser(userProfile);
             }
-          }
         }
       } catch (error) {
         console.error('Error getting initial session:', error);
+        // Fallback de segurança
+        if (error.message && (error.message.includes('Invalid Refresh Token') || error.message.includes('Refresh Token Not Found'))) {
+             clearLocalSession();
+        }
       } finally {
         if (mounted) setLoading(false);
       }
@@ -109,9 +108,17 @@ export const AuthProvider = ({ children }) => {
     getSessionAndProfile();
 
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
-      async (_event, newSession) => {
+      async (event, newSession) => {
+        console.log(`[Auth] Auth event: ${event}`);
         if (!mounted) return;
         
+        if (event === 'SIGNED_OUT' || event === 'USER_DELETED') {
+            setSession(null);
+            setUser(null);
+            setLoading(false);
+            return;
+        }
+
         setSession(newSession);
         if (newSession) {
           const userProfile = await fetchUserProfile(newSession);
@@ -130,7 +137,6 @@ export const AuthProvider = ({ children }) => {
   }, []);
 
   const signIn = useCallback(async (email, password) => {
-    console.log("[AuthContext:signIn] Attempting to sign in with email:", email);
     const { data, error } = await supabase.auth.signInWithPassword({
       email,
       password,
@@ -148,21 +154,11 @@ export const AuthProvider = ({ children }) => {
 
   const signOut = useCallback(async () => {
     try {
-        const { error } = await supabase.auth.signOut();
-        if (error) throw error;
+        await supabase.auth.signOut();
     } catch (error) {
-        if (error.status !== 401 && !error.message?.includes('session not found')) {
-            console.error("[AuthContext:signOut] Unexpected error:", error);
-        }
+        console.error("Error signing out:", error);
     } finally {
-        // Clear local state and storage
-        Object.keys(localStorage).forEach(key => {
-            if (key.startsWith('sb-') && key.includes('-auth-token')) {
-                localStorage.removeItem(key);
-            }
-        });
-        setUser(null);
-        setSession(null);
+        clearLocalSession();
     }
   }, []);
   
@@ -182,11 +178,10 @@ export const AuthProvider = ({ children }) => {
     return { data, error };
   }, [toast]);
 
-
   const value = useMemo(() => ({
     session,
     user,
-    profile: user?.profile || null, // Expor profile diretamente para facilitar o uso
+    profile: user, // Alias para manter compatibilidade
     loading,
     signIn,
     signOut,

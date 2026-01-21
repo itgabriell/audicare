@@ -2,25 +2,43 @@ import { supabase } from './lib/customSupabaseClient';
 
 const getClinicId = async () => {
   try {
-    const {
-      data: { session },
-    } = await supabase.auth.getSession();
-    if (!session) return null;
+    console.log("[DB] 🔍 Buscando clinic_id...");
+    const { data: { session } } = await supabase.auth.getSession();
+    if (!session) {
+      console.warn("[DB] ❌ Sessão não encontrada");
+      return null;
+    }
 
-    // Try metadata first for speed
+    console.log("[DB] ✅ Sessão encontrada, user ID:", session.user.id);
+
+    // Tenta metadados primeiro
     if (session.user?.user_metadata?.clinic_id) {
+        console.log("[DB] ✅ clinic_id encontrado nos metadados:", session.user.user_metadata.clinic_id);
         return session.user.user_metadata.clinic_id;
     }
 
-    const { data: profile } = await supabase
+    console.log("[DB] 🔍 clinic_id não encontrado nos metadados, buscando na tabela profiles...");
+
+    const { data: profile, error: profileError } = await supabase
       .from('profiles')
       .select('clinic_id')
       .eq('id', session.user.id)
       .single();
 
-    return profile?.clinic_id;
+    if (profileError) {
+      console.error("[DB] ❌ Erro ao buscar profile:", profileError);
+      return null;
+    }
+
+    if (profile?.clinic_id) {
+      console.log("[DB] ✅ clinic_id encontrado na tabela profiles:", profile.clinic_id);
+      return profile.clinic_id;
+    }
+
+    console.warn("[DB] ⚠️ clinic_id não encontrado em nenhum lugar");
+    return null;
   } catch (error) {
-      console.error("Error getting clinic ID:", error);
+      console.error("[DB] ❌ Erro geral ao buscar clinic_id:", error);
       return null;
   }
 };
@@ -31,50 +49,42 @@ const getUserId = async () => {
 }
 
 // ======================================================================
-// Patients
+// Patients (Lógica Original Restaurada)
 // ======================================================================
 
 export const getPatients = async (page = 1, pageSize = 10, searchTerm = '', sortBy = 'created_at', sortOrder = 'desc') => {
-  console.log(`[DB] Fetching patients. Page: ${page}, Search: "${searchTerm}"`);
+  console.log(`[DB] Fetching patients...`);
   const clinicId = await getClinicId();
-  if (!clinicId) return { data: [], count: 0 };
+  if (!clinicId) {
+      console.warn("[DB] getPatients abortado: Clinic ID não encontrado."); // AVISO IMPORTANTE
+      return { data: [], count: 0 };
+  } 
 
-  try {
-    let query = supabase
-      .from('patients')
-      .select('*', { count: 'exact' })
-      .eq('clinic_id', clinicId);
+  let query = supabase
+    .from('patients')
+    .select('*', { count: 'exact' })
+    .eq('clinic_id', clinicId);
 
-    if (searchTerm) {
-      query = query.or(
-        `name.ilike.%${searchTerm}%,cpf.ilike.%${searchTerm}%,phone.ilike.%${searchTerm}%`,
-      );
-    }
-
-    // Apply sorting
-    query = query.order(sortBy, { ascending: sortOrder === 'asc' });
-
-    // Apply pagination
-    const from = (page - 1) * pageSize;
-    const to = from + pageSize - 1;
-    query = query.range(from, to);
-
-    const { data, error, count } = await query;
-
-    if (error) {
-        console.error("[DB] Error fetching patients:", error);
-        throw error;
-    }
-
-    // REMOVIDO: Busca de telefones em lote causa URLs muito longas
-    // Os telefones serão carregados individualmente quando necessário
-
-    return { data, count };
-  } catch (error) {
-    console.error("[DB] Critical error fetching patients:", error);
-    // Retornar dados vazios em caso de erro crítico para não quebrar a UI
-    return { data: [], count: 0 };
+  if (searchTerm) {
+    query = query.or(
+      `name.ilike.%${searchTerm}%,cpf.ilike.%${searchTerm}%,phone.ilike.%${searchTerm}%`,
+    );
   }
+
+  // Ordenação e Paginação
+  query = query.order(sortBy, { ascending: sortOrder === 'asc' });
+  const from = (page - 1) * pageSize;
+  const to = from + pageSize - 1;
+  query = query.range(from, to);
+
+  const { data, error, count } = await query;
+  
+  if (error) {
+      console.error("[DB] Error fetching patients:", error);
+      throw error;
+  }
+  
+  return { data, count };
 };
 
 export const getPatientById = async (id) => {
@@ -92,77 +102,17 @@ export const getPatientById = async (id) => {
       console.error("[DB] Error fetching patient by ID:", error);
       return null;
   }
-
-  // Buscar telefones do paciente
-  if (data) {
-    const { data: phones, error: phonesError } = await supabase
-      .from('patient_phones')
-      .select('*')
-      .eq('patient_id', id)
-      .order('is_primary', { ascending: false })
-      .order('created_at', { ascending: true });
-
-    if (!phonesError && phones) {
-      data.phones = phones;
-      // Manter compatibilidade: telefone principal no campo phone
-      const primaryPhone = phones.find(p => p.is_primary);
-      if (primaryPhone) {
-        data.phone = primaryPhone.phone;
-      } else if (phones.length > 0) {
-        // Se não há principal, usar o primeiro
-        data.phone = phones[0].phone;
-      }
-    }
-  }
-
   return data;
 };
 
-export const checkDuplicatePatient = async (name, cpf) => {
-    const clinicId = await getClinicId();
-    if (!clinicId) return false;
-
-    // Check logical duplication: Name OR CPF
-    const conditions = [];
-    if (name) {
-        conditions.push(`name.eq.${name}`);
-    }
-    if (cpf) {
-        conditions.push(`cpf.eq.${cpf}`);
-    }
-    
-    if (conditions.length === 0) return false;
-
-    const { data, error } = await supabase
-        .from('patients')
-        .select('id')
-        .eq('clinic_id', clinicId)
-        .or(conditions.join(','));
-
-    if (error) {
-        console.error("[DB] Error checking duplicates:", error);
-        return false;
-    }
-    return data && data.length > 0;
-};
-
 export const addPatient = async (patientData) => {
-  console.log("[DB] Adding patient:", patientData);
   const clinicId = await getClinicId();
   if (!clinicId) throw new Error('User is not associated with a clinic.');
-  
   const userId = await getUserId();
 
-  // Separar telefones e campos não existentes dos dados do paciente
-  const { phones, avatar_url, ...patientInfo } = patientData;
-
-  // Clean undefined values to avoid DB errors
   const cleanData = Object.fromEntries(
-      Object.entries(patientInfo).map(([k, v]) => [k, v === undefined ? null : v])
+      Object.entries(patientData).map(([k, v]) => [k, v === undefined ? null : v])
   );
-
-  // Remover phones do cleanData se existir
-  delete cleanData.phones;
 
   const { data, error } = await supabase
     .from('patients')
@@ -175,79 +125,16 @@ export const addPatient = async (patientData) => {
     .select()
     .single();
     
-  if (error) {
-      console.error("[DB] Error adding patient:", error);
-      throw error;
-  }
-
-  // Salvar telefones se houver
-  if (phones && phones.length > 0) {
-    await savePatientPhones(data.id, phones);
-  }
-
-  // NOTA: A sincronização com Chatwoot acontece no backend via triggers automáticos
-  // Não precisamos chamar aqui pois seria executado no frontend
-
+  if (error) throw error;
   return data;
 };
 
-// Função auxiliar para salvar telefones do paciente
-const savePatientPhones = async (patientId, phones) => {
-  if (!phones || phones.length === 0) return;
-
-  try {
-    // Remover todos os telefones antigos do paciente
-    const { error: deleteError } = await supabase
-      .from('patient_phones')
-      .delete()
-      .eq('patient_id', patientId);
-    
-    if (deleteError) {
-      console.error("[DB] Error deleting old phones:", deleteError);
-      throw deleteError;
-    }
-
-    // Preparar telefones para inserção (remover IDs temporários)
-    const phonesToInsert = phones
-      .filter(phone => phone.phone && phone.phone.trim()) // Filtrar telefones vazios
-      .map(phone => ({
-        patient_id: patientId,
-        phone: phone.phone,
-        phone_type: phone.phone_type || 'mobile',
-        contact_name: phone.contact_name || null,
-        is_primary: phone.is_primary || false,
-        is_whatsapp: phone.is_whatsapp !== false,
-        notes: phone.notes || null,
-      }));
-    
-    // Inserir todos os telefones
-    if (phonesToInsert.length > 0) {
-      const { error: insertError } = await supabase
-        .from('patient_phones')
-        .insert(phonesToInsert);
-      
-      if (insertError) {
-        console.error("[DB] Error inserting phones:", insertError);
-        throw insertError;
-      }
-    }
-  } catch (error) {
-    console.error("[DB] Error saving patient phones:", error);
-    throw error;
-  }
-};
-
 export const updatePatient = async (patientId, updates) => {
-  console.log(`[DB] Updating patient ${patientId}`);
   const clinicId = await getClinicId();
   if (!clinicId) throw new Error('User is not associated with a clinic.');
 
-  // Separar telefones dos dados do paciente
-  const { phones, ...patientUpdates } = updates;
-
-  // Remover phones do cleanUpdates se existir
   const cleanUpdates = Object.fromEntries(
-      Object.entries(patientUpdates).map(([k, v]) => [k, v === undefined ? null : v])
+      Object.entries(updates).map(([k, v]) => [k, v === undefined ? null : v])
   );
 
   const { data, error } = await supabase
@@ -259,20 +146,10 @@ export const updatePatient = async (patientId, updates) => {
     .single();
     
   if (error) throw error;
-
-  // Salvar telefones se houver
-  if (phones && phones.length > 0) {
-    await savePatientPhones(patientId, phones);
-  }
-
-  // NOTA: A sincronização com Chatwoot acontece no backend via triggers automáticos
-  // Não precisamos chamar aqui pois seria executado no frontend
-
   return data;
 };
 
 export const deletePatient = async (patientId) => {
-  console.log(`[DB] Deleting patient ${patientId}`);
   const clinicId = await getClinicId();
   if (!clinicId) throw new Error('User is not associated with a clinic.');
 
@@ -285,625 +162,23 @@ export const deletePatient = async (patientId) => {
   if (error) throw error;
 };
 
-export const getPatientAppointments = async (patientId) => {
-  const clinicId = await getClinicId();
-  if (!clinicId) return [];
-
-  try {
-    // Buscar agendamentos do paciente específico usando patient_id
-    let query = supabase
-      .from('appointments')
-      .select(`
-        id,
-        start_time,
-        end_time,
-        title,
-        status,
-        professional_id,
-        obs,
-        created_at,
-        profiles:professional_id (
-          id,
-          full_name
-        )
-      `)
-      .eq('clinic_id', clinicId)
-      .eq('patient_id', patientId)
-      .order('start_time', { ascending: false }); // Mais recentes primeiro
-
-    const { data: appointmentsData, error } = await query;
-
-    if (error) {
-      console.error("[DB] Error fetching patient appointments:", error);
-      throw error;
+export const checkDuplicatePatient = async (name, cpf) => {
+    const clinicId = await getClinicId();
+    if (!clinicId) return false;
+    let query = supabase.from('patients').select('id').eq('clinic_id', clinicId);
+    const conditions = [];
+    if (name) conditions.push(`name.eq.${name}`);
+    if (cpf) conditions.push(`cpf.eq.${cpf}`);
+    if (conditions.length > 0) {
+        query = query.or(conditions.join(','));
+        const { data } = await query;
+        return data && data.length > 0;
     }
-
-    if (!appointmentsData || appointmentsData.length === 0) {
-      return [];
-    }
-
-    // Processar dados dos profissionais
-    return appointmentsData.map(appointment => ({
-      ...appointment,
-      professional: appointment.profiles ? {
-        id: appointment.profiles.id,
-        name: appointment.profiles.full_name || 'Profissional não informado'
-      } : {
-        name: 'Profissional não informado'
-      }
-    }));
-
-  } catch (error) {
-    console.error("[DB] Critical error fetching patient appointments:", error);
-    return [];
-  }
-};
-
-export const getAppointments = async (filters = {}) => {
-  const clinicId = await getClinicId();
-  if (!clinicId) return [];
-
-  try {
-    // Primeiro, vamos buscar apenas os appointments sem filtros para descobrir as colunas
-    const { data: testData, error: testError } = await supabase
-      .from('appointments')
-      .select('*')
-      .eq('clinic_id', clinicId)
-      .limit(1);
-
-    if (testError) {
-      console.error("[DB] Error testing appointments table:", testError);
-      throw testError;
-    }
-
-    // Verificar quais colunas existem nos dados de teste
-    const sampleAppointment = testData?.[0];
-    console.log("[DB] Sample appointment structure:", sampleAppointment);
-
-    // Determinar qual coluna usar para data (usar start_time)
-    const dateColumn = sampleAppointment?.start_time ? 'start_time' : 'created_at';
-
-    console.log("[DB] Using date column:", dateColumn);
-
-    // Buscar appointments com ordenação baseada na coluna descoberta
-    let query = supabase
-      .from('appointments')
-      .select('*')
-      .eq('clinic_id', clinicId);
-
-    // Aplicar filtros se a coluna de data foi encontrada
-    if (dateColumn && filters.startDate) {
-      query = query.gte(dateColumn, filters.startDate);
-    }
-    if (dateColumn && filters.endDate) {
-      query = query.lte(dateColumn, filters.endDate);
-    }
-
-    // Ordenar pela coluna de data se encontrada, senão por created_at
-    const orderColumn = dateColumn || 'created_at';
-    const { data: appointmentsData, error } = await query.order(orderColumn, { ascending: true });
-
-    if (error) {
-      console.error("[DB] Error fetching appointments:", error);
-      throw error;
-    }
-
-    if (!appointmentsData || appointmentsData.length === 0) {
-      return [];
-    }
-
-    // Buscar dados dos contatos/pacientes separadamente
-    try {
-      // Coletar todos os IDs únicos de contatos e pacientes
-      const contactIds = [...new Set(appointmentsData.map(app => app.contact_id).filter(Boolean))];
-      const patientIds = [...new Set(appointmentsData.map(app => app.patient_id).filter(Boolean))];
-
-      // Mapas para armazenar dados
-      const contactsMap = {};
-      const patientsMap = {};
-
-      // Buscar dados dos contatos (tabela contacts)
-      if (contactIds.length > 0) {
-        const { data: contactsData, error: contactsError } = await supabase
-          .from('contacts')
-          .select('id, name, phone')
-          .in('id', contactIds)
-          .eq('clinic_id', clinicId);
-
-        if (!contactsError && contactsData) {
-          contactsData.forEach(contact => {
-            contactsMap[contact.id] = { ...contact, source: 'contacts' };
-          });
-        }
-      }
-
-      // Buscar dados dos pacientes (tabela patients)
-      if (patientIds.length > 0) {
-        const { data: patientsData, error: patientsError } = await supabase
-          .from('patients')
-          .select('id, name, phone')
-          .in('id', patientIds)
-          .eq('clinic_id', clinicId);
-
-        if (!patientsError && patientsData) {
-          patientsData.forEach(patient => {
-            patientsMap[patient.id] = { ...patient, source: 'patients' };
-          });
-        }
-      }
-
-      // Combinar dados dos agendamentos com informações do contato/paciente
-      return appointmentsData.map(appointment => {
-        let contactInfo = null;
-
-        // Priorizar patient_id sobre contact_id (pacientes têm prioridade)
-        if (appointment.patient_id && patientsMap[appointment.patient_id]) {
-          contactInfo = patientsMap[appointment.patient_id];
-        } else if (appointment.contact_id && contactsMap[appointment.contact_id]) {
-          contactInfo = contactsMap[appointment.contact_id];
-        }
-
-        return {
-          ...appointment,
-          contact: contactInfo ? {
-            id: contactInfo.id,
-            name: contactInfo.name || 'Nome não informado',
-            phone: contactInfo.phone || '',
-            source: contactInfo.source
-          } : null
-        };
-      });
-
-    } catch (joinError) {
-      console.warn("[DB] Could not fetch patient/contact data for appointments, continuing without:", joinError);
-      // Retornar appointments sem dados de contato, mas mantendo estrutura
-      return appointmentsData.map(appointment => ({
-        ...appointment,
-        contact: null
-      }));
-    }
-  } catch (error) {
-    console.error("[DB] Critical error fetching appointments:", error);
-    // Retornar array vazio em caso de erro crítico para não quebrar a UI
-    return [];
-  }
-};
-export const addAppointment = async (d) => {
-    const cid = await getClinicId();
-    const { data, error } = await supabase.from('appointments').insert([{...d, clinic_id: cid}]).select().single();
-    if(error) throw error; return data;
-};
-export const updateAppointment = async (id, u) => {
-    const cid = await getClinicId();
-
-    // Buscar status anterior antes da atualização
-    const { data: currentAppointment, error: fetchError } = await supabase
-        .from('appointments')
-        .select('status')
-        .eq('id', id)
-        .eq('clinic_id', cid)
-        .single();
-
-    if (fetchError) throw fetchError;
-
-    const oldStatus = currentAppointment?.status;
-    const newStatus = u.status;
-
-    // Executar atualização
-    const { data, error } = await supabase.from('appointments').update(u).eq('id', id).eq('clinic_id', cid).select().single();
-    if(error) throw error;
-
-    // NOTA: As automações são disparadas automaticamente no backend via database triggers
-    // Não precisamos chamar aqui pois seria executado no frontend
-
-    return data;
-};
-export const deleteAppointment = async (id) => {
-    const cid = await getClinicId();
-    const { error } = await supabase.from('appointments').delete().eq('id', id).eq('clinic_id', cid);
-    if(error) throw error;
-};
-export const getRepairs = async () => {
-    const cid = await getClinicId();
-    const { data, error } = await supabase.from('repairs').select('*').eq('clinic_id', cid).order('created_at', {ascending: false});
-    if(error) throw error; return data;
-};
-export const addRepair = async (d) => {
-    const cid = await getClinicId();
-    const { data, error } = await supabase.from('repairs').insert([{...d, clinic_id: cid}]).select().single();
-    if(error) throw error; return data;
-};
-export const updateRepair = async (id, u) => {
-    const cid = await getClinicId();
-    const { data, error } = await supabase.from('repairs').update(u).eq('id', id).eq('clinic_id', cid).select().single();
-    if(error) throw error; return data;
-};
-export const deleteRepair = async (id) => {
-    const cid = await getClinicId();
-    const { error } = await supabase.from('repairs').delete().eq('id', id).eq('clinic_id', cid);
-    if(error) throw error;
-};
-export const getTasks = async () => {
-    const cid = await getClinicId();
-    const { data, error } = await supabase.from('tasks').select('*').eq('clinic_id', cid).order('created_at', {ascending: false});
-    if(error) throw error; return data;
-};
-export const addTask = async (d) => {
-    const cid = await getClinicId();
-    const uid = await getUserId();
-    const { data, error } = await supabase.from('tasks').insert([{...d, clinic_id: cid, created_by: uid}]).select().single();
-    if(error) throw error; return data;
-};
-export const updateTask = async (id, u) => {
-    const cid = await getClinicId();
-    const { data, error } = await supabase.from('tasks').update(u).eq('id', id).eq('clinic_id', cid).select().single();
-    if(error) throw error; return data;
-};
-export const deleteTask = async (id) => {
-    const cid = await getClinicId();
-    const { error } = await supabase.from('tasks').delete().eq('id', id).eq('clinic_id', cid);
-    if(error) throw error;
-};
-export const getTeamMembers = async () => {
-    const cid = await getClinicId();
-    const { data, error } = await supabase.from('profiles').select('id, full_name, role, avatar_url').eq('clinic_id', cid);
-    if(error) throw error; return data;
+    return false;
 };
 
 // ======================================================================
-// Marketing Campaigns
-// ======================================================================
-
-export const getCampaigns = async () => {
-    const clinicId = await getClinicId();
-    if (!clinicId) return [];
-    const { data, error } = await supabase
-        .from('marketing_campaigns')
-        .select('*')
-        .eq('clinic_id', clinicId)
-        .order('created_at', { ascending: false });
-    if (error) throw error;
-    return data || [];
-};
-
-export const addCampaign = async (campaignData, userId) => {
-    const clinicId = await getClinicId();
-    if (!clinicId) throw new Error('Clinic ID not found');
-    const { data, error } = await supabase
-        .from('marketing_campaigns')
-        .insert({ ...campaignData, clinic_id: clinicId })
-        .select()
-        .single();
-    if (error) throw error;
-    return data;
-};
-
-export const updateCampaign = async (id, campaignData) => {
-    const { data, error } = await supabase
-        .from('marketing_campaigns')
-        .update(campaignData)
-        .eq('id', id)
-        .select()
-        .single();
-    if (error) throw error;
-    return data;
-};
-
-export const deleteCampaign = async (id) => {
-    const { error } = await supabase
-        .from('marketing_campaigns')
-        .delete()
-        .eq('id', id);
-    if (error) throw error;
-};
-
-// ======================================================================
-// Social Posts
-// ======================================================================
-
-export const getSocialPosts = async () => {
-    const clinicId = await getClinicId();
-    if (!clinicId) return [];
-    const { data, error } = await supabase
-        .from('social_posts')
-        .select('*')
-        .eq('clinic_id', clinicId)
-        .order('scheduled_date', { ascending: true, nullsFirst: true })
-        .order('created_at', { ascending: false });
-    if (error) throw error;
-    return data || [];
-};
-
-export const addSocialPost = async (postData, userId) => {
-    const clinicId = await getClinicId();
-    if (!clinicId) throw new Error('Clinic ID not found');
-    const { data, error } = await supabase
-        .from('social_posts')
-        .insert({ ...postData, clinic_id: clinicId })
-        .select()
-        .single();
-    if (error) throw error;
-    return data;
-};
-
-export const updateSocialPost = async (id, postData) => {
-    const { data, error } = await supabase
-        .from('social_posts')
-        .update(postData)
-        .eq('id', id)
-        .select()
-        .single();
-    if (error) throw error;
-    return data;
-};
-
-export const deleteSocialPost = async (id) => {
-    const { error } = await supabase
-        .from('social_posts')
-        .delete()
-        .eq('id', id);
-    if (error) throw error;
-};
-export const getLeads = async () => {
-    const cid = await getClinicId();
-    const { data, error } = await supabase.from('leads').select('*').eq('clinic_id', cid).order('created_at', {ascending: false});
-    if(error) throw error; return data;
-};
-export const addLead = async (d) => {
-    const cid = await getClinicId();
-    const { data, error } = await supabase.from('leads').insert([{...d, clinic_id: cid}]).select().single();
-    if(error) throw error; return data;
-};
-export const updateLead = async (id, u) => {
-    const cid = await getClinicId();
-    const { data, error } = await supabase.from('leads').update(u).eq('id', id).eq('clinic_id', cid).select().single();
-    if(error) throw error; return data;
-};
-// ======================================================================
-// Notifications System
-// ======================================================================
-
-export const getNotificationsForUser = async (uid, limit = 50, offset = 0) => {
-    const { data, error } = await supabase
-        .from('notifications')
-        .select('*')
-        .eq('user_id', uid)
-        .order('created_at', { ascending: false })
-        .range(offset, offset + limit - 1);
-
-    if (error) {
-        console.error('Error fetching notifications:', error);
-        throw error;
-    }
-    return data || [];
-};
-
-export const getUnreadNotificationCount = async (uid) => {
-    const { count, error } = await supabase
-        .from('notifications')
-        .select('*', { count: 'exact', head: true })
-        .eq('user_id', uid)
-        .eq('is_read', false);
-
-    if (error) {
-        console.error('Error counting unread notifications:', error);
-        return 0;
-    }
-    return count || 0;
-};
-
-export const markNotificationAsRead = async (id) => {
-    const { data, error } = await supabase
-        .from('notifications')
-        .update({
-            is_read: true,
-            updated_at: new Date().toISOString()
-        })
-        .eq('id', id)
-        .select()
-        .single();
-
-    if (error) {
-        console.error('Error marking notification as read:', error);
-        throw error;
-    }
-    return data;
-};
-
-export const markAllNotificationsAsRead = async (uid) => {
-    const { error } = await supabase
-        .from('notifications')
-        .update({
-            is_read: true,
-            updated_at: new Date().toISOString()
-        })
-        .eq('user_id', uid)
-        .eq('is_read', false);
-
-    if (error) {
-        console.error('Error marking all notifications as read:', error);
-        throw error;
-    }
-    return true;
-};
-
-export const deleteNotification = async (id) => {
-    const { error } = await supabase
-        .from('notifications')
-        .delete()
-        .eq('id', id);
-
-    if (error) {
-        console.error('Error deleting notification:', error);
-        throw error;
-    }
-    return true;
-};
-
-export const createNotification = async (notificationData) => {
-    // Validar tipos permitidos
-    const allowedTypes = ['manual', 'appointment', 'message', 'task', 'system', 'patient'];
-    if (!allowedTypes.includes(notificationData.type)) {
-        throw new Error(`Tipo de notificação inválido: ${notificationData.type}`);
-    }
-
-    const clinicId = await getClinicId();
-    const userId = await getUserId();
-
-    // Usar função SQL otimizada se disponível, senão fallback para insert direto
-    try {
-        const { data, error } = await supabase.rpc('create_notification', {
-            p_user_id: notificationData.user_id || userId,
-            p_clinic_id: clinicId,
-            p_type: notificationData.type,
-            p_title: notificationData.title,
-            p_message: notificationData.message,
-            p_related_entity_type: notificationData.related_entity_type || null,
-            p_related_entity_id: notificationData.related_entity_id || null,
-            p_metadata: notificationData.metadata || {}
-        });
-
-        if (error) throw error;
-        return data ? { id: data } : null; // Função SQL retorna UUID ou NULL
-    } catch (rpcError) {
-        // Fallback para insert direto se função SQL não estiver disponível
-        console.warn('RPC function not available, using direct insert:', rpcError);
-
-        const { data, error } = await supabase
-            .from('notifications')
-            .insert([{
-                ...notificationData,
-                clinic_id: clinicId,
-                user_id: notificationData.user_id || userId,
-                created_at: new Date().toISOString(),
-                updated_at: new Date().toISOString()
-            }])
-            .select()
-            .single();
-
-        if (error) {
-            console.error('Error creating notification:', error);
-            throw error;
-        }
-        return data;
-    }
-};
-
-export const createManualNotification = async (title, message, targetUserId) => {
-    const clinicId = await getClinicId();
-
-    const { data, error } = await supabase
-        .from('notifications')
-        .insert([{
-            user_id: targetUserId,
-            clinic_id: clinicId,
-            type: 'manual',
-            title,
-            message,
-            is_read: false,
-            created_at: new Date().toISOString(),
-            updated_at: new Date().toISOString()
-        }])
-        .select()
-        .single();
-
-    if (error) {
-        console.error('Error creating manual notification:', error);
-        throw error;
-    }
-    return data;
-};
-
-// Configurações de notificações por usuário
-export const getNotificationSettings = async (uid) => {
-    const { data, error } = await supabase
-        .from('notification_settings')
-        .select('*')
-        .eq('user_id', uid);
-
-    if (error) {
-        console.error('Error fetching notification settings:', error);
-        // Retornar configurações padrão se não conseguir buscar
-        return {
-            appointment: true,
-            message: true,
-            task: true,
-            system: true,
-            patient: true
-        };
-    }
-
-    // Converter array em objeto
-    const settings = {};
-    data.forEach(setting => {
-        settings[setting.notification_type] = setting.enabled;
-    });
-
-    return settings;
-};
-
-export const updateNotificationSettings = async (uid, settings) => {
-    const clinicId = await getClinicId();
-
-    // Converter objeto em array para upsert
-    const settingsArray = Object.entries(settings).map(([type, enabled]) => ({
-        user_id: uid,
-        notification_type: type,
-        enabled,
-        updated_at: new Date().toISOString()
-    }));
-
-    const { error } = await supabase
-        .from('notification_settings')
-        .upsert(settingsArray, {
-            onConflict: 'user_id,notification_type'
-        });
-
-    if (error) {
-        console.error('Error updating notification settings:', error);
-        throw error;
-    }
-    return true;
-};
-
-// Função para enviar notificações em lote (útil para admins)
-export const createBulkNotifications = async (notifications) => {
-    const clinicId = await getClinicId();
-
-    const notificationsWithClinic = notifications.map(notification => ({
-        ...notification,
-        clinic_id: clinicId,
-        created_at: new Date().toISOString(),
-        updated_at: new Date().toISOString()
-    }));
-
-    const { data, error } = await supabase
-        .from('notifications')
-        .insert(notificationsWithClinic)
-        .select();
-
-    if (error) {
-        console.error('Error creating bulk notifications:', error);
-        throw error;
-    }
-    return data;
-};
-export const getContactByPatientId = async (pid) => {
-    const { data, error } = await supabase.from('contact_relationships').select('contact_id').eq('related_entity_id', pid).eq('related_entity_type', 'patient').maybeSingle();
-    if(error || !data) return null;
-    const { data: c, error: ce } = await supabase.from('contacts').select('*').eq('id', data.contact_id).single();
-    if(ce) return null; return c;
-};
-export const getConversations = async (f={}) => {
-    const cid = await getClinicId();
-    let q = supabase.from('conversations').select('*, contact:contacts(*)').eq('clinic_id', cid);
-    if(f.channel && f.channel !== 'all') q = q.eq('channel_type', f.channel);
-    const { data, error } = await q.order('last_message_at', {ascending: false});
-    if(error) throw error; return data;
-};
-
-// ======================================================================
-// Tags System
+// Tags System - Implementações básicas
 // ======================================================================
 
 export const getTags = async (page = 1, pageSize = 10, searchTerm = '', sortBy = 'name', sortOrder = 'asc') => {
@@ -930,7 +205,7 @@ export const getTags = async (page = 1, pageSize = 10, searchTerm = '', sortBy =
 
   if (error) {
     console.error("[DB] Error fetching tags:", error);
-    throw error;
+    return { data: [], count: 0 };
   }
 
   return { data: data || [], count: count || 0 };
@@ -954,26 +229,6 @@ export const addTag = async (tagData) => {
   return data;
 };
 
-export const updateTag = async (id, tagData) => {
-  const clinicId = await getClinicId();
-  if (!clinicId) throw new Error('User is not associated with a clinic.');
-
-  const { data, error } = await supabase
-    .from('tags')
-    .update(tagData)
-    .eq('id', id)
-    .eq('clinic_id', clinicId)
-    .select()
-    .single();
-
-  if (error) {
-    console.error("[DB] Error updating tag:", error);
-    throw error;
-  }
-
-  return data;
-};
-
 export const deleteTag = async (id) => {
   const clinicId = await getClinicId();
   if (!clinicId) throw new Error('User is not associated with a clinic.');
@@ -988,9 +243,10 @@ export const deleteTag = async (id) => {
     console.error("[DB] Error deleting tag:", error);
     throw error;
   }
+
+  return true;
 };
 
-// Patient Tags functions
 export const getPatientTags = async (patientId) => {
   try {
     const { data, error } = await supabase
@@ -1045,9 +301,10 @@ export const removePatientTag = async (patientId, tagId) => {
     console.error("[DB] Error removing patient tag:", error);
     throw error;
   }
+
+  return true;
 };
 
-// Função para buscar pacientes por tags (para filtros)
 export const getPatientsByTags = async (tagIds = [], page = 1, pageSize = 10, searchTerm = '') => {
   const clinicId = await getClinicId();
   if (!clinicId) return { data: [], count: 0 };
@@ -1097,7 +354,7 @@ export const getPatientsByTags = async (tagIds = [], page = 1, pageSize = 10, se
 
     if (error) {
       console.error("[DB] Error fetching patients by tags:", error);
-      throw error;
+      return { data: [], count: 0 };
     }
 
     // Se filtrou por tags, os dados vêm aninhados
@@ -1118,6 +375,368 @@ export const getPatientsByTags = async (tagIds = [], page = 1, pageSize = 10, se
     console.error("[DB] Critical error fetching patients by tags:", error);
     return { data: [], count: 0 };
   }
+};
+
+// ======================================================================
+// Notification Settings - Implementações básicas
+// ======================================================================
+
+export const getNotificationSettings = async () => {
+  const userId = await getUserId();
+  if (!userId) return {
+    appointment: true,
+    message: true,
+    task: true,
+    system: true,
+    patient: true
+  };
+
+  try {
+    const { data, error } = await supabase
+      .from('notification_settings')
+      .select('*')
+      .eq('user_id', userId);
+
+    if (error) {
+      console.error('Error fetching notification settings:', error);
+      // Retornar configurações padrão se não conseguir buscar
+      return {
+        appointment: true,
+        message: true,
+        task: true,
+        system: true,
+        patient: true
+      };
+    }
+
+    // Converter array em objeto
+    const settings = {};
+    data.forEach(setting => {
+      settings[setting.notification_type] = setting.enabled;
+    });
+
+    return settings;
+  } catch (error) {
+    console.error('Error fetching notification settings:', error);
+    return {
+      appointment: true,
+      message: true,
+      task: true,
+      system: true,
+      patient: true
+    };
+  }
+};
+
+export const updateNotificationSettings = async (settings) => {
+  const userId = await getUserId();
+  const clinicId = await getClinicId();
+
+  if (!userId || !clinicId) {
+    throw new Error('User or clinic not found');
+  }
+
+  // Converter objeto em array para upsert
+  const settingsArray = Object.entries(settings).map(([type, enabled]) => ({
+    user_id: userId,
+    notification_type: type,
+    enabled,
+    updated_at: new Date().toISOString()
+  }));
+
+  const { error } = await supabase
+    .from('notification_settings')
+    .upsert(settingsArray, {
+      onConflict: 'user_id,notification_type'
+    });
+
+  if (error) {
+    console.error('Error updating notification settings:', error);
+    throw error;
+  }
+
+  return true;
+};
+
+export const getUnreadNotificationCount = async () => {
+  const userId = await getUserId();
+  if (!userId) return 0;
+
+  try {
+    const { count, error } = await supabase
+      .from('notifications')
+      .select('*', { count: 'exact', head: true })
+      .eq('user_id', userId)
+      .eq('is_read', false);
+
+    if (error) {
+      console.error('Error counting unread notifications:', error);
+      return 0;
+    }
+
+    return count || 0;
+  } catch (error) {
+    console.error('Error counting unread notifications:', error);
+    return 0;
+  }
+};
+
+// ======================================================================
+// Notifications - Função de criação
+// ======================================================================
+
+export const createNotification = async (notificationData) => {
+  const clinicId = await getClinicId();
+  const userId = await getUserId();
+
+  if (!clinicId || !userId) {
+    console.warn('[DB] Cannot create notification: missing clinic_id or user_id');
+    return null;
+  }
+
+  try {
+    const { data, error } = await supabase
+      .from('notifications')
+      .insert([{
+        clinic_id: clinicId,
+        user_id: userId,
+        type: notificationData.type || 'system',
+        title: notificationData.title,
+        message: notificationData.message,
+        related_entity_type: notificationData.related_entity_type,
+        related_entity_id: notificationData.related_entity_id,
+        metadata: notificationData.metadata || {},
+        is_read: false,
+        created_at: new Date().toISOString()
+      }])
+      .select()
+      .single();
+
+    if (error) {
+      console.error("[DB] Error creating notification:", error);
+      throw error;
+    }
+
+    console.log("[DB] Notification created:", data.id);
+    return data;
+  } catch (error) {
+    console.error("[DB] Critical error creating notification:", error);
+    return null;
+  }
+};
+
+// ======================================================================
+// Patient Appointments - Função específica
+// ======================================================================
+
+export const getPatientAppointments = async (patientId) => {
+  const clinicId = await getClinicId();
+  if (!clinicId) return [];
+
+  try {
+    // Buscar agendamentos do paciente específico usando patient_id
+    let query = supabase
+      .from('appointments')
+      .select(`
+        id,
+        start_time,
+        end_time,
+        title,
+        status,
+        professional_id,
+        obs,
+        created_at,
+        professionals:professional_id (
+          id,
+          full_name
+        )
+      `)
+      .eq('clinic_id', clinicId)
+      .eq('patient_id', patientId)
+      .order('start_time', { ascending: false }); // Mais recentes primeiro
+
+    const { data: appointmentsData, error } = await query;
+
+    if (error) {
+      console.error("[DB] Error fetching patient appointments:", error);
+      throw error;
+    }
+
+    if (!appointmentsData || appointmentsData.length === 0) {
+      return [];
+    }
+
+    // Processar dados dos profissionais
+    return appointmentsData.map(appointment => ({
+      ...appointment,
+      professional: appointment.professionals ? {
+        id: appointment.professionals.id,
+        name: appointment.professionals.full_name || 'Profissional não informado'
+      } : {
+        name: 'Profissional não informado'
+      }
+    }));
+
+  } catch (error) {
+    console.error("[DB] Critical error fetching patient appointments:", error);
+    return [];
+  }
+};
+
+
+// ======================================================================
+// Outras Entidades (Appointments, Tasks, etc.)
+// ======================================================================
+
+export const getAppointments = async (filters = {}) => {
+  const clinicId = await getClinicId();
+  if (!clinicId) return [];
+  let query = supabase.from('appointments').select('*, patient:patients(name)').eq('clinic_id', clinicId);
+  if (filters.startDate) query = query.gte('start_time', filters.startDate);
+  if (filters.endDate) query = query.lte('start_time', filters.endDate);
+  const { data, error } = await query.order('start_time', { ascending: true });
+  if (error) throw error;
+  return data;
+};
+export const addAppointment = async (d) => {
+    const cid = await getClinicId();
+    const { data, error } = await supabase.from('appointments').insert([{...d, clinic_id: cid}]).select().single();
+    if(error) throw error; return data;
+};
+export const updateAppointment = async (id, u) => {
+    const cid = await getClinicId();
+    const { data, error } = await supabase.from('appointments').update(u).eq('id', id).eq('clinic_id', cid).select().single();
+    if(error) throw error; return data;
+};
+export const deleteAppointment = async (id) => {
+    const cid = await getClinicId();
+    const { error } = await supabase.from('appointments').delete().eq('id', id).eq('clinic_id', cid);
+    if(error) throw error;
+};
+
+// Entidades restantes mantidas simples
+export const getRepairs = async () => {
+    const cid = await getClinicId();
+    const { data } = await supabase.from('repairs').select('*').eq('clinic_id', cid).order('created_at', {ascending: false});
+    return data || [];
+};
+export const addRepair = async (d) => {
+    const cid = await getClinicId();
+    const { data } = await supabase.from('repairs').insert([{...d, clinic_id: cid}]).select().single();
+    return data;
+};
+export const updateRepair = async (id, u) => {
+    const cid = await getClinicId();
+    const { data } = await supabase.from('repairs').update(u).eq('id', id).eq('clinic_id', cid).select().single();
+    return data;
+};
+export const deleteRepair = async (id) => {
+    const cid = await getClinicId();
+    await supabase.from('repairs').delete().eq('id', id).eq('clinic_id', cid);
+};
+export const getTasks = async () => {
+    const cid = await getClinicId();
+    const { data } = await supabase.from('tasks').select('*').eq('clinic_id', cid).order('created_at', {ascending: false});
+    return data || [];
+};
+export const addTask = async (d) => {
+    const cid = await getClinicId();
+    const uid = await getUserId();
+    const { data } = await supabase.from('tasks').insert([{...d, clinic_id: cid, created_by: uid}]).select().single();
+    return data;
+};
+export const updateTask = async (id, u) => {
+    const cid = await getClinicId();
+    const { data } = await supabase.from('tasks').update(u).eq('id', id).eq('clinic_id', cid).select().single();
+    return data;
+};
+export const deleteTask = async (id) => {
+    const cid = await getClinicId();
+    await supabase.from('tasks').delete().eq('id', id).eq('clinic_id', cid);
+};
+export const getTeamMembers = async () => {
+    const cid = await getClinicId();
+    // Verificar se a coluna clinic_id existe na tabela profiles
+    // Se não existir, buscar todos os usuários (sem filtro de clínica)
+    // Nota: Removido 'email' pois não existe na tabela profiles
+    try {
+      const { data, error } = await supabase
+        .from('profiles')
+        .select('id, full_name, role, avatar_url')
+        .eq('clinic_id', cid);
+
+      if (error && error.code === 'PGRST116') {
+        // Coluna clinic_id não existe, buscar sem filtro
+        console.warn('[DB] clinic_id column not found in profiles table, fetching all users');
+        const { data: allData } = await supabase
+          .from('profiles')
+          .select('id, full_name, role, avatar_url');
+        return allData || [];
+      }
+
+      if (error) {
+        console.error('[DB] Error fetching team members:', error);
+        return [];
+      }
+
+      return data || [];
+    } catch (error) {
+      console.error('[DB] Critical error fetching team members:', error);
+      // Fallback: tentar buscar sem filtro de clínica
+      try {
+        const { data } = await supabase
+          .from('profiles')
+          .select('id, full_name, role, avatar_url');
+        return data || [];
+      } catch (fallbackError) {
+        console.error('[DB] Fallback also failed:', fallbackError);
+        return [];
+      }
+    }
+};
+export const getLeads = async () => {
+    const cid = await getClinicId();
+    const { data } = await supabase.from('leads').select('*').eq('clinic_id', cid).order('created_at', {ascending: false});
+    return data || [];
+};
+export const addLead = async (d) => {
+    const cid = await getClinicId();
+    const { data } = await supabase.from('leads').insert([{...d, clinic_id: cid}]).select().single();
+    return data;
+};
+export const updateLead = async (id, u) => {
+    const cid = await getClinicId();
+    const { data } = await supabase.from('leads').update(u).eq('id', id).eq('clinic_id', cid).select().single();
+    return data;
+};
+export const getNotificationsForUser = async (uid) => {
+    const { data } = await supabase.from('notifications').select('*').eq('user_id', uid).order('created_at', {ascending: false});
+    return data || [];
+};
+export const markNotificationAsRead = async (id) => {
+    const { data } = await supabase.from('notifications').update({is_read: true}).eq('id', id).select().single();
+    return data;
+};
+export const markAllNotificationsAsRead = async (uid) => {
+    await supabase.from('notifications').update({is_read: true}).eq('user_id', uid).eq('is_read', false);
+    return true;
+};
+export const deleteNotification = async (id) => {
+    await supabase.from('notifications').delete().eq('id', id);
+    return true;
+};
+export const getContactByPatientId = async (pid) => {
+    const { data } = await supabase.from('contact_relationships').select('contact_id').eq('related_entity_id', pid).eq('related_entity_type', 'patient').maybeSingle();
+    if(!data) return null;
+    const { data: c } = await supabase.from('contacts').select('*').eq('id', data.contact_id).single();
+    return c;
+};
+export const getConversations = async (f={}) => {
+    const cid = await getClinicId();
+    let q = supabase.from('conversations').select('*, contact:contacts(*)').eq('clinic_id', cid);
+    if(f.channel && f.channel !== 'all') q = q.eq('channel_type', f.channel);
+    const { data } = await q.order('last_message_at', {ascending: false});
+    return data || [];
 };
 
 export { supabase, getClinicId };

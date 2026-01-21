@@ -17,6 +17,25 @@ const KanbanCard = ({
   onScheduleFromLead,
   onEditLead,
 }) => {
+  
+  // --- NOVA FUNÇÃO DE FORMATAÇÃO DE TELEFONE ---
+  const formatPhoneNumber = (phone) => {
+    if (!phone) return null;
+    const clean = phone.replace(/\D/g, '');
+
+    // Se for LID (começa com 33 ou tamanho estranho para BR)
+    if (clean.length > 13 || clean.startsWith('33')) {
+       return `ID Whatsapp: ${clean.substring(0, 6)}...`;
+    }
+    // Formatação BR Padrão
+    if (clean.length === 11) return `(${clean.substring(0, 2)}) ${clean.substring(2, 7)}-${clean.substring(7)}`;
+    if (clean.length === 12 && clean.startsWith('55')) return `(${clean.substring(2, 4)}) ${clean.substring(4, 9)}-${clean.substring(9)}`;
+    if (clean.length === 13 && clean.startsWith('55')) return `(${clean.substring(2, 4)}) ${clean.substring(4, 9)}-${clean.substring(9)}`;
+    
+    return phone; // Fallback
+  };
+  // ---------------------------------------------
+
   const formatCurrency = (value) => {
     if (!value) return null;
     return new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(value);
@@ -55,12 +74,12 @@ const KanbanCard = ({
           )}
         </div>
 
-        {/* Informações de Contato */}
+        {/* Informações de Contato (COM O FIX DO TELEFONE) */}
         <div className="space-y-1.5">
           {lead.phone && (
             <div className="flex items-center gap-2 text-sm text-muted-foreground">
               <Phone className="h-3.5 w-3.5 flex-shrink-0" />
-              <span className="truncate">{lead.phone}</span>
+              <span className="truncate">{formatPhoneNumber(lead.phone)}</span>
             </div>
           )}
           {lead.email && (
@@ -74,7 +93,7 @@ const KanbanCard = ({
         {/* Valor e Probabilidade */}
         {(lead.estimated_value || lead.probability !== undefined) && (
           <div className="flex items-center gap-3 pt-2 border-t border-border/50">
-            {lead.estimated_value && (
+            {lead.estimated_value > 0 && (
               <div className="flex items-center gap-1.5 text-xs">
                 <DollarSign className="h-3.5 w-3.5 text-muted-foreground" />
                 <span className="font-medium text-foreground">{formatCurrency(lead.estimated_value)}</span>
@@ -116,7 +135,7 @@ const KanbanCard = ({
           </div>
         )}
 
-        {/* Card Action Buttons: visíveis no hover */}
+        {/* Botões de Ação */}
         <div className="mt-auto pt-3 border-t border-transparent group-hover:border-border transition-colors duration-300">
           <div className="flex justify-end items-center gap-1.5 opacity-0 group-hover:opacity-100 transition-opacity duration-300">
             {lead.phone && (
