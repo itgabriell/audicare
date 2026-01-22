@@ -6,23 +6,30 @@ const app = express();
 const PORT = process.env.PORT || 4000;
 
 // --- IMPORTAÇÕES ---
-// NOTE QUE REMOVEMOS O webhookRoutes AQUI!
-// O sistema não vai mais escutar o WhatsApp nem o Chatwoot para conversas.
-
-// Serviços
+// Carregamento resiliente dos serviços
+let patientEngagementAutomation;
 let automationManager;
+let chatwootSyncService;
+
+// Manter compatibilidade com automação antiga
+try {
+    patientEngagementAutomation = require('./services/PatientEngagementAutomation.js');
+} catch (e) {
+    console.warn("⚠️ Automação antiga não carregada:", e.message);
+}
+
+// Novo sistema de automação
 try {
     automationManager = require('./services/AutomationManager.js');
 } catch (e) {
     console.warn("⚠️ AutomationManager não carregado:", e.message);
 }
 
-// Manter compatibilidade com o antigo serviço
-let patientEngagementAutomation;
+// Serviço de sincronização Chatwoot
 try {
-    patientEngagementAutomation = require('./services/PatientEngagementAutomation.js');
+    chatwootSyncService = require('./services/ChatwootSyncService.cjs');
 } catch (e) {
-    console.warn("⚠️ Automação antiga não carregada:", e.message);
+    console.warn("⚠️ Sync Service não carregado:", e.message);
 }
 
 // --- MIDDLEWARES ---
@@ -31,37 +38,37 @@ app.use(express.json({ limit: '50mb' }));
 app.use(express.urlencoded({ extended: true }));
 
 // --- ROTAS DE SAÚDE ---
-app.get('/', (req, res) => res.send('🤖 Audicare Automation Brain is Running (Bridge Disabled)'));
-app.get('/health', (req, res) => res.json({ status: 'online', mode: 'automation_only' }));
+app.get('/', (req, res) => res.send('🤖 Audicare Backend (Automation & CRM Sync)'));
+app.get('/health', (req, res) => res.json({
+    status: 'online',
+    mode: 'automation_crm_hybrid',
+    automationManager: !!automationManager,
+    legacyAutomation: !!patientEngagementAutomation
+}));
 
-// --- WEBHOOKS DE SINCRONIZAÇÃO CHATWOOT -> CRM ---
-// Serviço de sincronização Chatwoot
-let chatwootSyncService;
-try {
-    chatwootSyncService = require('./services/ChatwootSyncService.cjs');
-} catch (e) {
-    console.warn("⚠️ Serviço de sincronização Chatwoot não carregado:", e.message);
-}
-
-// Rota para webhooks de eventos do Chatwoot
+// ========================================================
+// 🔄 WEBHOOKS DE SINCRONIZAÇÃO (CHATWOOT -> CRM)
+// ========================================================
 app.post('/webhooks/chatwoot-events', async (req, res) => {
     try {
-        console.log('🔄 [Webhook] Recebido evento do Chatwoot:', req.body.event);
+        // Log para debug
+        // console.log('🔄 [Webhook] Evento:', req.body.event);
 
         if (chatwootSyncService) {
             const result = await chatwootSyncService.handleChatwootEvent(req.body);
             res.json(result);
         } else {
-            console.warn('⚠️ [Webhook] Serviço de sincronização não disponível');
-            res.status(503).json({ error: 'Chatwoot sync service not available' });
+            res.status(503).json({ error: 'Sync service offline' });
         }
     } catch (error) {
-        console.error('❌ [Webhook] Erro no processamento do webhook:', error.message);
+        console.error('❌ [Webhook] Erro:', error.message);
         res.status(500).json({ error: error.message });
     }
 });
 
-// --- API DE AUTOMAÇÃO (NOVO SISTEMA COM BANCO DE DADOS) ---
+// ========================================================
+// 🤖 ROTAS DE AUTOMAÇÃO (NOVO SISTEMA COM BANCO)
+// ========================================================
 if (automationManager) {
     // Listar automações
     app.get('/api/automations', async (req, res) => {
@@ -78,13 +85,25 @@ if (automationManager) {
         }
     });
 
-    // Criar/Atualizar automação
+    // Criar automação
     app.post('/api/automations', async (req, res) => {
         try {
             const result = await automationManager.saveAutomation(req.body);
             res.json(result);
         } catch (error) {
             console.error('❌ Erro ao salvar automação:', error.message);
+            res.status(500).json({ error: error.message });
+        }
+    });
+
+    // Atualizar automação
+    app.put('/api/automations/:automationId', async (req, res) => {
+        try {
+            const { automationId } = req.params;
+            const result = await automationManager.updateAutomation(automationId, req.body);
+            res.json(result);
+        } catch (error) {
+            console.error('❌ Erro ao atualizar automação:', error.message);
             res.status(500).json({ error: error.message });
         }
     });
@@ -128,51 +147,39 @@ if (automationManager) {
     });
 }
 
-// --- API DE AUTOMAÇÃO (LEGACY - MANTER COMPATIBILIDADE) ---
+// ========================================================
+// 🤖 ROTAS DE AUTOMAÇÃO (LEGACY - MANTER COMPATIBILIDADE)
+// ========================================================
 if (patientEngagementAutomation) {
-    // Testar automações (legacy)
     app.post('/api/automation/test/:type', async (req, res) => {
         try {
-            const { type } = req.params;
-            const { phone, data } = req.body;
-            const result = await patientEngagementAutomation.testAutomation(type, phone, data);
+            const result = await patientEngagementAutomation.testAutomation(req.params.type, req.body.phone, req.body.data);
             res.json(result);
-        } catch (error) {
-            console.error('❌ Erro no teste de automação:', error.message);
-            res.status(500).json({ error: error.message });
-        }
+        } catch (error) { res.status(500).json({ error: error.message }); }
     });
 
-    // Configurações (legacy)
     app.get('/api/automation/settings', (req, res) => {
-        try {
-            res.json(patientEngagementAutomation.getSettings());
-        } catch (error) { res.status(500).json({ error: error.message }); }
+        res.json(patientEngagementAutomation.getSettings());
     });
 
     app.put('/api/automation/settings', (req, res) => {
-        try {
-            patientEngagementAutomation.updateSettings(req.body);
-            res.json({ success: true });
-        } catch (error) { res.status(500).json({ error: error.message }); }
+        patientEngagementAutomation.updateSettings(req.body);
+        res.json({ success: true });
     });
 
-    // Trigger de Status (Appointment) - Legacy
     app.post('/api/automation/appointment-status/:appointmentId', async (req, res) => {
         try {
-            const { appointmentId } = req.params;
             const { newStatus, oldStatus } = req.body;
-            const result = await patientEngagementAutomation.processAppointmentStatusChange(appointmentId, newStatus, oldStatus);
+            const result = await patientEngagementAutomation.processAppointmentStatusChange(req.params.appointmentId, newStatus, oldStatus);
             res.json(result);
-        } catch (error) {
-            console.error('❌ Erro no processamento de status:', error.message);
-            res.status(500).json({ error: error.message });
-        }
+        } catch (error) { res.status(500).json({ error: error.message }); }
     });
 }
 
-// --- INICIALIZAÇÃO ---
+// --- START ---
 app.listen(PORT, () => {
-    console.log(`✅ Cérebro de Automação rodando na porta ${PORT}`);
-    console.log(`🔇 Modo Bridge DESATIVADO (Deixando o Uazapi Nativo assumir)`);
+    console.log(`✅ Backend Audicare rodando na porta ${PORT}`);
+    console.log(`🔄 Sync CRM: Ativo em /webhooks/chatwoot-events`);
+    console.log(`🤖 Automação Legacy: ${patientEngagementAutomation ? 'Ativa' : 'Inativa'}`);
+    console.log(`🤖 AutomationManager: ${automationManager ? 'Ativa' : 'Inativa'}`);
 });

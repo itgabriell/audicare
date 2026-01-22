@@ -196,6 +196,12 @@ const Appointments = () => {
         newDate.setDate(newDate.getDate() + (direction === 'prev' ? -7 : 7));
         return newDate;
       });
+    } else if (viewMode === 'day') {
+      setCurrentDate((prev) => {
+        const newDate = new Date(prev);
+        newDate.setDate(newDate.getDate() + (direction === 'prev' ? -1 : 1));
+        return newDate;
+      });
     } else {
       // Para modo mês, navegar mês a mês
       setCurrentDate((prev) => {
@@ -486,6 +492,15 @@ const Appointments = () => {
                   <Calendar className="h-4 w-4" />
                   Mês
                 </Button>
+                <Button
+                  variant={viewMode === 'day' ? 'default' : 'ghost'}
+                  size="sm"
+                  onClick={() => setViewMode('day')}
+                  className="flex items-center gap-1"
+                >
+                  <Calendar className="h-4 w-4" />
+                  Dia
+                </Button>
               </div>
             </div>
           </div>
@@ -502,6 +517,95 @@ const Appointments = () => {
               onAppointmentClick={handleAppointmentClick}
               onAppointmentMove={handleAppointmentMove}
             />
+          ) : viewMode === 'day' ? (
+            <div className="space-y-4">
+              <div className="text-center">
+                <h3 className="text-lg font-semibold">
+                  {format(currentDate, "EEEE, dd 'de' MMMM 'de' yyyy", { locale: ptBR })}
+                </h3>
+              </div>
+              <div className="space-y-2">
+                {(() => {
+                  const dayAppointments = appointments.filter(app => {
+                    if (!app.start_time) return false;
+                    const appDate = new Date(app.start_time);
+                    return appDate.toDateString() === currentDate.toDateString();
+                  }).sort((a, b) => new Date(a.start_time) - new Date(b.start_time));
+
+                  if (dayAppointments.length === 0) {
+                    return (
+                      <div className="text-center py-12 text-muted-foreground">
+                        <Calendar className="h-12 w-12 mx-auto mb-4 opacity-50" />
+                        <p>Nenhum agendamento para este dia</p>
+                      </div>
+                    );
+                  }
+
+                  return dayAppointments.map(appointment => (
+                    <div
+                      key={appointment.id}
+                      className="bg-card border rounded-lg p-4 hover:shadow-md transition-shadow cursor-pointer"
+                      onClick={() => handleAppointmentClick(appointment)}
+                    >
+                      <div className="flex items-center justify-between">
+                        <div className="flex items-center gap-3">
+                          <div className="text-lg font-bold text-primary">
+                            {(() => {
+                              const date = new Date(appointment.start_time);
+                              // Exibir exatamente a hora cadastrada, sem conversões de timezone
+                              return date.toLocaleTimeString('pt-BR', {
+                                hour: '2-digit',
+                                minute: '2-digit',
+                                hour12: false
+                              });
+                            })()}
+                          </div>
+                          <div>
+                            <div
+                              className="font-semibold cursor-pointer hover:text-blue-600 transition-colors"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                window.location.href = `/patients/${appointment.patient_id}`;
+                              }}
+                              title="Clique para ver/completar o cadastro do paciente"
+                            >
+                              {appointment.contact?.name || 'Paciente'}
+                            </div>
+                            <div className="text-sm text-muted-foreground">{appointment.title || appointment.appointment_type}</div>
+                          </div>
+                        </div>
+                        <div className="text-right">
+                          <div className={`inline-block px-2 py-1 rounded text-xs font-medium ${
+                            appointment.status === 'confirmed' ? 'bg-green-100 text-green-800' :
+                            appointment.status === 'arrived' ? 'bg-blue-100 text-blue-800' :
+                            appointment.status === 'completed' ? 'bg-gray-100 text-gray-800' :
+                            appointment.status === 'no_show' ? 'bg-red-100 text-red-800' :
+                            appointment.status === 'cancelled' ? 'bg-gray-100 text-gray-800' :
+                            appointment.status === 'rescheduled' ? 'bg-yellow-100 text-yellow-800' :
+                            appointment.status === 'not_confirmed' ? 'bg-orange-100 text-orange-800' :
+                            'bg-slate-100 text-slate-800'
+                          }`}>
+                            {appointment.status === 'confirmed' ? 'Confirmado' :
+                             appointment.status === 'arrived' ? 'Chegou' :
+                             appointment.status === 'completed' ? 'Concluído' :
+                             appointment.status === 'no_show' ? 'Não Compareceu' :
+                             appointment.status === 'cancelled' ? 'Cancelado' :
+                             appointment.status === 'rescheduled' ? 'Reagendado' :
+                             appointment.status === 'not_confirmed' ? 'Não Confirmado' :
+                             'Agendado'}
+                          </div>
+                        </div>
+                      </div>
+                      {appointment.obs && (
+                        <div className="mt-2 text-sm text-muted-foreground">
+                          {appointment.obs}
+                        </div>
+                      )}
+                    </div>
+                  ));
+                })()}
+              </div>
+            </div>
           ) : (
             <MonthlyCalendarView
               currentDate={currentDate}

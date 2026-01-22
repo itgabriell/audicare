@@ -93,8 +93,16 @@ const DraggableAppointment = memo(({ appointment, onAppointmentClick }) => {
           }}
         >
           {/* Horário */}
-          <p className="font-bold text-primary text-xs">
-            {format(new Date(appointment.start_time || appointment.appointment_date), 'HH:mm')}
+          <p className="font-bold text-white text-xs">
+            {(() => {
+              const date = new Date(appointment.start_time || appointment.appointment_date);
+              // Exibir exatamente a hora cadastrada, sem conversões de timezone
+              return date.toLocaleTimeString('pt-BR', {
+                hour: '2-digit',
+                minute: '2-digit',
+                hour12: false
+              });
+            })()}
           </p>
 
           {/* Nome do paciente */}

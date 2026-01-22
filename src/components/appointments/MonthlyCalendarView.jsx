@@ -125,14 +125,30 @@ const MonthlyCalendarView = ({
                     }}
                   >
                     <div className="flex items-center justify-between mb-1">
-                      <div className="font-bold">
-                        {format(new Date(appointment.start_time || appointment.appointment_date), 'HH:mm')}
+                      <div className="font-bold text-white">
+                        {(() => {
+                          const date = new Date(appointment.start_time || appointment.appointment_date);
+                          // Exibir exatamente a hora cadastrada, sem conversões de timezone
+                          return date.toLocaleTimeString('pt-BR', {
+                            hour: '2-digit',
+                            minute: '2-digit',
+                            hour12: false
+                          });
+                        })()}
                       </div>
                       <div className="text-xs opacity-90 font-medium">
                         {getStatusLabel(appointment.status)}
                       </div>
                     </div>
-                    <div className="truncate font-semibold mb-1">
+                    <div
+                      className="truncate font-semibold mb-1 cursor-pointer hover:text-blue-200 transition-colors"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        // Navegar para o perfil do paciente
+                        window.location.href = `/patients/${appointment.patient_id}`;
+                      }}
+                      title="Clique para ver/completar o cadastro do paciente"
+                    >
                       {appointment.contact?.name || 'Paciente'}
                     </div>
                     <div className="truncate text-xs opacity-90 font-medium">

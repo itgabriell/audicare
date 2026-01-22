@@ -31,7 +31,6 @@ const ChatIntegration = lazy(() => import('@/pages/ChatIntegration'));
 const Repairs = lazy(() => import('@/pages/Repairs'));
 const SocialMedia = lazy(() => import('@/pages/SocialMedia'));
 const Automations = lazy(() => import('@/pages/Automations'));
-const AutomationSettings = lazy(() => import('@/pages/AutomationSettings'));
 const EmailCampaigns = lazy(() => import('@/pages/EmailCampaigns'));
 const NotificationsAdmin = lazy(() => import('@/pages/NotificationsAdmin'));
 const Invoices = lazy(() => import('@/pages/Invoices'));
@@ -101,7 +100,6 @@ function App() {
             <Route path="social-media" element={<SocialMedia />} />
             <Route path="email-campaigns" element={<EmailCampaigns />} />
             <Route path="automations" element={<Automations />} />
-            <Route path="automation-settings" element={<AutomationSettings />} />
             <Route path="invoices" element={<Invoices />} />
             <Route path="notifications" element={<NotificationsAdmin />} />
             <Route path="users" element={<Users />} />

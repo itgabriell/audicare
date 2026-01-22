@@ -699,6 +699,7 @@ export const getPatientAppointments = async (patientId) => {
 export const getAppointments = async (filters = {}) => {
   const clinicId = await getClinicId();
   if (!clinicId) return [];
+
   let query = supabase.from('appointments').select(`
     *,
     patients!patient_id (
@@ -708,10 +709,20 @@ export const getAppointments = async (filters = {}) => {
       cpf
     )
   `).eq('clinic_id', clinicId);
-  if (filters.startDate) query = query.gte('start_time', filters.startDate);
-  if (filters.endDate) query = query.lte('start_time', filters.endDate);
+
+  if (filters.startDate) {
+    query = query.gte('start_time', filters.startDate);
+  }
+  if (filters.endDate) {
+    query = query.lte('start_time', filters.endDate);
+  }
+
   const { data, error } = await query.order('start_time', { ascending: true });
-  if (error) throw error;
+
+  if (error) {
+    console.error('[DB] Error fetching appointments:', error);
+    throw error;
+  }
 
   // Transformar dados para manter compatibilidade com código existente
   return data.map(appointment => ({

@@ -44,7 +44,6 @@ const mainNavItems = [
 const secondaryNavItems = [
   { href: '/social-media', icon: Share2, label: 'Social Media' },
   { href: '/automations', icon: Bot, label: 'Automações' },
-  { href: '/automation-settings', icon: Cog, label: 'Config. Automações' },
   { href: '/notifications', icon: Bell, label: 'Notificações' },
 ];
 

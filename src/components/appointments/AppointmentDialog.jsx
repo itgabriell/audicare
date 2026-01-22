@@ -321,11 +321,12 @@ const AppointmentDialog = ({ open, onOpenChange, appointment, onSuccess, initial
                     <SelectValue placeholder="Selecione o tipo" />
                 </SelectTrigger>
                 <SelectContent>
-                    <SelectItem value="Consulta Inicial">Consulta Inicial</SelectItem>
-                    <SelectItem value="Retorno">Retorno</SelectItem>
-                    <SelectItem value="Exame">Exame</SelectItem>
-                    <SelectItem value="Procedimento">Procedimento</SelectItem>
-                    <SelectItem value="Terapia">Terapia</SelectItem>
+                    <SelectItem value="Avaliação">Avaliação</SelectItem>
+                    <SelectItem value="Molde">Molde</SelectItem>
+                    <SelectItem value="Retorno pós compra">Retorno pós compra</SelectItem>
+                    <SelectItem value="Retorno comum">Retorno comum</SelectItem>
+                    <SelectItem value="Ajuste">Ajuste</SelectItem>
+                    <SelectItem value="Reparo">Reparo</SelectItem>
                 </SelectContent>
             </Select>
              {form.formState.errors.title && (
