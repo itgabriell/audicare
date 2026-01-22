@@ -17,7 +17,6 @@ import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } f
 import { supabase } from '@/database.js';
 import { useAuth } from '@/contexts/SupabaseAuthContext';
 import AutomationForm from '@/components/automations/AutomationForm';
-import { AutomationService } from '@/services/automationService';
 
 const Automations = () => {
     const [automations, setAutomations] = useState([]);
@@ -133,18 +132,23 @@ const Automations = () => {
                 description: `Iniciando execução da automação "${automation.name}".`,
             });
 
-            const result = await AutomationService.executeAutomation(automation.id, user.id, 'manual');
+            // Usar rota do backend ao invés do AutomationService
+            const apiUrl = import.meta.env.VITE_API_BASE_URL || 'https://api.audicarefono.com.br';
+            const response = await fetch(`${apiUrl}/api/automations/${automation.id}/test`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ phone: '11999999999' }) // Número de teste
+            });
+
+            const result = await response.json();
 
             if (result.success) {
                 toast({
-                    title: 'Automação executada',
-                    description: `Mensagens enviadas para ${result.successCount} de ${result.targetCount} destinatários.`,
+                    title: 'Teste executado',
+                    description: `Mensagem de teste enviada com sucesso.`,
                 });
             } else {
-                toast({
-                    title: 'Execução concluída',
-                    description: result.message || 'A automação foi processada.',
-                });
+                throw new Error(result.error || 'Erro na execução');
             }
 
         } catch (error) {
@@ -189,17 +193,25 @@ const Automations = () => {
             case 'manual':
                 return 'Manual';
             case 'scheduled':
-                return automation.trigger_config?.schedule ?
-                    new Date(automation.trigger_config.schedule).toLocaleString('pt-BR') :
-                    'Agendado';
+                // Mapear cron expressions para descrições legíveis
+                const cronMap = {
+                    '0 9 * * *': 'Todo dia às 9:00',
+                    '0 8 * * *': 'Todo dia às 8:00',
+                    '0 14 * * *': 'Todo dia às 14:00',
+                    '0 18 * * *': 'Todo dia às 18:00'
+                };
+                return cronMap[automation.trigger_config?.schedule] || automation.trigger_config?.schedule || 'Agendado';
             case 'event':
                 const eventTypes = {
                     'patient_created': 'Novo Paciente',
                     'appointment_created': 'Nova Consulta',
                     'appointment_completed': 'Consulta Finalizada',
-                    'birthday': 'Aniversário'
+                    'birthday': 'Aniversário',
+                    'arrived': 'Paciente Chegou',
+                    'completed': 'Consulta Finalizada',
+                    'scheduled': 'Consulta Agendada'
                 };
-                return eventTypes[automation.trigger_config?.event_type] || 'Evento';
+                return eventTypes[automation.trigger_config?.event_type || automation.trigger_config?.appointment_status] || 'Evento';
             default:
                 return 'Desconhecido';
         }
@@ -228,8 +240,8 @@ const Automations = () => {
             <div className="space-y-6">
                 <div className="flex items-center justify-between">
                     <div>
-                        <h1 className="text-3xl font-bold text-foreground">Automações com UAZAPI</h1>
-                        <p className="text-muted-foreground mt-1">Crie e gerencie fluxos de trabalho automatizados via WhatsApp.</p>
+                        <h1 className="text-3xl font-bold text-foreground">🤖 Automações de Engajamento</h1>
+                        <p className="text-muted-foreground mt-1">Configure mensagens automáticas para manter o contato com seus pacientes via Chatwoot.</p>
                     </div>
                     <Button onClick={handleCreateAutomation}>
                         <Plus className="mr-2 h-4 w-4" />
