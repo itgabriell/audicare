@@ -8,7 +8,8 @@ class ChatwootBackendService {
   constructor() {
     this.apiUrl = process.env.CHATWOOT_API_URL?.replace(/\/$/, '');
     this.apiToken = process.env.CHATWOOT_API_TOKEN;
-    this.accountId = process.env.CHATWOOT_INBOX_ID || '2'; // Usar inbox ID como account ID
+    this.accountId = '2'; // Account ID fixo conforme configuração
+    this.inboxId = process.env.CHATWOOT_INBOX_ID || '2';
 
     if (!this.apiUrl || !this.apiToken) {
       console.warn('⚠️ ChatwootBackendService: Configurações incompletas. Verifique CHATWOOT_API_URL e CHATWOOT_API_TOKEN');
@@ -27,19 +28,48 @@ class ChatwootBackendService {
   }
 
   /**
+   * Formata telefone para formato E164
+   * @param {string} phoneNumber - Número do telefone
+   * @returns {string} - Número formatado
+   */
+  formatPhoneToE164(phoneNumber) {
+    // Remove todos os caracteres não numéricos
+    const cleaned = phoneNumber.replace(/\D/g, '');
+
+    // Se já começa com 55, apenas adiciona o +
+    if (cleaned.startsWith('55')) {
+      return `+${cleaned}`;
+    }
+
+    // Se tem 11 dígitos (com 9), adiciona 55
+    if (cleaned.length === 11) {
+      return `+55${cleaned}`;
+    }
+
+    // Se tem 10 dígitos (sem 9), adiciona 55
+    if (cleaned.length === 10) {
+      return `+55${cleaned}`;
+    }
+
+    // Para outros casos, apenas adiciona + se não tiver
+    return cleaned.startsWith('+') ? cleaned : `+${cleaned}`;
+  }
+
+  /**
    * Busca contato no Chatwoot por telefone
    * @param {string} phoneNumber - Número do telefone
    * @returns {Promise<Object|null>} - Dados do contato ou null se não encontrado
    */
   async findContactByPhone(phoneNumber) {
     try {
-      console.log(`🔍 [Chatwoot Backend] Buscando contato por telefone: ${phoneNumber}`);
+      const formattedPhone = this.formatPhoneToE164(phoneNumber);
+      console.log(`🔍 [Chatwoot Backend] Buscando contato por telefone: ${phoneNumber} (formatado: ${formattedPhone})`);
 
       const response = await axios.get(
         `${this.apiUrl}/api/v1/accounts/${this.accountId}/contacts/search`,
         {
           headers: this.headers,
-          params: { q: phoneNumber }
+          params: { q: formattedPhone }
         }
       );
 
@@ -65,16 +95,20 @@ class ChatwootBackendService {
    */
   async createContact(contactData) {
     try {
-      console.log(`🆕 [Chatwoot Backend] Criando contato: ${contactData.name}`);
+      console.log(`🆕 [Chatwoot Backend] Criando contato:`, contactData);
+
+      // Formatar telefone para E164
+      const formattedPhone = this.formatPhoneToE164(contactData.phone_number);
 
       const payload = {
-        contact: {
-          name: contactData.name,
-          phone_number: contactData.phone_number,
-          email: contactData.email,
-          custom_attributes: contactData.custom_attributes || {}
-        }
+        name: contactData.name,
+        phone_number: formattedPhone,
+        email: contactData.email || '',
+        custom_attributes: contactData.custom_attributes || {}
       };
+
+      console.log(`📤 [Chatwoot Backend] Payload:`, JSON.stringify(payload, null, 2));
+      console.log(`🔗 [Chatwoot Backend] URL: ${this.apiUrl}/api/v1/accounts/${this.accountId}/contacts`);
 
       const response = await axios.post(
         `${this.apiUrl}/api/v1/accounts/${this.accountId}/contacts`,
@@ -83,11 +117,15 @@ class ChatwootBackendService {
       );
 
       const newContact = response.data;
-      console.log(`✅ [Chatwoot Backend] Contato criado: ${newContact.name} (ID: ${newContact.id})`);
+      console.log(`✅ [Chatwoot Backend] Contato criado:`, newContact);
       return newContact;
 
     } catch (error) {
-      console.error('❌ [Chatwoot Backend] Erro ao criar contato:', error.response?.data || error.message);
+      console.error('❌ [Chatwoot Backend] Erro ao criar contato:', {
+        status: error.response?.status,
+        data: error.response?.data,
+        message: error.message
+      });
       throw error;
     }
   }
@@ -128,19 +166,46 @@ class ChatwootBackendService {
     try {
       console.log(`💬 [Chatwoot Backend] Buscando conversa para contato ID: ${contact.id}`);
 
-      // Buscar conversas existentes para o contato
-      const response = await axios.get(
-        `${this.apiUrl}/api/v1/accounts/${this.accountId}/contacts/${contact.id}/conversations`,
-        { headers: this.headers }
-      );
+      // Primeiro, tentar buscar conversas diretamente pela API de conversas
+      try {
+        const allConversationsResponse = await axios.get(
+          `${this.apiUrl}/api/v1/accounts/${this.accountId}/conversations`,
+          {
+            headers: this.headers,
+            params: {
+              contact_id: contact.id,
+              inbox_id: this.inboxId
+            }
+          }
+        );
 
-      const conversations = response.data?.payload || [];
+        const conversations = allConversationsResponse.data?.payload || [];
 
-      // Se já existe uma conversa, usar a primeira
-      if (conversations.length > 0) {
-        const conversation = conversations[0];
-        console.log(`✅ [Chatwoot Backend] Conversa existente encontrada: ${conversation.id}`);
-        return conversation;
+        if (conversations.length > 0) {
+          const conversation = conversations[0];
+          console.log(`✅ [Chatwoot Backend] Conversa existente encontrada: ${conversation.id}`);
+          return conversation;
+        }
+      } catch (searchError) {
+        console.warn('⚠️ [Chatwoot Backend] Erro ao buscar conversas existentes:', searchError.response?.data?.message || searchError.message);
+      }
+
+      // Se não encontrou, tentar buscar via endpoint do contato
+      try {
+        const contactConversationsResponse = await axios.get(
+          `${this.apiUrl}/api/v1/accounts/${this.accountId}/contacts/${contact.id}/conversations`,
+          { headers: this.headers }
+        );
+
+        const conversations = contactConversationsResponse.data?.payload || [];
+
+        if (conversations.length > 0) {
+          const conversation = conversations[0];
+          console.log(`✅ [Chatwoot Backend] Conversa existente encontrada via contato: ${conversation.id}`);
+          return conversation;
+        }
+      } catch (contactSearchError) {
+        console.warn('⚠️ [Chatwoot Backend] Erro ao buscar conversas via contato:', contactSearchError.response?.data?.message || contactSearchError.message);
       }
 
       // Se não existe, criar nova conversa
@@ -150,7 +215,7 @@ class ChatwootBackendService {
         `${this.apiUrl}/api/v1/accounts/${this.accountId}/conversations`,
         {
           contact_id: contact.id,
-          inbox_id: process.env.CHATWOOT_INBOX_ID || '2' // Inbox ID da configuração
+          inbox_id: this.inboxId
         },
         { headers: this.headers }
       );
@@ -161,7 +226,11 @@ class ChatwootBackendService {
       return newConversation;
 
     } catch (error) {
-      console.error('❌ [Chatwoot Backend] Erro em findOrCreateConversation:', error.response?.data || error.message);
+      console.error('❌ [Chatwoot Backend] Erro em findOrCreateConversation:', {
+        status: error.response?.status,
+        data: error.response?.data,
+        message: error.message
+      });
       throw error;
     }
   }
@@ -186,31 +255,67 @@ class ChatwootBackendService {
       // 2. Buscar ou criar conversa
       const conversation = await this.findOrCreateConversation(contact);
 
-      // 3. Criar mensagem no Chatwoot
+      // 3. Criar mensagem no Chatwoot (formato compatível com Bridge)
       const messageData = {
         content: message,
-        message_type: messageType,
-        private: false
+        message_type: 1, // Usar número ao invés de string
+        private: false,
+        content_type: 'text'
       };
 
-      const response = await axios.post(
-        `${this.apiUrl}/api/v1/accounts/${this.accountId}/conversations/${conversation.id}/messages`,
-        { message: messageData },
-        { headers: this.headers }
-      );
+      console.log(`💬 [Chatwoot Backend] Criando mensagem:`, JSON.stringify(messageData, null, 2));
+
+      // Tentar formato alternativo se o padrão não funcionar
+      let response;
+      try {
+        // Formato padrão
+        response = await axios.post(
+          `${this.apiUrl}/api/v1/accounts/${this.accountId}/conversations/${conversation.id}/messages`,
+          { message: messageData },
+          { headers: this.headers }
+        );
+      } catch (error) {
+        console.warn('⚠️ [Chatwoot Backend] Tentando formato alternativo para mensagem...');
+
+        // Formato alternativo: enviar diretamente sem wrapper "message"
+        response = await axios.post(
+          `${this.apiUrl}/api/v1/accounts/${this.accountId}/conversations/${conversation.id}/messages`,
+          messageData,
+          { headers: this.headers }
+        );
+      }
 
       const sentMessage = response.data;
-      console.log(`✅ [Chatwoot Backend] Mensagem enviada: ${sentMessage.id}`);
+      console.log(`✅ [Chatwoot Backend] Mensagem enviada:`, sentMessage);
 
-      return {
-        success: true,
-        messageId: sentMessage.id,
-        contactId: contact.id,
-        conversationId: conversation.id
-      };
+      // Verificar se a mensagem foi criada com sucesso
+      if (sentMessage && sentMessage.id) {
+        console.log(`🎯 [Chatwoot Backend] Mensagem ID ${sentMessage.id} criada com sucesso no Chatwoot`);
+
+        // Verificar status da mensagem
+        if (sentMessage.status === 'sent' || sentMessage.status === 'delivered') {
+          console.log(`📱 [Chatwoot Backend] Mensagem entregue via WhatsApp`);
+        } else {
+          console.log(`⏳ [Chatwoot Backend] Mensagem criada, aguardando entrega via Bridge`);
+        }
+
+        return {
+          success: true,
+          messageId: sentMessage.id,
+          contactId: contact.id,
+          conversationId: conversation.id,
+          status: sentMessage.status
+        };
+      } else {
+        throw new Error('Mensagem não foi criada corretamente no Chatwoot');
+      }
 
     } catch (error) {
-      console.error('❌ [Chatwoot Backend] Erro ao enviar mensagem:', error.response?.data || error.message);
+      console.error('❌ [Chatwoot Backend] Erro ao enviar mensagem:', {
+        status: error.response?.status,
+        data: error.response?.data,
+        message: error.message
+      });
 
       // Fallback: simulação se a API falhar (compatibilidade com versão antiga)
       console.warn('⚠️ [Chatwoot Backend] Usando modo simulação devido ao erro');
