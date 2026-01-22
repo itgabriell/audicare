@@ -201,7 +201,7 @@ class AutomationManager {
             const phoneNumber = this.getPrimaryPhoneNumber(patient);
 
             if (phoneNumber) {
-              const message = this.processTemplate(automation.action_config.message, { patient });
+              const message = this.processTemplate(automation.action_config.message_template || automation.action_config.message, { patient });
 
               const result = await chatwootBackendService.sendMessage(phoneNumber, message);
 
@@ -276,7 +276,7 @@ class AutomationManager {
           const phoneNumber = this.getPrimaryPhoneNumber(patient);
 
           if (phoneNumber) {
-            const message = this.processTemplate(automation.action_config.message, {
+            const message = this.processTemplate(automation.action_config.message_template || automation.action_config.message, {
               patient,
               appointment
             });
@@ -393,7 +393,7 @@ class AutomationManager {
             .select()
             .single();
 
-          const message = this.processTemplate(automation.action_config.message, {
+          const message = this.processTemplate(automation.action_config.message_template || automation.action_config.message, {
             patient,
             appointment
           });
@@ -463,26 +463,37 @@ class AutomationManager {
    * Processa template de mensagem
    */
   processTemplate(template, data) {
+    // Verificar se template existe
+    if (!template || typeof template !== 'string') {
+      console.error('[AutomationManager] Template inválido:', template);
+      return 'Mensagem de teste - Template não configurado';
+    }
+
     let message = template;
 
-    // Substituir placeholders básicos
-    if (data.patient) {
-      message = message.replace(/\{\{nome\}\}/g, data.patient.name || 'Paciente');
+    try {
+      // Substituir placeholders básicos
+      if (data.patient) {
+        message = message.replace(/\{\{nome\}\}/g, data.patient.name || 'Paciente');
+      }
+
+      if (data.appointment) {
+        const appointmentDate = new Date(data.appointment.start_time);
+        const formattedDate = appointmentDate.toLocaleDateString('pt-BR');
+        const formattedTime = appointmentDate.toLocaleTimeString('pt-BR', {
+          hour: '2-digit',
+          minute: '2-digit'
+        });
+
+        message = message.replace(/\{\{data\}\}/g, formattedDate);
+        message = message.replace(/\{\{hora\}\}/g, formattedTime);
+      }
+
+      return message;
+    } catch (error) {
+      console.error('[AutomationManager] Erro no processamento do template:', error);
+      return 'Mensagem de teste - Erro no processamento do template';
     }
-
-    if (data.appointment) {
-      const appointmentDate = new Date(data.appointment.start_time);
-      const formattedDate = appointmentDate.toLocaleDateString('pt-BR');
-      const formattedTime = appointmentDate.toLocaleTimeString('pt-BR', {
-        hour: '2-digit',
-        minute: '2-digit'
-      });
-
-      message = message.replace(/\{\{data\}\}/g, formattedDate);
-      message = message.replace(/\{\{hora\}\}/g, formattedTime);
-    }
-
-    return message;
   }
 
   /**
@@ -697,7 +708,7 @@ class AutomationManager {
         }
       };
 
-      const message = this.processTemplate(automation.action_config.message, testData);
+      const message = this.processTemplate(automation.action_config.message_template || automation.action_config.message, testData);
       const result = await chatwootBackendService.sendMessage(testPhone, message);
 
       return {
