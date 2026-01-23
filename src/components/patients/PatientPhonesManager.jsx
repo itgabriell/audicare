@@ -77,7 +77,7 @@ const PatientPhonesManager = ({ phones = [], onChange }) => {
   };
 
   return (
-    <div className="space-y-4 border rounded-md p-4 bg-slate-50/50">
+    <div className="space-y-4 border rounded-md p-4 bg-muted/20">
       <div className="flex items-center justify-between">
         <Label className="flex items-center gap-2 text-base font-semibold">
           <Phone className="h-4 w-4" />
@@ -98,9 +98,8 @@ const PatientPhonesManager = ({ phones = [], onChange }) => {
         {phones.map((phone, index) => (
           <div 
             // Key é fundamental: Usa ID do banco OU tempId para novos. 
-            // Nunca use apenas 'index' se a lista puder mudar de ordem.
             key={phone.id || phone.tempId || `temp-${index}`} 
-            className="relative bg-white p-4 rounded-lg border shadow-sm space-y-4"
+            className="relative bg-card p-4 rounded-lg border shadow-sm space-y-4"
           >
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               {/* Campo Número */}
@@ -109,10 +108,11 @@ const PatientPhonesManager = ({ phones = [], onChange }) => {
                   Número do Telefone *
                 </Label>
                 <Input
-                  value={phone.phone} // O valor deve vir direto do estado
+                  value={phone.phone} 
                   onChange={(e) => handleUpdatePhone(index, 'phone', e.target.value)}
                   placeholder="(99) 99999-9999"
                   maxLength={15}
+                  className="bg-background"
                 />
               </div>
 
@@ -123,7 +123,7 @@ const PatientPhonesManager = ({ phones = [], onChange }) => {
                   value={phone.phone_type || 'mobile'}
                   onValueChange={(val) => handleUpdatePhone(index, 'phone_type', val)}
                 >
-                  <SelectTrigger>
+                  <SelectTrigger className="bg-background">
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent>
@@ -143,7 +143,7 @@ const PatientPhonesManager = ({ phones = [], onChange }) => {
                    value={phone.contact_name || ''}
                    onChange={(e) => handleUpdatePhone(index, 'contact_name', e.target.value)}
                    placeholder="Ex: João (Filho), Maria (Vizinha)"
-                   className="h-8"
+                   className="h-8 bg-background"
                  />
                </div>
             )}
@@ -163,7 +163,7 @@ const PatientPhonesManager = ({ phones = [], onChange }) => {
                     htmlFor={`primary-${index}`}
                     className={cn(
                         "text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70 cursor-pointer",
-                        phone.is_primary && "text-green-600"
+                        phone.is_primary && "text-primary font-semibold"
                     )}
                   >
                     Principal
@@ -192,7 +192,7 @@ const PatientPhonesManager = ({ phones = [], onChange }) => {
                 variant="ghost"
                 size="icon"
                 onClick={() => handleRemovePhone(index)}
-                className="text-red-500 hover:text-red-700 hover:bg-red-50 h-8 w-8"
+                className="text-destructive hover:text-destructive/90 hover:bg-destructive/10 h-8 w-8"
                 title="Remover telefone"
               >
                 <Trash2 className="h-4 w-4" />
@@ -205,14 +205,14 @@ const PatientPhonesManager = ({ phones = [], onChange }) => {
                     value={phone.notes || ''}
                     onChange={(e) => handleUpdatePhone(index, 'notes', e.target.value)}
                     placeholder="Observações (ex: Ligar após 18h)"
-                    className="text-xs h-8 bg-slate-50 border-slate-200"
+                    className="text-xs h-8 bg-muted/50 border-input placeholder:text-muted-foreground/60"
                 />
             </div>
           </div>
         ))}
 
         {phones.length === 0 && (
-            <div className="text-center py-8 text-sm text-muted-foreground border-dashed border-2 rounded-lg bg-slate-50">
+            <div className="text-center py-8 text-sm text-muted-foreground border-dashed border-2 rounded-lg bg-muted/10">
                 <p>Nenhum telefone cadastrado.</p>
                 <p className="text-xs mt-1">Clique em "Adicionar Telefone" para começar.</p>
             </div>
