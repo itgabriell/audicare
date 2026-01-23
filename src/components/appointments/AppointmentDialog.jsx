@@ -22,10 +22,12 @@ import { useAppointmentReminders } from '@/hooks/useAppointmentReminders';
 const appointmentSchema = z.object({
   contact_id: z.string().min(1, "Paciente é obrigatório"),
   professional_name: z.string().min(1, "Profissional é obrigatório"),
-  start_time: z.string().min(1, "Data e hora são obrigatórias"),
-  title: z.string().min(1, "Tipo de agendamento é obrigatório"),
+  date: z.string().min(1, "Data é obrigatória"),
+  time: z.string().min(1, "Hora é obrigatória"),
+  type: z.string().min(1, "Tipo de agendamento é obrigatório"),
+  duration: z.number().min(1, "Duração deve ser maior que 0"),
   status: z.string().default('scheduled'),
-  obs: z.string().optional(),
+  notes: z.string().optional(),
   professional_id: z.string().optional(),
   patient_id: z.string().optional(),
 });
@@ -42,10 +44,12 @@ const AppointmentDialog = ({ open, onOpenChange, appointment, onSuccess, initial
     defaultValues: {
       contact_id: '',
       professional_name: '',
-      start_time: '',
-      title: '',
+      date: '',
+      time: '',
+      type: 'consulta',
+      duration: 30,
       status: 'scheduled',
-      obs: '',
+      notes: '',
     }
   });
 
@@ -53,13 +57,21 @@ const AppointmentDialog = ({ open, onOpenChange, appointment, onSuccess, initial
     if (appointment) {
       // Para edição: usar o contact.id do objeto appointment (vem do getAppointments)
       const patientId = appointment.contact?.id || appointment.contact_id || appointment.patient_id;
+
+      // CORREÇÃO DE MAPEAMENTO: Converta a data UTC do banco para Local corretamente
+      const dbDate = new Date(appointment.appointment_date || appointment.start_time);
+      const dateStr = dbDate.toLocaleDateString('sv'); // YYYY-MM-DD
+      const timeStr = dbDate.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
+
       form.reset({
         contact_id: patientId,
         professional_name: appointment.professional_name || 'Dra. Karine Brandão',
-        start_time: appointment.start_time ? new Date(appointment.start_time).toISOString().slice(0, 16) : '',
-        title: appointment.title || appointment.appointment_type || '',
+        date: dateStr,
+        time: timeStr,
+        type: appointment.appointment_type || 'consulta',
+        duration: appointment.duration || 30,
+        notes: appointment.notes || appointment.obs || '',
         status: appointment.status || 'scheduled',
-        obs: appointment.obs || '',
       });
       // Fetch patient details for the "Send Message" button context
       if (patientId) {
@@ -67,27 +79,32 @@ const AppointmentDialog = ({ open, onOpenChange, appointment, onSuccess, initial
       }
     } else if (initialData) {
       // Auto-preencher data/hora baseado no slot clicado
-      let startTimeValue = '';
+      let dateValue = '';
+      let timeValue = '';
       if (initialData.date && initialData.time) {
         // Se clicou em um slot específico (data + hora)
         const dateTime = new Date(initialData.date);
         const [hours, minutes] = initialData.time.split(':');
         dateTime.setHours(parseInt(hours), parseInt(minutes || 0), 0, 0);
-        startTimeValue = dateTime.toISOString().slice(0, 16);
+        dateValue = dateTime.toLocaleDateString('sv');
+        timeValue = dateTime.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
       } else if (initialData.date) {
         // Se clicou apenas em um dia (sem hora específica)
         const dateTime = new Date(initialData.date);
         dateTime.setHours(9, 0, 0, 0); // Padrão: 9:00 da manhã
-        startTimeValue = dateTime.toISOString().slice(0, 16);
+        dateValue = dateTime.toLocaleDateString('sv');
+        timeValue = dateTime.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
       }
 
       form.reset({
         contact_id: initialData.contact_id || '',
         professional_name: 'Dra. Karine Brandão',
-        start_time: startTimeValue,
-        title: initialData.title || initialData.appointment_type || '',
+        date: dateValue,
+        time: timeValue,
+        type: initialData.appointment_type || 'consulta',
+        duration: 30,
+        notes: initialData.obs || '',
         status: 'scheduled',
-        obs: initialData.obs || '',
       });
       if (initialData.contact_id) {
         fetchPatient(initialData.contact_id);
@@ -96,10 +113,12 @@ const AppointmentDialog = ({ open, onOpenChange, appointment, onSuccess, initial
       form.reset({
         contact_id: '',
         professional_name: 'Dra. Karine Brandão',
-        start_time: '',
-        title: '',
+        date: '',
+        time: '',
+        type: 'consulta',
+        duration: 30,
+        notes: '',
         status: 'scheduled',
-        obs: '',
       });
       setSelectedPatient(null);
     }
@@ -168,14 +187,22 @@ const AppointmentDialog = ({ open, onOpenChange, appointment, onSuccess, initial
         patientId = null;
       }
 
+      // CORREÇÃO DE MAPEAMENTO DE SALVAMENTO: Use os nomes exatos das colunas
+      // Combinar data e hora preservando o fuso local
+      const localDate = new Date(`${data.date}T${data.time}`);
+      const startTimeUTC = localDate.toISOString();
+      const endTimeUTC = new Date(localDate.getTime() + data.duration * 60 * 1000).toISOString();
+
       // PAYLOAD FINAL conforme solicitado
       const payload = {
         clinic_id: clinicId,
-        title: data.title,
-        start_time: data.start_time,
-        end_time: data.start_time ? new Date(new Date(data.start_time).getTime() + 30 * 60 * 1000).toISOString() : null,
+        appointment_date: startTimeUTC, // Manda UTC
+        appointment_type: data.type, // Grava na coluna appointment_type
+        duration: parseInt(data.duration), // Grava na coluna duration
+        notes: data.notes, // Grava na coluna notes
+        obs: data.notes, // Grava também em obs por redundância/compatibilidade
         status: data.status,
-        obs: data.obs || null,
+        professional_name: data.professional_name,
         professional_id: null, // Por enquanto null - aguardando implementação de select de profissionais com IDs
         patient_id: patientId,           // ID do paciente da tabela patients (UUID)
         contact_id: contactId,           // Mantém para retrocompatibilidade (UUID ou null)
@@ -271,18 +298,42 @@ const AppointmentDialog = ({ open, onOpenChange, appointment, onSuccess, initial
 
           <div className="grid grid-cols-2 gap-4">
             <div className="space-y-2">
-                <Label>Data e Hora</Label>
+                <Label>Data</Label>
                 <Input
-                    type="datetime-local"
-                    {...form.register('start_time')}
+                    type="date"
+                    {...form.register('date')}
                 />
-                {form.formState.errors.start_time && (
-                    <span className="text-xs text-red-500">{form.formState.errors.start_time.message}</span>
+                {form.formState.errors.date && (
+                    <span className="text-xs text-red-500">{form.formState.errors.date.message}</span>
+                )}
+            </div>
+            <div className="space-y-2">
+                <Label>Hora</Label>
+                <Input
+                    type="time"
+                    {...form.register('time')}
+                />
+                {form.formState.errors.time && (
+                    <span className="text-xs text-red-500">{form.formState.errors.time.message}</span>
+                )}
+            </div>
+          </div>
+
+          <div className="grid grid-cols-2 gap-4">
+            <div className="space-y-2">
+                <Label>Duração (minutos)</Label>
+                <Input
+                    type="number"
+                    {...form.register('duration', { valueAsNumber: true })}
+                    placeholder="30"
+                />
+                {form.formState.errors.duration && (
+                    <span className="text-xs text-red-500">{form.formState.errors.duration.message}</span>
                 )}
             </div>
             <div className="space-y-2">
                 <Label>Status</Label>
-                <Select 
+                <Select
                     onValueChange={(val) => form.setValue('status', val)}
                     defaultValue={form.watch('status')}
                 >
@@ -314,8 +365,8 @@ const AppointmentDialog = ({ open, onOpenChange, appointment, onSuccess, initial
           <div className="space-y-2">
             <Label>Tipo de Consulta</Label>
             <Select
-                onValueChange={(val) => form.setValue('title', val)}
-                defaultValue={form.watch('title')}
+                onValueChange={(val) => form.setValue('type', val)}
+                defaultValue={form.watch('type')}
             >
                 <SelectTrigger>
                     <SelectValue placeholder="Selecione o tipo" />
@@ -329,14 +380,14 @@ const AppointmentDialog = ({ open, onOpenChange, appointment, onSuccess, initial
                     <SelectItem value="Reparo">Reparo</SelectItem>
                 </SelectContent>
             </Select>
-             {form.formState.errors.title && (
-                <span className="text-xs text-red-500">{form.formState.errors.title.message}</span>
+             {form.formState.errors.type && (
+                <span className="text-xs text-red-500">{form.formState.errors.type.message}</span>
             )}
           </div>
 
           <div className="space-y-2">
             <Label>Observações</Label>
-            <Textarea {...form.register('obs')} placeholder="Detalhes adicionais..." />
+            <Textarea {...form.register('notes')} placeholder="Detalhes adicionais..." />
           </div>
 
           <DialogFooter className="flex-col sm:flex-row gap-2">

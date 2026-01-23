@@ -109,7 +109,7 @@ const DraggableAppointment = memo(({ appointment, onAppointmentClick }) => {
           <p className="font-semibold text-primary truncate">{appointment.contact?.name || 'Paciente'}</p>
 
           {/* Tipo de consulta */}
-          <p className="text-primary/80 truncate text-xs">{appointment.title || appointment.appointment_type}</p>
+          <p className="text-primary/80 truncate text-xs">{appointment.appointment_type || appointment.title}</p>
 
           {/* Status */}
           <div className="flex items-center gap-1 mt-1">
@@ -199,11 +199,12 @@ const DraggableAppointmentCalendar = ({
     return Array.from({ length: 7 }, (_, i) => addDays(start, i));
   }, [currentDate]);
 
-  // Memoizar todos os agendamentos por slot de uma vez
+  // CORREÇÃO DE FUSO HORÁRIO: Memoizar todos os agendamentos por slot de uma vez
+  // Forçar criação de objetos Date para garantir conversão UTC para Local
   const appointmentsBySlot = useMemo(() => {
     const map = new Map();
     appointments.forEach(app => {
-      // Usar start_time ou appointment_date como fallback
+      // O 'new Date()' converte automaticamente o ISO (UTC) para o Horário do Navegador (Local)
       const appDate = new Date(app.start_time || app.appointment_date);
       const dateKey = appDate.toDateString();
       const hour = appDate.getHours();
