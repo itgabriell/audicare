@@ -9,9 +9,9 @@ export const AuthProvider = ({ children }) => {
   const { toast } = useToast();
   const [session, setSession] = useState(null);
   const [user, setUser] = useState(null);
+  // Start with true only if we don't have a cached session to check
   const [loading, setLoading] = useState(true);
 
-  // Função auxiliar para limpar tudo se der erro fatal de auth
   const clearLocalSession = () => {
     console.log("[AuthContext] Clearing invalid session data.");
     Object.keys(localStorage).forEach(key => {
@@ -23,80 +23,58 @@ export const AuthProvider = ({ children }) => {
     setUser(null);
   };
 
-  const fetchUserProfile = async (session) => {
-    if (!session) return null;
+  const fetchUserProfile = async (currentSession) => {
+    if (!currentSession) return null;
     try {
-      const getProfileWithRetry = async (retries = 3, delay = 1000) => {
-        try {
-          let { data: profile, error } = await supabase
-            .from('profiles')
-            .select('*')
-            .eq('id', session.user.id)
-            .single();
-
-          if (error) {
-            if (error.message?.includes('Failed to fetch') || error.code === 'PGRST116' || error.status === 500) {
-                throw error; 
-            }
-            return { profile: null, error };
-          }
-          return { profile, error: null };
-        } catch (err) {
-          if (retries > 0) {
-            await new Promise(res => setTimeout(res, delay));
-            return getProfileWithRetry(retries - 1, delay * 1.5);
-          }
-          return { profile: null, error: err };
-        }
-      };
-
-      const { profile: fetchedProfile, error } = await getProfileWithRetry();
+      // Use maybeSingle to avoid errors on 404
+      let { data: profile, error } = await supabase
+        .from('profiles')
+        .select('*')
+        .eq('id', currentSession.user.id)
+        .maybeSingle();
 
       if (error) {
-        console.warn("Failed to fetch profile after retries:", error);
-        return session.user;
+        console.warn("Failed to fetch profile:", error);
+        // Fallback to basic user data if profile fails (cold start issue mitigation)
+        return currentSession.user;
       }
 
-      let profile = fetchedProfile;
-
       if (profile && !profile.clinic_id) {
-        const updatedProfile = await initializeUserClinic(session.user, profile);
-        return { ...session.user, profile: updatedProfile };
+        const updatedProfile = await initializeUserClinic(currentSession.user, profile);
+        return { ...currentSession.user, profile: updatedProfile };
       } else {
-        return { ...session.user, profile };
+        return { ...currentSession.user, profile };
       }
     } catch (e) {
       console.error("Error in fetchUserProfile:", e);
-      return session.user;
+      return currentSession.user;
     }
   };
 
   useEffect(() => {
     let mounted = true;
 
-    const getSessionAndProfile = async () => {
+    const initAuth = async () => {
       try {
+        // Check for existing session first
         const { data: { session: currentSession }, error } = await supabase.auth.getSession();
         
-        if (error) {
-            // Se o erro for de token inválido, limpamos o storage para evitar loop
-            if (error.message && (error.message.includes('Invalid Refresh Token') || error.message.includes('Refresh Token Not Found'))) {
-                clearLocalSession();
-                return; // Encerra aqui, user vai ficar deslogado
-            }
-            throw error;
-        }
+        if (error) throw error;
         
         if (mounted) {
             setSession(currentSession);
             if (currentSession) {
-              const userProfile = await fetchUserProfile(currentSession);
-              if (mounted) setUser(userProfile);
+              // Optimistic UI: Set user immediately with session data while fetching profile
+              setUser(currentSession.user); 
+              
+              // Fetch full profile in background
+              fetchUserProfile(currentSession).then(fullProfile => {
+                  if (mounted && fullProfile) setUser(fullProfile);
+              });
             }
         }
       } catch (error) {
         console.error('Error getting initial session:', error);
-        // Fallback de segurança
         if (error.message && (error.message.includes('Invalid Refresh Token') || error.message.includes('Refresh Token Not Found'))) {
              clearLocalSession();
         }
@@ -105,11 +83,10 @@ export const AuthProvider = ({ children }) => {
       }
     };
 
-    getSessionAndProfile();
+    initAuth();
 
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
       async (event, newSession) => {
-        console.log(`[Auth] Auth event: ${event}`);
         if (!mounted) return;
         
         if (event === 'SIGNED_OUT' || event === 'USER_DELETED') {
@@ -120,12 +97,15 @@ export const AuthProvider = ({ children }) => {
         }
 
         setSession(newSession);
+        
         if (newSession) {
-          const userProfile = await fetchUserProfile(newSession);
-          if (mounted) setUser(userProfile);
-        } else {
-          if (mounted) setUser(null);
+            // If user is already set (from init), don't wipe it, just update
+            if (!user) setUser(newSession.user);
+            
+            const userProfile = await fetchUserProfile(newSession);
+            if (mounted) setUser(userProfile);
         }
+        
         if (mounted) setLoading(false);
       }
     );
@@ -181,7 +161,7 @@ export const AuthProvider = ({ children }) => {
   const value = useMemo(() => ({
     session,
     user,
-    profile: user, // Alias para manter compatibilidade
+    profile: user,
     loading,
     signIn,
     signOut,

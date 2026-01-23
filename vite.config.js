@@ -5,8 +5,6 @@ import path from 'path';
 
 // https://vitejs.dev/config/
 export default defineConfig({
-  // CORREÇÃO: Define process.env globalmente para evitar o crash "ReferenceError: process is not defined"
-  // Isso é necessário porque algumas bibliotecas (como o chatwootService) esperam um ambiente Node.js
   define: {
     'process.env': process.env
   },
@@ -14,10 +12,13 @@ export default defineConfig({
   plugins: [
     react(),
     VitePWA({
-      registerType: 'prompt',
+      registerType: 'autoUpdate', // Changed to autoUpdate for faster service worker activation
+      includeAssets: ['favicon.ico', 'robots.txt', 'apple-touch-icon.png'],
       workbox: {
         globPatterns: ['**/*.{js,css,html,ico,png,svg}'],
-        cleanupOutdatedCaches: true
+        cleanupOutdatedCaches: true,
+        clientsClaim: true,
+        skipWaiting: true
       },
       manifest: {
         name: 'Audicare',
@@ -45,30 +46,23 @@ export default defineConfig({
     port: 3000,
   },
   build: {
+    target: 'esnext', // Use modern JS for smaller bundles
+    minify: 'esbuild',
+    sourcemap: false,
     rollupOptions: {
       output: {
+        // Manual chunks to separate vendor libs
+        manualChunks: {
+          'vendor-react': ['react', 'react-dom', 'react-router-dom'],
+          'vendor-ui': ['@radix-ui/react-dialog', '@radix-ui/react-slot', 'lucide-react', 'framer-motion'],
+          'vendor-utils': ['date-fns', 'clsx', 'tailwind-merge'],
+          'vendor-supabase': ['@supabase/supabase-js']
+        },
         chunkFileNames: 'assets/[name]-[hash].js',
         entryFileNames: 'assets/[name]-[hash].js',
         assetFileNames: 'assets/[name]-[hash].[ext]'
       }
     },
-    chunkSizeWarningLimit: 1000,
-    minify: 'esbuild',
-    sourcemap: false,
-    modulePreload: {
-      polyfill: false
-    }
-  },
-  optimizeDeps: {
-    include: [
-      'react',
-      'react-dom',
-      'react-router-dom',
-      '@supabase/supabase-js',
-      'date-fns',
-      'framer-motion',
-      'lucide-react'
-    ],
-    exclude: ['xlsx', 'jspdf']
-  },
+    chunkSizeWarningLimit: 800,
+  }
 });

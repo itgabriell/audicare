@@ -2,20 +2,29 @@ import React, { Suspense, lazy, useEffect } from 'react';
 import { Routes, Route, Navigate } from 'react-router-dom';
 import { useAuth } from '@/contexts/SupabaseAuthContext';
 import { useTheme } from '@/contexts/ThemeContext';
-import { QueryProvider } from '@/contexts/QueryProvider';
 import DashboardLayout from '@/layouts/DashboardLayout';
 import ErrorBoundary from '@/components/ErrorBoundary';
 import { cacheManager } from '@/utils/cacheManager';
+import { Loader2 } from 'lucide-react'; // Using Lucide for consistent icon style
 
-// --- Global Loading Spinner ---
+// --- Critical Pages (Eagerly Loaded for speed) ---
+// Login and Dashboard skeleton should load instantly
+import LoginPage from '@/pages/LoginPage';
+
+// --- Global Loading Spinner with Branding ---
 const FullPageSpinner = () => (
-  <div className="flex items-center justify-center h-screen bg-background">
-    <div className="w-16 h-16 border-4 border-primary border-t-transparent rounded-full animate-spin"></div>
+  <div className="flex flex-col items-center justify-center h-screen bg-background text-primary">
+    <div className="relative">
+        <div className="w-16 h-16 border-4 border-primary/20 border-t-primary rounded-full animate-spin"></div>
+        <div className="absolute inset-0 flex items-center justify-center">
+            <Loader2 className="h-6 w-6 animate-pulse" />
+        </div>
+    </div>
+    <p className="mt-4 text-sm text-muted-foreground animate-pulse">Carregando Audicare...</p>
   </div>
 );
 
-// --- Lazy Loaded Pages ---
-const LoginPage = lazy(() => import('@/pages/LoginPage'));
+// --- Lazy Loaded Pages (Split Chunks) ---
 const RegisterPage = lazy(() => import('@/pages/RegisterPage'));
 const Home = lazy(() => import('@/pages/Home'));
 const Dashboard = lazy(() => import('@/pages/Dashboard'));
@@ -36,7 +45,7 @@ const NotificationsAdmin = lazy(() => import('@/pages/NotificationsAdmin'));
 const Invoices = lazy(() => import('@/pages/Invoices'));
 const Profile = lazy(() => import('@/pages/Profile'));
 
-// Settings Pages & Components
+// Settings
 const Settings = lazy(() => import('@/pages/Settings'));
 const ProfileSettings = lazy(() => import('@/components/settings/ProfileSettings'));
 const ClinicSettings = lazy(() => import('@/components/settings/ClinicSettings'));
@@ -52,25 +61,28 @@ const HealthCheckPanel = lazy(() => import('@/components/HealthCheckPanel'));
 // --- Protected Route Wrapper ---
 const ProtectedRoute = ({ children }) => {
   const { session, loading } = useAuth();
+  
   if (loading) return <FullPageSpinner />;
-  return session ? children : <Navigate to="/login" />;
+  
+  // If not authenticated, redirect to login
+  if (!session) return <Navigate to="/login" replace />;
+  
+  return children;
 };
 
 function App() {
   const { theme } = useTheme();
+  const { loading } = useAuth();
 
-  React.useEffect(() => {
+  useEffect(() => {
     document.documentElement.className = theme;
   }, [theme]);
 
   useEffect(() => {
-     cacheManager.openDB().then(() => {
-         console.log("[App] Local Cache Initialized");
-     }).catch(e => console.warn("[App] Cache Init Failed", e));
+     cacheManager.openDB().catch(e => console.warn("[App] Cache Init Failed", e));
   }, []);
 
-  const { session, loading } = useAuth();
-
+  // Show spinner only on initial cold start check
   if (loading) {
     return <FullPageSpinner />;
   }
@@ -79,9 +91,11 @@ function App() {
     <Suspense fallback={<FullPageSpinner />}>
       <ErrorBoundary>
         <Routes>
-          <Route path="/login" element={!session ? <LoginPage /> : <Navigate to="/home" />} />
-          <Route path="/register" element={!session ? <RegisterPage /> : <Navigate to="/home" />} />
+          {/* Public Routes */}
+          <Route path="/login" element={<LoginPage />} />
+          <Route path="/register" element={<RegisterPage />} />
           
+          {/* Protected Dashboard Routes */}
           <Route 
             path="/" 
             element={<ProtectedRoute><DashboardLayout /></ProtectedRoute>}
@@ -106,7 +120,7 @@ function App() {
             <Route path="import" element={<ImportData />} />
             <Route path="profile" element={<Profile />} />
             
-            {/* Nested Settings Routes */}
+            {/* Settings Sub-routes */}
             <Route path="settings" element={<Settings />}>
               <Route index element={<Navigate to="profile" replace />} />
               <Route path="profile" element={<ProfileSettings />} />
@@ -121,6 +135,9 @@ function App() {
               <Route path="diagnostics" element={<HealthCheckPanel />} />
             </Route>
           </Route>
+
+          {/* Catch-all redirect */}
+          <Route path="*" element={<Navigate to="/" replace />} />
         </Routes>
       </ErrorBoundary>
     </Suspense>
