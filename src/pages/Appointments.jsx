@@ -632,6 +632,7 @@ const Appointments = () => {
           }}
           appointment={editingAppointment}
           onSave={handleSaveAppointment}
+          onUpdate={loadData}
           patients={Array.isArray(patients) ? patients : []}
           onPatientsUpdate={setPatients}
           initialData={dialogInitialData}

@@ -32,7 +32,7 @@ const appointmentSchema = z.object({
   patient_id: z.string().optional(),
 });
 
-const AppointmentDialog = ({ open, onOpenChange, appointment, onSuccess, initialData, patients = [], onPatientsUpdate }) => {
+const AppointmentDialog = ({ open, onOpenChange, appointment, onSuccess, onUpdate, initialData, patients = [], onPatientsUpdate }) => {
   const { toast } = useToast();
   const navigate = useNavigate();
   const [loading, setLoading] = useState(false);
@@ -229,6 +229,7 @@ const AppointmentDialog = ({ open, onOpenChange, appointment, onSuccess, initial
 
       toast({ title: "Sucesso", description: "Agendamento salvo com sucesso." });
       onSuccess?.();
+      onUpdate?.(); // Atualizar calendário imediatamente
       onOpenChange(false);
     } catch (error) {
       console.error('[AppointmentDialog] Erro ao salvar:', error);
