@@ -1,6 +1,6 @@
 import React from 'react';
 import { motion } from 'framer-motion';
-import { Phone, Mail, MessageSquare, CalendarPlus, DollarSign, TrendingUp, Tag, Clock } from 'lucide-react';
+import { Phone, Mail, MessageSquare, CalendarPlus, DollarSign, TrendingUp, Tag, Clock, AlertCircle } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import {
@@ -8,7 +8,7 @@ import {
   TooltipContent,
   TooltipTrigger,
 } from '@/components/ui/tooltip';
-import { formatDistanceToNow } from 'date-fns';
+import { formatDistanceToNow, differenceInMinutes } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 
 const KanbanCard = ({
@@ -18,23 +18,16 @@ const KanbanCard = ({
   onEditLead,
 }) => {
   
-  // --- NOVA FUNÇÃO DE FORMATAÇÃO DE TELEFONE ---
+  // --- Formatação de Telefone ---
   const formatPhoneNumber = (phone) => {
     if (!phone) return null;
     const clean = phone.replace(/\D/g, '');
-
-    // Se for LID (começa com 33 ou tamanho estranho para BR)
-    if (clean.length > 13 || clean.startsWith('33')) {
-       return `ID Whatsapp: ${clean.substring(0, 6)}...`;
-    }
-    // Formatação BR Padrão
+    if (clean.length > 13 || clean.startsWith('33')) return `ID: ${clean.substring(0, 6)}...`;
     if (clean.length === 11) return `(${clean.substring(0, 2)}) ${clean.substring(2, 7)}-${clean.substring(7)}`;
     if (clean.length === 12 && clean.startsWith('55')) return `(${clean.substring(2, 4)}) ${clean.substring(4, 9)}-${clean.substring(9)}`;
     if (clean.length === 13 && clean.startsWith('55')) return `(${clean.substring(2, 4)}) ${clean.substring(4, 9)}-${clean.substring(9)}`;
-    
-    return phone; // Fallback
+    return phone;
   };
-  // ---------------------------------------------
 
   const formatCurrency = (value) => {
     if (!value) return null;
@@ -53,20 +46,62 @@ const KanbanCard = ({
     return 'bg-blue-500/10 text-blue-600 border-blue-500/20';
   };
 
+  // --- LÓGICA DE TEMPO DE ESPERA ---
+  const getWaitStatus = () => {
+      if (!lead.last_message_at) return null;
+      
+      const lastMsgDate = new Date(lead.last_message_at);
+      const minutesWaiting = differenceInMinutes(new Date(), lastMsgDate);
+      
+      // Se já foi respondido (first_response_at > last_message_at), não está esperando
+      if (lead.first_response_at && new Date(lead.first_response_at) > lastMsgDate) {
+          return null;
+      }
+
+      if (minutesWaiting > 60) { // Mais de 1 hora
+          return { color: 'text-red-500', bg: 'bg-red-50', label: 'Atrasado' };
+      }
+      if (minutesWaiting > 15) { // Mais de 15 min
+          return { color: 'text-yellow-600', bg: 'bg-yellow-50', label: 'Atenção' };
+      }
+      return { color: 'text-green-600', bg: 'bg-green-50', label: 'Novo' };
+  };
+
+  const waitStatus = getWaitStatus();
   const tags = Array.isArray(lead.tags) ? lead.tags : (lead.tags ? JSON.parse(lead.tags) : []);
 
   return (
     <motion.div
       layout
       onClick={() => onEditLead(lead)}
-      className="bg-card rounded-lg p-4 shadow-sm border cursor-pointer hover:shadow-md transition-all group hover:border-primary/20"
+      className={`bg-card rounded-lg p-4 shadow-sm border cursor-pointer hover:shadow-md transition-all group hover:border-primary/20 relative overflow-hidden ${
+          waitStatus?.label === 'Atrasado' ? 'border-l-4 border-l-red-500' : ''
+      }`}
     >
       <div className="flex flex-col h-full gap-3">
-        {/* Header com Nome e Score */}
+        {/* Header com Nome e Status de Espera */}
         <div className="flex items-start justify-between gap-2">
-          <h4 className="font-semibold text-foreground truncate flex-1">
-            {lead.name || 'Lead sem nome'}
-          </h4>
+          <div className="flex-1 min-w-0">
+              <h4 className="font-semibold text-foreground truncate">
+                {lead.name || 'Lead sem nome'}
+              </h4>
+              
+              {/* Indicador de Tempo de Espera */}
+              {lead.last_message_at && (
+                  <div className="flex items-center gap-1 mt-1">
+                      <Clock className="h-3 w-3 text-muted-foreground" />
+                      <span className="text-[10px] text-muted-foreground">
+                          {formatDistanceToNow(new Date(lead.last_message_at), { addSuffix: true, locale: ptBR })}
+                      </span>
+                      {waitStatus && (
+                          <span className={`text-[10px] px-1.5 rounded-full font-medium ml-1 ${waitStatus.color} ${waitStatus.bg}`}>
+                              {waitStatus.label}
+                          </span>
+                      )}
+                  </div>
+              )}
+          </div>
+
           {lead.lead_score !== undefined && lead.lead_score > 0 && (
             <Badge variant="outline" className={`text-xs ${getScoreColor(lead.lead_score)}`}>
               {lead.lead_score}
@@ -74,7 +109,7 @@ const KanbanCard = ({
           )}
         </div>
 
-        {/* Informações de Contato (COM O FIX DO TELEFONE) */}
+        {/* Informações de Contato */}
         <div className="space-y-1.5">
           {lead.phone && (
             <div className="flex items-center gap-2 text-sm text-muted-foreground">
@@ -125,16 +160,6 @@ const KanbanCard = ({
           </div>
         )}
 
-        {/* Última Atividade */}
-        {lead.last_activity_at && (
-          <div className="flex items-center gap-1.5 text-[10px] text-muted-foreground pt-1">
-            <Clock className="h-3 w-3" />
-            <span>
-              {formatDistanceToNow(new Date(lead.last_activity_at), { addSuffix: true, locale: ptBR })}
-            </span>
-          </div>
-        )}
-
         {/* Botões de Ação */}
         <div className="mt-auto pt-3 border-t border-transparent group-hover:border-border transition-colors duration-300">
           <div className="flex justify-end items-center gap-1.5 opacity-0 group-hover:opacity-100 transition-opacity duration-300">
@@ -148,7 +173,7 @@ const KanbanCard = ({
                       e.stopPropagation();
                       onOpenConversation(lead);
                     }}
-                    className="h-8 w-8 hover:bg-primary/10 hover:text-primary"
+                    className="h-8 w-8 hover:bg-green-50 hover:text-green-600"
                   >
                     <MessageSquare className="h-4 w-4" />
                     <span className="sr-only">Abrir conversa</span>
