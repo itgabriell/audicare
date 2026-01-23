@@ -508,4 +508,71 @@ export const getConversations = async (f={}) => {
     return data || [];
 };
 
+// ======================================================================
+// Dashboard Analytics
+// ======================================================================
+
+export const getDashboardMetrics = async () => {
+  const clinicId = await getClinicId();
+  if (!clinicId) return null;
+
+  // Define janela de 30 dias para as métricas
+  const thirtyDaysAgo = new Date();
+  thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
+  
+  // 1. Buscar Leads dos últimos 30 dias
+  const { data: leads, error } = await supabase
+    .from('leads')
+    .select('status, source, response_time_seconds, followup_count, estimated_value, created_at')
+    .eq('clinic_id', clinicId)
+    .gte('created_at', thirtyDaysAgo.toISOString());
+
+  if (error) {
+      console.error('Erro ao buscar métricas:', error);
+      return null;
+  }
+
+  // --- CÁLCULOS ---
+
+  // 1. Tempo Médio de Resposta (em minutos)
+  const leadsWithResponse = leads.filter(l => l.response_time_seconds > 0);
+  const avgResponseTimeSeconds = leadsWithResponse.length > 0
+    ? leadsWithResponse.reduce((acc, curr) => acc + curr.response_time_seconds, 0) / leadsWithResponse.length
+    : 0;
+  
+  // 2. Taxa de Resgate (Leads com followup > 0 que NÃO estão perdidos)
+  const leadsRecebendoFollowup = leads.filter(l => l.followup_count > 0);
+  const leadsResgatados = leadsRecebendoFollowup.filter(l => 
+    !['stopped_responding', 'no_purchase'].includes(l.status)
+  );
+  
+  const taxaResgate = leadsRecebendoFollowup.length > 0 
+    ? Math.round((leadsResgatados.length / leadsRecebendoFollowup.length) * 100) 
+    : 0;
+
+  // 3. Origem (Top Sources)
+  const sources = {};
+  leads.forEach(l => {
+    const src = l.source || 'Desconhecido';
+    sources[src] = (sources[src] || 0) + 1;
+  });
+  
+  // 4. Funil Simplificado
+  const funnel = {
+    total: leads.length,
+    scheduled: leads.filter(l => ['scheduled', 'arrived', 'purchased'].includes(l.status)).length,
+    purchased: leads.filter(l => l.status === 'purchased').length
+  };
+
+  return {
+    avgResponseTimeMinutes: Math.round(avgResponseTimeSeconds / 60),
+    rescueRate: taxaResgate,
+    totalRescued: leadsResgatados.length,
+    totalFollowups: leadsRecebendoFollowup.length,
+    sources,
+    funnel,
+    totalLeadsMonth: leads.length
+  };
+};
+
 export { supabase, getClinicId };
