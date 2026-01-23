@@ -740,9 +740,24 @@ export const addAppointment = async (d) => {
     if(error) throw error; return data;
 };
 
-export const updateAppointment = async (id, u) => {
+export const updateAppointment = async (id, updates) => {
     const cid = await getClinicId();
-    const { data, error } = await supabase.from('appointments').update(u).eq('id', id).eq('clinic_id', cid).select().single();
+
+    // Sanitização rigorosa: lista branca de colunas permitidas
+    const allowedColumns = [
+        'clinic_id', 'patient_id', 'professional_id', 'appointment_date',
+        'status', 'appointment_type', 'notes', 'duration', 'obs'
+    ];
+
+    // Filtra o objeto updates para manter apenas chaves que estão na allowedColumns
+    const cleanUpdates = Object.keys(updates)
+        .filter(key => allowedColumns.includes(key))
+        .reduce((obj, key) => {
+            obj[key] = updates[key];
+            return obj;
+        }, {});
+
+    const { data, error } = await supabase.from('appointments').update(cleanUpdates).eq('id', id).eq('clinic_id', cid).select().single();
     if(error) throw error; return data;
 };
 

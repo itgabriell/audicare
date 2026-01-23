@@ -133,6 +133,7 @@ const PatientCombobox = ({ patients = [], value, onChange, onPatientAdded }) => 
               {searchTerm.trim() && (
                 <CommandGroup>
                   <CommandItem
+                    value="CREATE_NEW_PATIENT_TRIGGER"
                     onSelect={() => {
                       setNewPatientName(searchTerm.trim());
                       setNewPatientDialog(true);
