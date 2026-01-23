@@ -2,7 +2,6 @@ import React, { useEffect, useState } from 'react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import * as z from 'zod';
-import { format } from 'date-fns';
 import {
   Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter
 } from '@/components/ui/dialog';
@@ -18,6 +17,7 @@ import { MessageCircle, Bell } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import PatientCombobox from '@/components/patients/PatientCombobox';
 import { useAppointmentReminders } from '@/hooks/useAppointmentReminders';
+import { usePatients } from '@/hooks/usePatients'; // IMPORTANTE: Hook de busca
 
 const appointmentSchema = z.object({
   contact_id: z.string().min(1, "Paciente é obrigatório"),
@@ -32,12 +32,19 @@ const appointmentSchema = z.object({
   patient_id: z.string().optional(),
 });
 
-const AppointmentDialog = ({ open, onOpenChange, appointment, onSuccess, onUpdate, initialData, patients = [], onPatientsUpdate }) => {
+const AppointmentDialog = ({ open, onOpenChange, appointment, onSuccess, onUpdate, initialData, onPatientsUpdate }) => {
   const { toast } = useToast();
   const navigate = useNavigate();
   const [loading, setLoading] = useState(false);
   const [selectedPatient, setSelectedPatient] = useState(null);
   const { sendAppointmentReminder, loading: reminderLoading } = useAppointmentReminders();
+
+  // --- NOVA LÓGICA DE BUSCA ---
+  const [searchTerm, setSearchTerm] = useState('');
+  // Busca dinâmica: Pega 50 pacientes baseados no termo digitado
+  const { data: searchResult } = usePatients(1, 50, searchTerm);
+  const dynamicPatients = searchResult?.data || [];
+  // -----------------------------
 
   const form = useForm({
     resolver: zodResolver(appointmentSchema),
@@ -55,10 +62,10 @@ const AppointmentDialog = ({ open, onOpenChange, appointment, onSuccess, onUpdat
 
   useEffect(() => {
     if (appointment) {
-      // Para edição: usar o contact.id do objeto appointment (vem do getAppointments)
+      // Para edição
       const patientId = appointment.contact?.id || appointment.contact_id || appointment.patient_id;
 
-      // CORREÇÃO DE MAPEAMENTO: Converta a data UTC do banco para Local corretamente
+      // Conversões de data UTC -> Local
       const dbDate = new Date(appointment.appointment_date || appointment.start_time);
       const dateStr = dbDate.toLocaleDateString('sv'); // YYYY-MM-DD
       const timeStr = dbDate.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
@@ -73,25 +80,23 @@ const AppointmentDialog = ({ open, onOpenChange, appointment, onSuccess, onUpdat
         notes: appointment.notes || appointment.obs || '',
         status: appointment.status || 'scheduled',
       });
-      // Fetch patient details for the "Send Message" button context
+      
       if (patientId) {
           fetchPatient(patientId);
       }
     } else if (initialData) {
-      // Auto-preencher data/hora baseado no slot clicado
+      // Criação via clique no calendário
       let dateValue = '';
       let timeValue = '';
       if (initialData.date && initialData.time) {
-        // Se clicou em um slot específico (data + hora)
         const dateTime = new Date(initialData.date);
         const [hours, minutes] = initialData.time.split(':');
         dateTime.setHours(parseInt(hours), parseInt(minutes || 0), 0, 0);
         dateValue = dateTime.toLocaleDateString('sv');
         timeValue = dateTime.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
       } else if (initialData.date) {
-        // Se clicou apenas em um dia (sem hora específica)
         const dateTime = new Date(initialData.date);
-        dateTime.setHours(9, 0, 0, 0); // Padrão: 9:00 da manhã
+        dateTime.setHours(9, 0, 0, 0);
         dateValue = dateTime.toLocaleDateString('sv');
         timeValue = dateTime.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
       }
@@ -110,6 +115,7 @@ const AppointmentDialog = ({ open, onOpenChange, appointment, onSuccess, onUpdat
         fetchPatient(initialData.contact_id);
       }
     } else {
+      // Novo vazio
       form.reset({
         contact_id: '',
         professional_name: 'Dra. Karine Brandão',
@@ -121,6 +127,7 @@ const AppointmentDialog = ({ open, onOpenChange, appointment, onSuccess, onUpdat
         status: 'scheduled',
       });
       setSelectedPatient(null);
+      setSearchTerm(''); // Limpa a busca ao abrir novo
     }
   }, [appointment, initialData, open]);
 
@@ -131,7 +138,7 @@ const AppointmentDialog = ({ open, onOpenChange, appointment, onSuccess, onUpdat
       }
 
       try {
-        // Primeiro tenta buscar como contact_id (tabela contacts)
+        // Tenta buscar em contacts
         const { data: contactData, error: contactError } = await supabase
           .from('contacts')
           .select('id, name, phone')
@@ -143,7 +150,7 @@ const AppointmentDialog = ({ open, onOpenChange, appointment, onSuccess, onUpdat
           return;
         }
 
-        // Se não encontrou em contacts, tenta patients como fallback
+        // Fallback para patients
         const { data: patientData, error: patientError } = await supabase
           .from('patients')
           .select('id, name, phone')
@@ -155,13 +162,9 @@ const AppointmentDialog = ({ open, onOpenChange, appointment, onSuccess, onUpdat
           return;
         }
 
-        // Se chegou aqui, não encontrou em nenhuma tabela
-        console.warn('[AppointmentDialog] Patient/contact not found:', id);
         setSelectedPatient(null);
-
       } catch (error) {
-        // Trata erros silenciosamente para não travar a UI
-        console.warn('[AppointmentDialog] Error fetching patient data (continuing without data):', error.message);
+        console.warn('Error fetching patient data:', error.message);
         setSelectedPatient(null);
       }
   };
@@ -170,52 +173,43 @@ const AppointmentDialog = ({ open, onOpenChange, appointment, onSuccess, onUpdat
     setLoading(true);
     try {
       const clinicId = await getClinicId();
-
       if (!clinicId) throw new Error("Clínica não identificada");
 
-      // Determinar patient_id e contact_id baseado na origem do paciente selecionado
       let patientId = null;
       let contactId = data.contact_id;
 
-      // Se o paciente foi encontrado na tabela patients, usar patient_id
       if (selectedPatient?.source === 'patients') {
         patientId = selectedPatient.id;
-        contactId = null; // Não usar contact_id quando temos patient_id
+        contactId = null;
       } else if (selectedPatient?.source === 'contacts') {
-        // Se veio de contacts, manter contact_id e deixar patient_id null
         contactId = selectedPatient.id;
         patientId = null;
       }
 
-      // CORREÇÃO DE MAPEAMENTO DE SALVAMENTO: Use os nomes exatos das colunas
-      // Combinar data e hora preservando o fuso local
       const localDate = new Date(`${data.date}T${data.time}`);
       const startTimeUTC = localDate.toISOString();
 
-      // CALCULAR END_TIME: Adicionar duração em minutos ao start_time
       const endDate = new Date(localDate);
       endDate.setMinutes(endDate.getMinutes() + parseInt(data.duration || 60));
       const endTimeUTC = endDate.toISOString();
 
-      // PAYLOAD FINAL - GARANTIR SINCRONIZAÇÃO DE TODAS AS COLUNAS DE TEMPO
       const payload = {
         clinic_id: clinicId,
-        appointment_date: startTimeUTC, // Data/hora inicial (UTC)
-        start_time: startTimeUTC,       // SINCRONIZADO com appointment_date
-        end_time: endTimeUTC,           // Fim calculado corretamente
-        appointment_type: data.type, // Grava na coluna appointment_type
-        duration: parseInt(data.duration), // Grava na coluna duration
-        notes: data.notes, // Grava na coluna notes
-        obs: data.notes, // Grava também em obs por redundância/compatibilidade
+        appointment_date: startTimeUTC,
+        start_time: startTimeUTC,
+        end_time: endTimeUTC,
+        appointment_type: data.type,
+        duration: parseInt(data.duration),
+        notes: data.notes,
+        obs: data.notes,
         status: data.status,
         professional_name: data.professional_name,
-        professional_id: null, // Por enquanto null - aguardando implementação de select de profissionais com IDs
-        patient_id: patientId,           // ID do paciente da tabela patients (UUID)
-        contact_id: contactId,           // Mantém para retrocompatibilidade (UUID ou null)
-        // scheduled_by: NÃO ENVIAR - o trigger resolve automaticamente
+        professional_id: null, // Deixe null, o banco preenche com Dra. Karine
+        patient_id: patientId,
+        contact_id: contactId,
       };
 
-      console.log('[AppointmentDialog] Payload final para banco:', payload);
+      console.log('[AppointmentDialog] Payload:', payload);
 
       let error;
       if (appointment?.id) {
@@ -235,10 +229,10 @@ const AppointmentDialog = ({ open, onOpenChange, appointment, onSuccess, onUpdat
 
       toast({ title: "Sucesso", description: "Agendamento salvo com sucesso." });
       onSuccess?.();
-      onUpdate?.(); // Atualizar calendário imediatamente
+      onUpdate?.();
       onOpenChange(false);
     } catch (error) {
-      console.error('[AppointmentDialog] Erro ao salvar:', error);
+      console.error('[AppointmentDialog] Erro:', error);
       toast({ variant: "destructive", title: "Erro", description: "Falha ao salvar agendamento." });
     } finally {
       setLoading(false);
@@ -246,7 +240,6 @@ const AppointmentDialog = ({ open, onOpenChange, appointment, onSuccess, onUpdat
   };
 
   const handleSendMessage = () => {
-      // Usar telefone principal ou primeiro disponível com WhatsApp
       const primaryPhone = selectedPatient?.phones?.find(p => p.is_primary && p.is_whatsapp) 
         || selectedPatient?.phones?.find(p => p.is_whatsapp)
         || selectedPatient?.phones?.find(p => p.is_primary)
@@ -275,18 +268,18 @@ const AppointmentDialog = ({ open, onOpenChange, appointment, onSuccess, onUpdat
         <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4 py-4">
           <div className="space-y-2">
             <Label>Paciente</Label>
+            {/* COMPONENTE DE BUSCA ATUALIZADO */}
             <PatientCombobox
-                patients={Array.isArray(patients) ? patients : []}
+                patients={dynamicPatients} // Lista dinâmica vinda do hook
                 value={form.watch('contact_id')}
+                onSearchChange={setSearchTerm} // Conecta digitação à busca no banco
                 onChange={(val) => {
                     form.setValue('contact_id', val);
                     fetchPatient(val);
                 }}
                 onPatientAdded={(newPatient) => {
-                    // Atualizar lista de pacientes quando um novo for criado
-                    if (onPatientsUpdate) {
-                        onPatientsUpdate([...patients, newPatient]);
-                    }
+                    setSearchTerm(newPatient.name); // Atualiza busca para achar o novo
+                    if (onPatientsUpdate) onPatientsUpdate();
                 }}
                 disabled={!!appointment}
             />
@@ -306,20 +299,14 @@ const AppointmentDialog = ({ open, onOpenChange, appointment, onSuccess, onUpdat
           <div className="grid grid-cols-2 gap-4">
             <div className="space-y-2">
                 <Label>Data</Label>
-                <Input
-                    type="date"
-                    {...form.register('date')}
-                />
+                <Input type="date" {...form.register('date')} />
                 {form.formState.errors.date && (
                     <span className="text-xs text-red-500">{form.formState.errors.date.message}</span>
                 )}
             </div>
             <div className="space-y-2">
                 <Label>Hora</Label>
-                <Input
-                    type="time"
-                    {...form.register('time')}
-                />
+                <Input type="time" {...form.register('time')} />
                 {form.formState.errors.time && (
                     <span className="text-xs text-red-500">{form.formState.errors.time.message}</span>
                 )}
@@ -329,11 +316,7 @@ const AppointmentDialog = ({ open, onOpenChange, appointment, onSuccess, onUpdat
           <div className="grid grid-cols-2 gap-4">
             <div className="space-y-2">
                 <Label>Duração (minutos)</Label>
-                <Input
-                    type="number"
-                    {...form.register('duration', { valueAsNumber: true })}
-                    placeholder="30"
-                />
+                <Input type="number" {...form.register('duration', { valueAsNumber: true })} placeholder="30" />
                 {form.formState.errors.duration && (
                     <span className="text-xs text-red-500">{form.formState.errors.duration.message}</span>
                 )}
@@ -344,9 +327,7 @@ const AppointmentDialog = ({ open, onOpenChange, appointment, onSuccess, onUpdat
                     onValueChange={(val) => form.setValue('status', val)}
                     defaultValue={form.watch('status')}
                 >
-                    <SelectTrigger>
-                        <SelectValue placeholder="Selecione" />
-                    </SelectTrigger>
+                    <SelectTrigger><SelectValue placeholder="Selecione" /></SelectTrigger>
                     <SelectContent>
                         <SelectItem value="scheduled">Agendado</SelectItem>
                         <SelectItem value="not_confirmed">Não Confirmado</SelectItem>
@@ -375,9 +356,7 @@ const AppointmentDialog = ({ open, onOpenChange, appointment, onSuccess, onUpdat
                 onValueChange={(val) => form.setValue('type', val)}
                 defaultValue={form.watch('type')}
             >
-                <SelectTrigger>
-                    <SelectValue placeholder="Selecione o tipo" />
-                </SelectTrigger>
+                <SelectTrigger><SelectValue placeholder="Selecione o tipo" /></SelectTrigger>
                 <SelectContent>
                     <SelectItem value="Avaliação">Avaliação</SelectItem>
                     <SelectItem value="Molde">Molde</SelectItem>
@@ -407,7 +386,6 @@ const AppointmentDialog = ({ open, onOpenChange, appointment, onSuccess, onUpdat
                   size="sm"
                   onClick={async () => {
                     if (!appointment.id) return;
-
                     const result = await sendAppointmentReminder(appointment.id);
                     if (result.success) {
                       toast({ title: "Sucesso", description: result.message });

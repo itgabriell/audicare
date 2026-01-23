@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { Check, ChevronsUpDown, Plus, User } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
@@ -21,25 +21,34 @@ import {
   DialogContent,
   DialogHeader,
   DialogTitle,
-  DialogTrigger,
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { useToast } from "@/components/ui/use-toast";
 import { addPatient } from "@/database";
 
-const PatientCombobox = ({ patients = [], value, onChange, onPatientAdded }) => {
+const PatientCombobox = ({ patients = [], value, onChange, onPatientAdded, onSearchChange }) => {
   const [open, setOpen] = useState(false);
   const [newPatientDialog, setNewPatientDialog] = useState(false);
   const [newPatientName, setNewPatientName] = useState("");
   const [newPatientPhone, setNewPatientPhone] = useState("");
   const [loading, setLoading] = useState(false);
-  const [searchTerm, setSearchTerm] = useState("");
+  const [localSearch, setLocalSearch] = useState("");
   const { toast } = useToast();
 
   const selectedPatient = Array.isArray(patients)
     ? patients.find((patient) => patient.id === value)
     : null;
+
+  // Efeito de Debounce: Só avisa o pai para buscar no banco após 300ms de pausa na digitação
+  useEffect(() => {
+    if (onSearchChange) {
+      const timeoutId = setTimeout(() => {
+        onSearchChange(localSearch);
+      }, 300);
+      return () => clearTimeout(timeoutId);
+    }
+  }, [localSearch, onSearchChange]);
 
   const handleCreatePatient = async () => {
     if (!newPatientName.trim()) {
@@ -97,18 +106,20 @@ const PatientCombobox = ({ patients = [], value, onChange, onPatientAdded }) => 
             aria-expanded={open}
             className="w-full justify-between"
           >
+            {/* Tenta mostrar o nome da lista ou busca um fallback se o paciente não estiver na lista atual */}
             {value
-              ? selectedPatient?.name
+              ? (selectedPatient?.name || "Paciente selecionado")
               : "Selecione um paciente..."}
             <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
           </Button>
         </PopoverTrigger>
         <PopoverContent className="w-[--radix-popover-trigger-width] p-0">
-          <Command>
+          {/* shouldFilter={false} é CRUCIAL: Deixa o banco filtrar, não o componente */}
+          <Command shouldFilter={false}>
             <CommandInput
               placeholder="Buscar paciente..."
-              value={searchTerm}
-              onValueChange={setSearchTerm}
+              value={localSearch}
+              onValueChange={setLocalSearch}
             />
             <CommandList>
               <CommandEmpty className="p-2">
@@ -118,6 +129,7 @@ const PatientCombobox = ({ patients = [], value, onChange, onPatientAdded }) => 
                     variant="outline"
                     size="sm"
                     onClick={() => {
+                      setNewPatientName(localSearch);
                       setNewPatientDialog(true);
                       setOpen(false);
                     }}
@@ -130,29 +142,30 @@ const PatientCombobox = ({ patients = [], value, onChange, onPatientAdded }) => 
               </CommandEmpty>
 
               {/* Opção de criar paciente aparece no topo quando há searchTerm */}
-              {searchTerm.trim() && (
+              {localSearch.trim() && (
                 <CommandGroup>
                   <CommandItem
                     value="CREATE_NEW_PATIENT_TRIGGER"
                     onSelect={() => {
-                      setNewPatientName(searchTerm.trim());
+                      setNewPatientName(localSearch.trim());
                       setNewPatientDialog(true);
                       setOpen(false);
                     }}
-                    className="border-b"
+                    className="border-b cursor-pointer font-medium text-primary"
                   >
                     <Plus className="mr-2 h-4 w-4" />
-                    <span>Criar "{searchTerm.trim()}"</span>
+                    <span>Criar "{localSearch.trim()}"</span>
                   </CommandItem>
                 </CommandGroup>
               )}
 
-              {/* Lista de pacientes existentes */}
-              <CommandGroup>
+              {/* Lista de pacientes existentes vindos do Banco */}
+              <CommandGroup heading="Pacientes Encontrados">
                 {Array.isArray(patients) && patients.map((patient) => (
                   <CommandItem
-                    value={patient.id} // <--- Use o ID, é seguro e único
-  keywords={[patient.name, patient.phone]}
+                    key={patient.id}
+                    value={patient.id} // ID é único e seguro
+                    keywords={[patient.name]} // Ajuda na acessibilidade
                     onSelect={() => {
                       onChange(patient.id);
                       setOpen(false);
@@ -173,24 +186,6 @@ const PatientCombobox = ({ patients = [], value, onChange, onPatientAdded }) => 
                   </CommandItem>
                 ))}
               </CommandGroup>
-
-              {/* Opção de criar paciente no final da lista (sem searchTerm) */}
-              {Array.isArray(patients) && patients.length > 0 && !searchTerm.trim() && (
-                <>
-                  <CommandSeparator />
-                  <CommandGroup>
-                    <CommandItem
-                      onSelect={() => {
-                        setNewPatientDialog(true);
-                        setOpen(false);
-                      }}
-                    >
-                      <Plus className="mr-2 h-4 w-4" />
-                      <span>Criar novo paciente</span>
-                    </CommandItem>
-                  </CommandGroup>
-                </>
-              )}
             </CommandList>
           </Command>
         </PopoverContent>
