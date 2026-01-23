@@ -71,13 +71,18 @@ export const getPatients = async (page = 1, pageSize = 10, searchTerm = '', sort
   return { data, count };
 };
 
+// --- CORREÇÃO APLICADA AQUI ---
 export const getPatientById = async (id) => {
   const clinicId = await getClinicId();
   if (!clinicId) return null;
 
   const { data, error } = await supabase
     .from('patients')
-    .select('*, tags:patient_tags(tag:tags(*))')
+    .select(`
+      *, 
+      tags:patient_tags(tag:tags(*)),
+      phones:patient_phones(*) 
+    `) // <--- ADICIONADO: phones:patient_phones(*)
     .eq('id', id)
     .eq('clinic_id', clinicId)
     .single();
@@ -232,7 +237,7 @@ export const getPatientsByTags = async (tagIds) => {
 };
 
 // ======================================================================
-// Agendamentos (Appointments) - COM FIX DO UPDATE
+// Agendamentos (Appointments)
 // ======================================================================
 
 export const getAppointments = async (filters = {}) => {
@@ -266,25 +271,12 @@ export const addAppointment = async (d) => {
 export const updateAppointment = async (id, updates) => {
     const cid = await getClinicId();
     
-    // --- VERSÃO CORRIGIDA FINAL (Sanitização) ---
-    // 1. Lista Branca (Allowlist)
     const allowedColumns = [
-        'clinic_id', 
-        'patient_id', 
-        'professional_id', 
-        'appointment_date', 
-        'status', 
-        'appointment_type', 
-        'duration', 
-        'notes', 
-        'obs',
-        'contact_id',
-        'title',
-        'start_time',
-        'end_time'
+        'clinic_id', 'patient_id', 'professional_id', 'appointment_date', 
+        'status', 'appointment_type', 'duration', 'notes', 'obs',
+        'contact_id', 'title', 'start_time', 'end_time'
     ];
 
-    // 2. Filtragem
     const cleanUpdates = Object.keys(updates)
         .filter(key => allowedColumns.includes(key))
         .reduce((obj, key) => {
@@ -292,12 +284,9 @@ export const updateAppointment = async (id, updates) => {
             return obj;
         }, {});
 
-    // 3. Regra de Negócio: Se professional_id for nulo, atribui Dra. Karine
     if (!cleanUpdates.professional_id) {
         cleanUpdates.professional_id = 'd717c381-7600-4ce5-a6e8-cb411533d1e6'; 
     }
-
-    console.log('[DB] Update Appointment Payload Limpo:', cleanUpdates);
 
     const { data, error } = await supabase
         .from('appointments')
@@ -328,7 +317,7 @@ export const getPatientAppointments = async (patientId) => {
 }
 
 // ======================================================================
-// Notifications (Completo para o Build)
+// Notifications
 // ======================================================================
 
 export const getNotificationsForUser = async (uid) => {
@@ -338,7 +327,6 @@ export const getNotificationsForUser = async (uid) => {
 };
 
 export const getUnreadNotificationCount = async (uid) => {
-    // Se não vier UID como parâmetro, tenta pegar da sessão
     const userId = uid || await getUserId();
     if (!userId) return 0;
     
