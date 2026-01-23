@@ -325,7 +325,7 @@ const AppointmentDialog = ({ open, onOpenChange, appointment, onSuccess, onUpdat
                 <Label>Status</Label>
                 <Select
                     onValueChange={(val) => form.setValue('status', val)}
-                    defaultValue={form.watch('status')}
+                    value={form.watch('status')}
                 >
                     <SelectTrigger><SelectValue placeholder="Selecione" /></SelectTrigger>
                     <SelectContent>
@@ -354,7 +354,7 @@ const AppointmentDialog = ({ open, onOpenChange, appointment, onSuccess, onUpdat
             <Label>Tipo de Consulta</Label>
             <Select
                 onValueChange={(val) => form.setValue('type', val)}
-                defaultValue={form.watch('type')}
+                value={form.watch('type')}
             >
                 <SelectTrigger><SelectValue placeholder="Selecione o tipo" /></SelectTrigger>
                 <SelectContent>
