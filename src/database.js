@@ -50,3 +50,47 @@ export const updateAppointment = async (id, updates) => {
     } 
     return data;
 };
+
+// ======================================================================
+// Notifications (Recuperando funções perdidas)
+// ======================================================================
+
+export const getNotificationsForUser = async (uid) => {
+    // Se não tiver UID, retorna vazio para não quebrar
+    if (!uid) return []; 
+    
+    const { data } = await supabase
+        .from('notifications')
+        .select('*')
+        .eq('user_id', uid)
+        .order('created_at', { ascending: false });
+    return data || [];
+};
+
+export const markNotificationAsRead = async (id) => {
+    const { data } = await supabase
+        .from('notifications')
+        .update({ is_read: true })
+        .eq('id', id)
+        .select()
+        .single();
+    return data;
+};
+
+export const markAllNotificationsAsRead = async (uid) => {
+    if (!uid) return;
+    await supabase
+        .from('notifications')
+        .update({ is_read: true })
+        .eq('user_id', uid)
+        .eq('is_read', false);
+    return true;
+};
+
+export const deleteNotification = async (id) => {
+    await supabase
+        .from('notifications')
+        .delete()
+        .eq('id', id);
+    return true;
+};
