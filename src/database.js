@@ -167,8 +167,8 @@ export const checkDuplicatePatient = async (name, cpf) => {
     if (!clinicId) return false;
     let query = supabase.from('patients').select('id').eq('clinic_id', clinicId);
     const conditions = [];
-    if (name) conditions.push(`name.eq.${name}`);
-    if (cpf) conditions.push(`cpf.eq.${cpf}`);
+    if (name) conditions.push(`name.eq."${name.replace(/"/g, '""')}"`);
+    if (cpf) conditions.push(`cpf.eq."${cpf.replace(/"/g, '""')}"`);
     if (conditions.length > 0) {
         query = query.or(conditions.join(','));
         const { data } = await query;

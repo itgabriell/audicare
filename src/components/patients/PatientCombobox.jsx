@@ -9,6 +9,7 @@ import {
   CommandInput,
   CommandItem,
   CommandList,
+  CommandSeparator,
 } from "@/components/ui/command";
 import {
   Popover,
@@ -33,6 +34,7 @@ const PatientCombobox = ({ patients = [], value, onChange, onPatientAdded }) => 
   const [newPatientName, setNewPatientName] = useState("");
   const [newPatientPhone, setNewPatientPhone] = useState("");
   const [loading, setLoading] = useState(false);
+  const [searchTerm, setSearchTerm] = useState("");
   const { toast } = useToast();
 
   const selectedPatient = Array.isArray(patients)
@@ -103,7 +105,11 @@ const PatientCombobox = ({ patients = [], value, onChange, onPatientAdded }) => 
         </PopoverTrigger>
         <PopoverContent className="w-[--radix-popover-trigger-width] p-0">
           <Command>
-            <CommandInput placeholder="Buscar paciente..." />
+            <CommandInput
+              placeholder="Buscar paciente..."
+              value={searchTerm}
+              onValueChange={setSearchTerm}
+            />
             <CommandList>
               <CommandEmpty className="p-2">
                 <div className="flex flex-col gap-2">
@@ -122,6 +128,25 @@ const PatientCombobox = ({ patients = [], value, onChange, onPatientAdded }) => 
                   </Button>
                 </div>
               </CommandEmpty>
+
+              {/* Opção de criar paciente aparece no topo quando há searchTerm */}
+              {searchTerm.trim() && (
+                <CommandGroup>
+                  <CommandItem
+                    onSelect={() => {
+                      setNewPatientName(searchTerm.trim());
+                      setNewPatientDialog(true);
+                      setOpen(false);
+                    }}
+                    className="border-b"
+                  >
+                    <Plus className="mr-2 h-4 w-4" />
+                    <span>Criar "{searchTerm.trim()}"</span>
+                  </CommandItem>
+                </CommandGroup>
+              )}
+
+              {/* Lista de pacientes existentes */}
               <CommandGroup>
                 {Array.isArray(patients) && patients.map((patient) => (
                   <CommandItem
@@ -146,19 +171,25 @@ const PatientCombobox = ({ patients = [], value, onChange, onPatientAdded }) => 
                     </div>
                   </CommandItem>
                 ))}
-                {Array.isArray(patients) && patients.length > 0 && (
-                  <CommandItem
-                    onSelect={() => {
-                      setNewPatientDialog(true);
-                      setOpen(false);
-                    }}
-                    className="border-t mt-2 pt-2"
-                  >
-                    <Plus className="mr-2 h-4 w-4" />
-                    <span>Criar novo paciente</span>
-                  </CommandItem>
-                )}
               </CommandGroup>
+
+              {/* Opção de criar paciente no final da lista (sem searchTerm) */}
+              {Array.isArray(patients) && patients.length > 0 && !searchTerm.trim() && (
+                <>
+                  <CommandSeparator />
+                  <CommandGroup>
+                    <CommandItem
+                      onSelect={() => {
+                        setNewPatientDialog(true);
+                        setOpen(false);
+                      }}
+                    >
+                      <Plus className="mr-2 h-4 w-4" />
+                      <span>Criar novo paciente</span>
+                    </CommandItem>
+                  </CommandGroup>
+                </>
+              )}
             </CommandList>
           </Command>
         </PopoverContent>
