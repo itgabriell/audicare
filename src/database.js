@@ -743,13 +743,24 @@ export const addAppointment = async (d) => {
 export const updateAppointment = async (id, updates) => {
     const cid = await getClinicId();
 
-    // Sanitização rigorosa: lista branca de colunas permitidas
+    // 1. Lista Branca (Allowlist): Apenas colunas que EXISTEM na tabela appointments
     const allowedColumns = [
-        'clinic_id', 'patient_id', 'professional_id', 'appointment_date',
-        'status', 'appointment_type', 'notes', 'duration', 'obs'
+        'clinic_id',
+        'patient_id',
+        'professional_id',
+        'appointment_date',
+        'status',
+        'appointment_type',
+        'duration',
+        'notes',
+        'obs',
+        'contact_id',
+        'title',
+        'start_time',
+        'end_time'
     ];
 
-    // Filtra o objeto updates para manter apenas chaves que estão na allowedColumns
+    // 2. Filtragem: Remove professional_name e qualquer lixo extra
     const cleanUpdates = Object.keys(updates)
         .filter(key => allowedColumns.includes(key))
         .reduce((obj, key) => {
@@ -757,8 +768,26 @@ export const updateAppointment = async (id, updates) => {
             return obj;
         }, {});
 
-    const { data, error } = await supabase.from('appointments').update(cleanUpdates).eq('id', id).eq('clinic_id', cid).select().single();
-    if(error) throw error; return data;
+    // 3. Regra de Negócio: Se professional_id for nulo, atribui Dra. Karine
+    if (!cleanUpdates.professional_id) {
+        cleanUpdates.professional_id = 'd717c381-7600-4ce5-a6e8-cb411533d1e6';
+    }
+
+    console.log('[DB] Update Appointment Payload Limpo:', cleanUpdates);
+
+    const { data, error } = await supabase
+        .from('appointments')
+        .update(cleanUpdates) // Envia APENAS os dados limpos
+        .eq('id', id)
+        .eq('clinic_id', cid)
+        .select()
+        .single();
+
+    if(error) {
+        console.error('[DB] Erro no Update:', error);
+        throw error;
+    }
+    return data;
 };
 
 export const deleteAppointment = async (id) => {
