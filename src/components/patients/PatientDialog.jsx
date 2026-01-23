@@ -14,10 +14,9 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Textarea } from '@/components/ui/textarea';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
-import { Badge } from '@/components/ui/badge';
 import { useToast } from '@/components/ui/use-toast';
 import { formatPhoneE164, validatePhoneE164 } from '@/lib/phoneUtils';
-import { Loader2, AlertCircle, X, Plus } from 'lucide-react';
+import { Loader2, AlertCircle, X } from 'lucide-react';
 import PatientPhonesManager from './PatientPhonesManager';
 import PatientTagsManager from './PatientTagsManager';
 import { supabase } from '@/lib/customSupabaseClient';
@@ -79,7 +78,8 @@ const PatientDialog = ({ open, onOpenChange, patient, onSave, initialData }) => 
           city: patient.city || '',
           state: patient.state || ''
         });
-        loadPatientPhones(patient.id);
+        // Passamos o patient completo para poder ler o campo 'phone' antigo se necessário
+        loadPatientPhones(patient);
       } else {
         // Pre-fill with initialData if provided (for new patients)
         setFormData({
@@ -93,7 +93,8 @@ const PatientDialog = ({ open, onOpenChange, patient, onSave, initialData }) => 
                 phone: initialData.phone,
                 is_primary: true,
                 is_whatsapp: true,
-                phone_type: 'mobile'
+                phone_type: 'mobile',
+                tempId: Date.now() // Importante: tempId para o Manager funcionar
             }]);
         } else {
             setPhones([]);
@@ -102,18 +103,32 @@ const PatientDialog = ({ open, onOpenChange, patient, onSave, initialData }) => 
     }
   }, [patient, open, initialData]);
 
-  const loadPatientPhones = async (patientId) => {
+  const loadPatientPhones = async (currentPatient) => {
     try {
       setLoadingPhones(true);
       const { data, error } = await supabase
         .from('patient_phones')
         .select('*')
-        .eq('patient_id', patientId)
+        .eq('patient_id', currentPatient.id)
         .order('is_primary', { ascending: false })
         .order('created_at', { ascending: true });
 
       if (error) throw error;
-      setPhones(data || []);
+
+      // LÓGICA DE FALLBACK: Se não tiver telefones na tabela nova, mas tiver no cadastro antigo
+      if ((!data || data.length === 0) && currentPatient.phone) {
+          console.log("Usando telefone legado para edição...");
+          setPhones([{
+              phone: currentPatient.phone,
+              phone_type: 'mobile',
+              is_primary: true,
+              is_whatsapp: true,
+              tempId: 'legacy-phone' // ID temporário para o React
+          }]);
+      } else {
+          setPhones(data || []);
+      }
+
     } catch (error) {
       console.error('Error loading patient phones:', error);
       setPhones([]);
@@ -185,9 +200,12 @@ const PatientDialog = ({ open, onOpenChange, patient, onSave, initialData }) => 
             throw new Error("Adicione pelo menos um telefone de contato.");
         }
 
-        // Validar cada telefone
+        // Validar cada telefone e formatar para salvar (E.164)
         for (const phone of validPhones) {
-            const formattedPhone = formatPhoneE164(phone.phone);
+            // Remove máscara antes de validar/salvar
+            const rawPhone = phone.phone; 
+            const formattedPhone = formatPhoneE164(rawPhone);
+            
             if (!validatePhoneE164(formattedPhone)) {
                 throw new Error(`Telefone inválido: ${phone.phone}. Use o formato (00) 00000-0000`);
             }
@@ -329,7 +347,7 @@ const PatientDialog = ({ open, onOpenChange, patient, onSave, initialData }) => 
                   </div>
                 </div>
 
-                {/* Gerenciador de Telefones */}
+                {/* Gerenciador de Telefones - Agora com foco corrigido */}
                 <PatientPhonesManager
                   phones={phones}
                   onChange={setPhones}
@@ -338,11 +356,8 @@ const PatientDialog = ({ open, onOpenChange, patient, onSave, initialData }) => 
                 {/* Gerenciador de Tags */}
                 <PatientTagsManager
                   patientId={patient?.id}
-                  patientTags={[]} // Será carregado internamente
-                  onTagsChange={(tags) => {
-                    // Opcional: armazenar tags selecionadas se necessário
-                    console.log('Tags do paciente:', tags);
-                  }}
+                  patientTags={[]} // Será carregado internamente pelo componente
+                  onTagsChange={() => {}}
                 />
 
                 <div className="space-y-2">
