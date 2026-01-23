@@ -31,22 +31,20 @@ const PHONE_TYPES = [
 const PatientPhonesManager = ({ phones = [], onChange }) => {
 
   const handleAddPhone = () => {
-    // Adiciona novo objeto com tempId para o React não perder a referência (Key Estável)
     const newPhone = {
       phone: '',
       phone_type: 'mobile',
       contact_name: '',
-      is_primary: phones.length === 0, // Se for o primeiro, já é principal
+      is_primary: phones.length === 0,
       is_whatsapp: true,
       notes: '',
-      tempId: Date.now() // ID temporário único
+      tempId: Date.now()
     };
     onChange([...phones, newPhone]);
   };
 
   const handleRemovePhone = (index) => {
     const updatedPhones = phones.filter((_, i) => i !== index);
-    // Se removeu o principal, define o primeiro da lista como principal
     if (phones[index].is_primary && updatedPhones.length > 0) {
         updatedPhones[0].is_primary = true;
     }
@@ -54,10 +52,8 @@ const PatientPhonesManager = ({ phones = [], onChange }) => {
   };
 
   const handleUpdatePhone = (index, field, value) => {
-    // Cria cópia do array para manter imutabilidade (Crucial para o foco do input)
     const updatedPhones = phones.map((phone, i) => {
       if (i === index) {
-        // Aplica máscara se for campo de telefone
         if (field === 'phone') {
             return { ...phone, [field]: formatPhoneUI(value) };
         }
@@ -66,7 +62,6 @@ const PatientPhonesManager = ({ phones = [], onChange }) => {
       return phone;
     });
 
-    // Garante que apenas um seja principal
     if (field === 'is_primary' && value === true) {
       updatedPhones.forEach((p, i) => {
         if (i !== index) p.is_primary = false;
@@ -97,7 +92,6 @@ const PatientPhonesManager = ({ phones = [], onChange }) => {
       <div className="space-y-6">
         {phones.map((phone, index) => (
           <div 
-            // Key é fundamental: Usa ID do banco OU tempId para novos. 
             key={phone.id || phone.tempId || `temp-${index}`} 
             className="relative bg-card p-4 rounded-lg border shadow-sm space-y-4"
           >
@@ -135,24 +129,21 @@ const PatientPhonesManager = ({ phones = [], onChange }) => {
               </div>
             </div>
 
-            {/* Nome do Contato (Condicional) */}
-            {(phone.phone_type === 'relative' || phone.phone_type === 'friend' || phone.phone_type === 'other') && (
-               <div className="space-y-1">
-                 <Label className="text-xs text-muted-foreground">Nome do Contato</Label>
-                 <Input 
-                   value={phone.contact_name || ''}
-                   onChange={(e) => handleUpdatePhone(index, 'contact_name', e.target.value)}
-                   placeholder="Ex: João (Filho), Maria (Vizinha)"
-                   className="h-8 bg-background"
-                 />
-               </div>
-            )}
+            {/* Nome do Contato / Identificação (Agora sempre visível para facilitar) */}
+            <div className="space-y-1">
+                <Label className="text-xs text-muted-foreground">Responsável / Identificação</Label>
+                <Input 
+                value={phone.contact_name || ''}
+                onChange={(e) => handleUpdatePhone(index, 'contact_name', e.target.value)}
+                placeholder="Ex: Filho (João), Vizinha, Trabalho..."
+                className="h-9 bg-background"
+                />
+            </div>
 
             {/* Checkboxes e Botão Remover */}
             <div className="flex flex-wrap items-center justify-between gap-4 pt-2">
               <div className="flex items-center gap-6">
                 
-                {/* Checkbox Principal */}
                 <div className="flex items-center space-x-2">
                   <Checkbox 
                     id={`primary-${index}`} 
@@ -170,7 +161,6 @@ const PatientPhonesManager = ({ phones = [], onChange }) => {
                   </label>
                 </div>
 
-                {/* Checkbox WhatsApp */}
                 <div className="flex items-center space-x-2">
                   <Checkbox 
                     id={`whatsapp-${index}`} 
@@ -186,7 +176,6 @@ const PatientPhonesManager = ({ phones = [], onChange }) => {
                 </div>
               </div>
 
-              {/* Botão Remover */}
               <Button
                 type="button"
                 variant="ghost"
@@ -197,16 +186,6 @@ const PatientPhonesManager = ({ phones = [], onChange }) => {
               >
                 <Trash2 className="h-4 w-4" />
               </Button>
-            </div>
-
-            {/* Campo Observações */}
-            <div className="space-y-1">
-                <Input 
-                    value={phone.notes || ''}
-                    onChange={(e) => handleUpdatePhone(index, 'notes', e.target.value)}
-                    placeholder="Observações (ex: Ligar após 18h)"
-                    className="text-xs h-8 bg-muted/50 border-input placeholder:text-muted-foreground/60"
-                />
             </div>
           </div>
         ))}

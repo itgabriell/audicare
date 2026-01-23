@@ -29,15 +29,15 @@ const PatientDialog = ({ open, onOpenChange, patient, onSave, initialData }) => 
     name: '',
     cpf: '',
     phone: '',
-    email: '',
+    email: '', // Email pessoal
+    fiscal_email: '', // Email para nota fiscal
     birthdate: '',
     gender: '',
-    address: '',
     medical_history: '',
     allergies: '',
     medications: '',
     notes: '',
-    // Novos campos para nota fiscal
+    // Campos fiscais e endereço detalhado
     document: '',
     zip_code: '',
     street: '',
@@ -56,20 +56,25 @@ const PatientDialog = ({ open, onOpenChange, patient, onSave, initialData }) => 
   useEffect(() => {
     if (open) {
       if (patient) {
+        // Lógica de preenchimento inteligente
+        const suggestedDocument = patient.document || patient.cpf || '';
+        // Tenta usar email fiscal, se não tiver, usa o pessoal como sugestão inicial
+        const suggestedFiscalEmail = patient.fiscal_email || patient.email || '';
+
         setFormData({
           name: patient.name || '',
           cpf: patient.cpf || '',
-          phone: patient.phone || '', // Mantido para compatibilidade
+          phone: patient.phone || '', // Mantido para compatibilidade com tabela antiga
           email: patient.email || '',
+          fiscal_email: suggestedFiscalEmail,
           birthdate: patient.birthdate || '',
           gender: patient.gender || '',
-          address: patient.address || '',
           medical_history: patient.medical_history || '',
           allergies: patient.allergies || '',
           medications: patient.medications || '',
           notes: patient.notes || '',
-          // Novos campos fiscais
-          document: patient.document || '',
+          // Campos fiscais
+          document: suggestedDocument,
           zip_code: patient.zip_code || '',
           street: patient.street || '',
           number: patient.number || '',
@@ -78,10 +83,9 @@ const PatientDialog = ({ open, onOpenChange, patient, onSave, initialData }) => 
           city: patient.city || '',
           state: patient.state || ''
         });
-        // Passamos o patient completo para poder ler o campo 'phone' antigo se necessário
         loadPatientPhones(patient);
       } else {
-        // Pre-fill with initialData if provided (for new patients)
+        // Novo paciente
         setFormData({
             ...initialFormState,
             name: initialData?.name || '',
@@ -94,7 +98,7 @@ const PatientDialog = ({ open, onOpenChange, patient, onSave, initialData }) => 
                 is_primary: true,
                 is_whatsapp: true,
                 phone_type: 'mobile',
-                tempId: Date.now() // Importante: tempId para o Manager funcionar
+                tempId: Date.now()
             }]);
         } else {
             setPhones([]);
@@ -115,15 +119,14 @@ const PatientDialog = ({ open, onOpenChange, patient, onSave, initialData }) => 
 
       if (error) throw error;
 
-      // LÓGICA DE FALLBACK: Se não tiver telefones na tabela nova, mas tiver no cadastro antigo
+      // Se não tiver na tabela nova, mas tiver na antiga (legado), carrega o legado
       if ((!data || data.length === 0) && currentPatient.phone) {
-          console.log("Usando telefone legado para edição...");
           setPhones([{
               phone: currentPatient.phone,
               phone_type: 'mobile',
               is_primary: true,
               is_whatsapp: true,
-              tempId: 'legacy-phone' // ID temporário para o React
+              tempId: 'legacy-phone'
           }]);
       } else {
           setPhones(data || []);
@@ -140,10 +143,8 @@ const PatientDialog = ({ open, onOpenChange, patient, onSave, initialData }) => 
   const formatDocument = (value) => {
     const cleaned = value.replace(/\D/g, '');
     if (cleaned.length <= 11) {
-      // CPF
       return cleaned.replace(/(\d{3})(\d{3})(\d{3})(\d{2})/, '$1.$2.$3-$4');
     } else {
-      // CNPJ
       return cleaned.replace(/(\d{2})(\d{3})(\d{3})(\d{4})(\d{2})/, '$1.$2.$3/$4-$5');
     }
   };
@@ -155,9 +156,11 @@ const PatientDialog = ({ open, onOpenChange, patient, onSave, initialData }) => 
 
   const handleZipCodeChange = async (value) => {
     const cleanZipCode = value.replace(/\D/g, '');
-    setFormData({ ...formData, zip_code: value });
+    
+    // Atualiza estado visual
+    setFormData(prev => ({ ...prev, zip_code: value }));
 
-    // Buscar CEP quando tiver 8 dígitos
+    // Dispara busca apenas com 8 dígitos
     if (cleanZipCode.length === 8) {
       setLoadingZipCode(true);
       try {
@@ -167,12 +170,21 @@ const PatientDialog = ({ open, onOpenChange, patient, onSave, initialData }) => 
         if (!data.erro) {
           setFormData(prev => ({
             ...prev,
-            zip_code: value,
-            street: data.logradouro || '',
-            neighborhood: data.bairro || '',
-            city: data.localidade || '',
-            state: data.uf || ''
+            street: data.logradouro || prev.street,
+            neighborhood: data.bairro || prev.neighborhood,
+            city: data.localidade || prev.city,
+            state: data.uf || prev.state,
           }));
+          toast({
+              title: "Endereço encontrado",
+              description: `${data.logradouro}, ${data.bairro} - ${data.localidade}/${data.uf}`,
+          });
+        } else {
+            toast({
+                variant: "destructive",
+                title: "CEP não encontrado",
+                description: "Verifique o número digitado."
+            });
         }
       } catch (error) {
         console.error('Erro ao buscar CEP:', error);
@@ -189,20 +201,18 @@ const PatientDialog = ({ open, onOpenChange, patient, onSave, initialData }) => 
     try {
         let processedData = { ...formData };
         
-        // Basic Validation
         if (!processedData.name.trim()) {
             throw new Error("O nome é obrigatório.");
         }
 
-        // Validar telefones
+        // Validação de Telefones
         const validPhones = phones.filter(p => p.phone && p.phone.trim());
         if (validPhones.length === 0) {
             throw new Error("Adicione pelo menos um telefone de contato.");
         }
 
-        // Validar cada telefone e formatar para salvar (E.164)
+        // Formatação E.164 para salvar
         for (const phone of validPhones) {
-            // Remove máscara antes de validar/salvar
             const rawPhone = phone.phone; 
             const formattedPhone = formatPhoneE164(rawPhone);
             
@@ -212,35 +222,78 @@ const PatientDialog = ({ open, onOpenChange, patient, onSave, initialData }) => 
             phone.phone = formattedPhone;
         }
 
-        // Garantir que há um telefone principal
+        // Garantir Primary
         if (!validPhones.some(p => p.is_primary)) {
             validPhones[0].is_primary = true;
         }
         
-        // Adicionar telefones ao processedData
-        processedData.phones = validPhones;
-        
-        // Manter phone principal para compatibilidade (se houver)
+        // 1. Preparar Payload para tabela 'patients'
+        // Define o telefone principal na coluna 'phone' (string) para compatibilidade
         const primaryPhone = validPhones.find(p => p.is_primary);
         if (primaryPhone) {
             processedData.phone = primaryPhone.phone;
         }
+
+        // Garante documentos fiscais
+        if (!processedData.document && processedData.cpf) {
+            processedData.document = processedData.cpf;
+        }
+        if (!processedData.fiscal_email && processedData.email) {
+            processedData.fiscal_email = processedData.email;
+        }
+
+        // CRUCIAL: Remove o array 'phones' do objeto que vai para a tabela 'patients'
+        // A tabela 'patients' não tem coluna 'phones' (array), isso causava o erro.
+        const { phones: _ignoredPhones, ...patientPayload } = { ...processedData, phones: validPhones };
         
-        // Let parent handle the async save
-        await onSave(processedData);
+        // 2. Salvar Paciente (Upsert/Update na tabela 'patients')
+        // onSave deve retornar o paciente salvo (ou o erro ser pego no catch)
+        const savedResult = await onSave(patientPayload); 
+        
+        // Se onSave não retornar o objeto (dependendo da implementação do pai), 
+        // usamos o patient.id se for edição. Se for criação e onSave não retornar ID, 
+        // não conseguiremos salvar os telefones extras agora (limitação do onSave atual).
+        const targetId = patient?.id || savedResult?.data?.id || savedResult?.id;
+
+        // 3. Salvar Telefones na tabela 'patient_phones'
+        if (targetId) {
+            const phonesToUpsert = validPhones.map(p => ({
+                patient_id: targetId,
+                phone: p.phone,
+                phone_type: p.phone_type || 'mobile',
+                contact_name: p.contact_name || null,
+                is_primary: p.is_primary || false,
+                is_whatsapp: p.is_whatsapp !== false, // Default true
+                notes: p.notes || null,
+                // Se tiver ID real (não temp/legacy), mantém para update
+                ...(p.id && !String(p.id).startsWith('temp') && !String(p.id).startsWith('legacy') ? { id: p.id } : {})
+            }));
+
+            const { error: phonesError } = await supabase
+                .from('patient_phones')
+                .upsert(phonesToUpsert);
+
+            if (phonesError) {
+                console.error('Erro ao salvar telefones:', phonesError);
+                toast({
+                    variant: "destructive",
+                    title: "Aviso",
+                    description: "Paciente salvo, mas houve erro ao salvar os telefones detalhados."
+                });
+            }
+        }
+        
     } catch (error) {
+        console.error(error);
         toast({
             variant: "destructive",
-            title: "Erro na validação",
-            description: error.message,
+            title: "Erro ao salvar",
+            description: error.message || "Verifique os dados e tente novamente.",
         });
-        // Stop loading state on error, keep dialog open
         setIsSubmitting(false); 
     }
-    // Note: Success handling (closing dialog) is done by parent to ensure data is saved first
   };
 
-  // Reset submitting state when dialog closes or patient changes
   useEffect(() => {
     setIsSubmitting(false);
   }, [open, patient]);
@@ -248,20 +301,13 @@ const PatientDialog = ({ open, onOpenChange, patient, onSave, initialData }) => 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto md:max-w-2xl md:max-h-[90vh] w-full h-full md:h-auto md:w-auto p-0 md:p-6">
-        {/* Mobile Header with Close Button */}
         <div className="md:hidden flex items-center justify-between p-4 border-b bg-card/95 backdrop-blur supports-[backdrop-filter]:bg-card/60 sticky top-0 z-10">
           <DialogTitle className="text-lg font-semibold">{patient ? 'Editar Paciente' : 'Novo Paciente'}</DialogTitle>
-          <Button
-            variant="ghost"
-            size="sm"
-            onClick={() => onOpenChange(false)}
-            className="h-8 w-8 p-0"
-          >
+          <Button variant="ghost" size="sm" onClick={() => onOpenChange(false)} className="h-8 w-8 p-0">
             <X className="h-4 w-4" />
           </Button>
         </div>
 
-        {/* Desktop Header */}
         <div className="hidden md:block">
           <DialogHeader>
             <DialogTitle>{patient ? 'Editar Paciente' : 'Novo Paciente'}</DialogTitle>
@@ -269,11 +315,6 @@ const PatientDialog = ({ open, onOpenChange, patient, onSave, initialData }) => 
               {patient ? 'Atualize as informações do paciente conforme necessário.' : 'Preencha os dados para cadastrar um novo paciente.'}
             </DialogDescription>
           </DialogHeader>
-        </div>
-
-        {/* Hidden title for screen readers when mobile header is shown */}
-        <div className="sr-only md:not-sr-only">
-          <DialogTitle>{patient ? 'Editar Paciente' : 'Novo Paciente'}</DialogTitle>
         </div>
 
         <form onSubmit={handleSubmit}>
@@ -303,18 +344,40 @@ const PatientDialog = ({ open, onOpenChange, patient, onSave, initialData }) => 
                     <Input
                       id="cpf"
                       value={formData.cpf}
-                      onChange={(e) => setFormData({ ...formData, cpf: e.target.value })}
+                      onChange={(e) => {
+                          const newCpf = e.target.value;
+                          setFormData(prev => {
+                              // Se doc fiscal vazio ou igual ao antigo, atualiza junto
+                              const shouldUpdateDocument = !prev.document || prev.document === prev.cpf;
+                              return { 
+                                  ...prev, 
+                                  cpf: newCpf,
+                                  document: shouldUpdateDocument ? newCpf : prev.document 
+                              };
+                          });
+                      }}
                       placeholder="000.000.000-00"
                     />
                   </div>
 
                   <div className="space-y-2">
-                    <Label htmlFor="email">E-mail</Label>
+                    <Label htmlFor="email">E-mail Pessoal</Label>
                     <Input
                       id="email"
                       type="email"
                       value={formData.email}
-                      onChange={(e) => setFormData({ ...formData, email: e.target.value })}
+                      onChange={(e) => {
+                          const newEmail = e.target.value;
+                          setFormData(prev => {
+                              // Se email fiscal vazio ou igual ao antigo, atualiza junto
+                              const shouldUpdateFiscal = !prev.fiscal_email || prev.fiscal_email === prev.email;
+                              return {
+                                  ...prev,
+                                  email: newEmail,
+                                  fiscal_email: shouldUpdateFiscal ? newEmail : prev.fiscal_email
+                              };
+                          });
+                      }}
                       placeholder="joao@exemplo.com"
                     />
                   </div>
@@ -347,7 +410,7 @@ const PatientDialog = ({ open, onOpenChange, patient, onSave, initialData }) => 
                   </div>
                 </div>
 
-                {/* Gerenciador de Telefones - Agora com foco corrigido */}
+                {/* Gerenciador de Telefones */}
                 <PatientPhonesManager
                   phones={phones}
                   onChange={setPhones}
@@ -356,32 +419,22 @@ const PatientDialog = ({ open, onOpenChange, patient, onSave, initialData }) => 
                 {/* Gerenciador de Tags */}
                 <PatientTagsManager
                   patientId={patient?.id}
-                  patientTags={[]} // Será carregado internamente pelo componente
+                  patientTags={[]} 
                   onTagsChange={() => {}}
                 />
-
-                <div className="space-y-2">
-                  <Label htmlFor="address">Endereço</Label>
-                  <Input
-                      id="address"
-                      value={formData.address}
-                      onChange={(e) => setFormData({ ...formData, address: e.target.value })}
-                      placeholder="Rua, Número, Bairro, Cidade"
-                  />
-                </div>
               </TabsContent>
 
               <TabsContent value="fiscal" className="space-y-4 mt-4">
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   <div className="space-y-2">
                     <div className="flex items-center gap-2">
-                      <Label htmlFor="document">CPF/CNPJ</Label>
+                      <Label htmlFor="document">CPF/CNPJ (Nota Fiscal)</Label>
                       <Tooltip>
                         <TooltipTrigger>
                           <AlertCircle className="h-4 w-4 text-amber-500" />
                         </TooltipTrigger>
                         <TooltipContent>
-                          <p>Obrigatório para emissão de Nota Fiscal</p>
+                          <p>Usado para emissão de Nota Fiscal.</p>
                         </TooltipContent>
                       </Tooltip>
                     </div>
@@ -389,7 +442,7 @@ const PatientDialog = ({ open, onOpenChange, patient, onSave, initialData }) => 
                       id="document"
                       value={formData.document}
                       onChange={(e) => handleDocumentChange(e.target.value)}
-                      placeholder="000.000.000-00 ou 00.000.000/0000-00"
+                      placeholder="000.000.000-00 ou CNPJ"
                     />
                   </div>
 
@@ -401,16 +454,16 @@ const PatientDialog = ({ open, onOpenChange, patient, onSave, initialData }) => 
                           <AlertCircle className="h-4 w-4 text-amber-500" />
                         </TooltipTrigger>
                         <TooltipContent>
-                          <p>Obrigatório para emissão de Nota Fiscal</p>
+                          <p>E-mail onde a nota será enviada.</p>
                         </TooltipContent>
                       </Tooltip>
                     </div>
                     <Input
                       id="email_fiscal"
                       type="email"
-                      value={formData.email}
-                      onChange={(e) => setFormData({ ...formData, email: e.target.value })}
-                      placeholder="nota@empresa.com"
+                      value={formData.fiscal_email} 
+                      onChange={(e) => setFormData({ ...formData, fiscal_email: e.target.value })}
+                      placeholder="email@empresa.com"
                     />
                   </div>
                 </div>
@@ -426,7 +479,7 @@ const PatientDialog = ({ open, onOpenChange, patient, onSave, initialData }) => 
                             <AlertCircle className="h-4 w-4 text-amber-500" />
                           </TooltipTrigger>
                           <TooltipContent>
-                            <p>Obrigatório para emissão de Nota Fiscal</p>
+                            <p>Digite o CEP para buscar o endereço automaticamente</p>
                           </TooltipContent>
                         </Tooltip>
                       </div>
@@ -439,23 +492,13 @@ const PatientDialog = ({ open, onOpenChange, patient, onSave, initialData }) => 
                           maxLength={9}
                         />
                         {loadingZipCode && (
-                          <Loader2 className="absolute right-3 top-3 h-4 w-4 animate-spin" />
+                          <Loader2 className="absolute right-3 top-3 h-4 w-4 animate-spin text-primary" />
                         )}
                       </div>
                     </div>
 
                     <div className="space-y-2">
-                      <div className="flex items-center gap-2">
-                        <Label htmlFor="street">Rua</Label>
-                        <Tooltip>
-                          <TooltipTrigger>
-                            <AlertCircle className="h-4 w-4 text-amber-500" />
-                          </TooltipTrigger>
-                          <TooltipContent>
-                            <p>Obrigatório para emissão de Nota Fiscal</p>
-                          </TooltipContent>
-                        </Tooltip>
-                      </div>
+                      <Label htmlFor="street">Rua</Label>
                       <Input
                         id="street"
                         value={formData.street}
@@ -465,17 +508,7 @@ const PatientDialog = ({ open, onOpenChange, patient, onSave, initialData }) => 
                     </div>
 
                     <div className="space-y-2">
-                      <div className="flex items-center gap-2">
-                        <Label htmlFor="number">Número</Label>
-                        <Tooltip>
-                          <TooltipTrigger>
-                            <AlertCircle className="h-4 w-4 text-amber-500" />
-                          </TooltipTrigger>
-                          <TooltipContent>
-                            <p>Obrigatório para emissão de Nota Fiscal</p>
-                          </TooltipContent>
-                        </Tooltip>
-                      </div>
+                      <Label htmlFor="number">Número</Label>
                       <Input
                         id="number"
                         value={formData.number}
@@ -495,17 +528,7 @@ const PatientDialog = ({ open, onOpenChange, patient, onSave, initialData }) => 
                     </div>
 
                     <div className="space-y-2">
-                      <div className="flex items-center gap-2">
-                        <Label htmlFor="neighborhood">Bairro</Label>
-                        <Tooltip>
-                          <TooltipTrigger>
-                            <AlertCircle className="h-4 w-4 text-amber-500" />
-                          </TooltipTrigger>
-                          <TooltipContent>
-                            <p>Obrigatório para emissão de Nota Fiscal</p>
-                          </TooltipContent>
-                        </Tooltip>
-                      </div>
+                      <Label htmlFor="neighborhood">Bairro</Label>
                       <Input
                         id="neighborhood"
                         value={formData.neighborhood}
@@ -515,17 +538,7 @@ const PatientDialog = ({ open, onOpenChange, patient, onSave, initialData }) => 
                     </div>
 
                     <div className="space-y-2">
-                      <div className="flex items-center gap-2">
-                        <Label htmlFor="city">Cidade</Label>
-                        <Tooltip>
-                          <TooltipTrigger>
-                            <AlertCircle className="h-4 w-4 text-amber-500" />
-                          </TooltipTrigger>
-                          <TooltipContent>
-                            <p>Obrigatório para emissão de Nota Fiscal</p>
-                          </TooltipContent>
-                        </Tooltip>
-                      </div>
+                      <Label htmlFor="city">Cidade</Label>
                       <Input
                         id="city"
                         value={formData.city}
@@ -535,17 +548,7 @@ const PatientDialog = ({ open, onOpenChange, patient, onSave, initialData }) => 
                     </div>
 
                     <div className="space-y-2">
-                      <div className="flex items-center gap-2">
-                        <Label htmlFor="state">Estado</Label>
-                        <Tooltip>
-                          <TooltipTrigger>
-                            <AlertCircle className="h-4 w-4 text-amber-500" />
-                          </TooltipTrigger>
-                          <TooltipContent>
-                            <p>Obrigatório para emissão de Nota Fiscal</p>
-                          </TooltipContent>
-                        </Tooltip>
-                      </div>
+                      <Label htmlFor="state">Estado</Label>
                       <Select
                         value={formData.state}
                         onValueChange={(value) => setFormData({ ...formData, state: value })}
