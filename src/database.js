@@ -94,3 +94,85 @@ export const deleteNotification = async (id) => {
         .eq('id', id);
     return true;
 };
+
+// Adicione LOGO APÓS as funções de notificação que você colou agora há pouco:
+
+export const getUnreadNotificationCount = async () => {
+  const userId = await getUserId(); // Usa a função auxiliar interna do arquivo
+  if (!userId) return 0;
+
+  try {
+    const { count, error } = await supabase
+      .from('notifications')
+      .select('*', { count: 'exact', head: true }) // 'head: true' é mais rápido, só conta
+      .eq('user_id', userId)
+      .eq('is_read', false);
+
+    if (error) {
+      console.error('Error counting unread notifications:', error);
+      return 0;
+    }
+
+    return count || 0;
+  } catch (error) {
+    console.error('Error counting unread notifications:', error);
+    return 0;
+  }
+};
+
+// --- Prevenção: Adicione estas duas também para evitar que o build reclame depois ---
+
+export const createNotification = async (notificationData) => {
+  const clinicId = await getClinicId();
+  const userId = await getUserId();
+
+  if (!clinicId || !userId) return null;
+
+  const { data, error } = await supabase
+    .from('notifications')
+    .insert([{
+      clinic_id: clinicId,
+      user_id: userId,
+      type: notificationData.type || 'system',
+      title: notificationData.title,
+      message: notificationData.message,
+      related_entity_type: notificationData.related_entity_type,
+      related_entity_id: notificationData.related_entity_id,
+      metadata: notificationData.metadata || {},
+      is_read: false,
+      created_at: new Date().toISOString()
+    }])
+    .select()
+    .single();
+
+  if (error) console.error("Error creating notification:", error);
+  return data;
+};
+
+export const getNotificationSettings = async () => {
+  const userId = await getUserId();
+  if (!userId) return { appointment: true, message: true, task: true, system: true, patient: true };
+
+  const { data } = await supabase.from('notification_settings').select('*').eq('user_id', userId);
+  
+  if (!data) return { appointment: true, message: true, task: true, system: true, patient: true };
+
+  const settings = {};
+  data.forEach(s => settings[s.notification_type] = s.enabled);
+  return settings;
+};
+
+export const updateNotificationSettings = async (settings) => {
+  const userId = await getUserId();
+  if (!userId) return;
+
+  const settingsArray = Object.entries(settings).map(([type, enabled]) => ({
+    user_id: userId,
+    notification_type: type,
+    enabled,
+    updated_at: new Date().toISOString()
+  }));
+
+  await supabase.from('notification_settings').upsert(settingsArray, { onConflict: 'user_id,notification_type' });
+  return true;
+};
