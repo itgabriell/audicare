@@ -1,7 +1,9 @@
 import React from 'react';
 import { useNavigate } from 'react-router-dom';
 import { ThemeToggle } from '@/components/ThemeToggle';
-import { NotificationBell } from '@/components/notifications';
+// --- CORREÇÃO AQUI: Importar o novo componente do caminho correto ---
+import NotificationBell from '@/components/layout/NotificationBell'; 
+// -------------------------------------------------------------------
 import { useAuth } from '@/contexts/SupabaseAuthContext';
 import { Button } from '@/components/ui/button';
 import {
@@ -12,7 +14,7 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import { User, LogOut, Settings, Search, Menu } from 'lucide-react';
+import { LogOut, Settings, Search, Menu } from 'lucide-react';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
 import SocialLinks from '@/components/SocialLinks';
 
@@ -24,11 +26,9 @@ const Header = ({ children, onMenuClick, showMenuButton, onCommandPaletteOpen })
   const handleLogout = async () => {
     try {
       await signOut();
-      // Força redirecionamento para login
       window.location.href = '/login';
     } catch (error) {
       console.error('Erro ao fazer logout:', error);
-      // Mesmo em caso de erro, tenta redirecionar
       window.location.href = '/login';
     }
   };
@@ -90,8 +90,9 @@ const Header = ({ children, onMenuClick, showMenuButton, onCommandPaletteOpen })
           <Search className="h-4 w-4" />
         </Button>
 
-        {/* Notifications */}
+        {/* --- NOVO SININHO INTEGRADO --- */}
         {user && <NotificationBell />}
+        {/* ----------------------------- */}
 
         <ThemeToggle />
 
