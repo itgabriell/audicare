@@ -18,6 +18,7 @@ import { useNavigate } from 'react-router-dom';
 import PatientCombobox from '@/components/patients/PatientCombobox';
 import { useAppointmentReminders } from '@/hooks/useAppointmentReminders';
 import { usePatients } from '@/hooks/usePatients'; // IMPORTANTE: Hook de busca
+import { useChatNavigation } from '@/hooks/useChatNavigation'; // Importe o hook
 
 const appointmentSchema = z.object({
   contact_id: z.string().min(1, "Paciente é obrigatório"),
@@ -38,6 +39,9 @@ const AppointmentDialog = ({ open, onOpenChange, appointment, onSuccess, onUpdat
   const [loading, setLoading] = useState(false);
   const [selectedPatient, setSelectedPatient] = useState(null);
   const { sendAppointmentReminder, loading: reminderLoading } = useAppointmentReminders();
+  
+  // Hook de navegação inteligente para o Chatwoot
+  const { openChat, loading: chatLoading } = useChatNavigation();
 
   // --- NOVA LÓGICA DE BUSCA ---
   const [searchTerm, setSearchTerm] = useState('');
@@ -239,22 +243,6 @@ const AppointmentDialog = ({ open, onOpenChange, appointment, onSuccess, onUpdat
     }
   };
 
-  const handleSendMessage = () => {
-      const primaryPhone = selectedPatient?.phones?.find(p => p.is_primary && p.is_whatsapp) 
-        || selectedPatient?.phones?.find(p => p.is_whatsapp)
-        || selectedPatient?.phones?.find(p => p.is_primary)
-        || selectedPatient?.phones?.[0];
-      
-      const phoneToUse = primaryPhone?.phone || selectedPatient?.phone;
-      
-      if (phoneToUse) {
-          const phone = phoneToUse.replace(/\D/g, '');
-          navigate(`/inbox?phone=${phone}`);
-      } else {
-          toast({ variant: "destructive", title: "Erro", description: "Paciente sem telefone cadastrado." });
-      }
-  };
-
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="sm:max-w-[500px]">
@@ -288,10 +276,11 @@ const AppointmentDialog = ({ open, onOpenChange, appointment, onSuccess, onUpdat
                     type="button" 
                     variant="link" 
                     className="h-auto p-0 text-xs text-blue-600 flex items-center gap-1"
-                    onClick={handleSendMessage}
+                    onClick={() => openChat(selectedPatient)} // Usando o novo hook de navegação
+                    disabled={chatLoading} // Desabilita enquanto carrega
                 >
                     <MessageCircle className="h-3 w-3" />
-                    Enviar mensagem para {selectedPatient.name}
+                    {chatLoading ? "Abrindo conversa..." : `Enviar mensagem para ${selectedPatient.name}`}
                 </Button>
             )}
           </div>
@@ -325,7 +314,7 @@ const AppointmentDialog = ({ open, onOpenChange, appointment, onSuccess, onUpdat
                 <Label>Status</Label>
                 <Select
                     onValueChange={(val) => form.setValue('status', val)}
-                    value={form.watch('status')}
+                    value={form.watch('status')} // Usando value para refletir estado real
                 >
                     <SelectTrigger><SelectValue placeholder="Selecione" /></SelectTrigger>
                     <SelectContent>
@@ -354,7 +343,7 @@ const AppointmentDialog = ({ open, onOpenChange, appointment, onSuccess, onUpdat
             <Label>Tipo de Consulta</Label>
             <Select
                 onValueChange={(val) => form.setValue('type', val)}
-                value={form.watch('type')}
+                value={form.watch('type')} // Usando value para refletir estado real
             >
                 <SelectTrigger><SelectValue placeholder="Selecione o tipo" /></SelectTrigger>
                 <SelectContent>
