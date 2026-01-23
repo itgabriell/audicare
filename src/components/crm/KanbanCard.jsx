@@ -1,6 +1,6 @@
 import React from 'react';
 import { motion } from 'framer-motion';
-import { Phone, Mail, MessageSquare, CalendarPlus, DollarSign, TrendingUp, Tag, Clock, AlertCircle } from 'lucide-react';
+import { Phone, Mail, MessageSquare, CalendarPlus, DollarSign, TrendingUp, Tag, Clock, MessageCircle } from 'lucide-react'; // MessageCircle importado
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import {
@@ -18,7 +18,6 @@ const KanbanCard = ({
   onEditLead,
 }) => {
   
-  // --- Formatação de Telefone ---
   const formatPhoneNumber = (phone) => {
     if (!phone) return null;
     const clean = phone.replace(/\D/g, '');
@@ -46,24 +45,16 @@ const KanbanCard = ({
     return 'bg-blue-500/10 text-blue-600 border-blue-500/20';
   };
 
-  // --- LÓGICA DE TEMPO DE ESPERA ---
+  // Status de Espera
   const getWaitStatus = () => {
       if (!lead.last_message_at) return null;
-      
       const lastMsgDate = new Date(lead.last_message_at);
       const minutesWaiting = differenceInMinutes(new Date(), lastMsgDate);
       
-      // Se já foi respondido (first_response_at > last_message_at), não está esperando
-      if (lead.first_response_at && new Date(lead.first_response_at) > lastMsgDate) {
-          return null;
-      }
+      if (lead.first_response_at && new Date(lead.first_response_at) > lastMsgDate) return null;
 
-      if (minutesWaiting > 60) { // Mais de 1 hora
-          return { color: 'text-red-500', bg: 'bg-red-50', label: 'Atrasado' };
-      }
-      if (minutesWaiting > 15) { // Mais de 15 min
-          return { color: 'text-yellow-600', bg: 'bg-yellow-50', label: 'Atenção' };
-      }
+      if (minutesWaiting > 60) return { color: 'text-red-500', bg: 'bg-red-50', label: 'Atrasado' };
+      if (minutesWaiting > 15) return { color: 'text-yellow-600', bg: 'bg-yellow-50', label: 'Atenção' };
       return { color: 'text-green-600', bg: 'bg-green-50', label: 'Novo' };
   };
 
@@ -79,14 +70,14 @@ const KanbanCard = ({
       }`}
     >
       <div className="flex flex-col h-full gap-3">
-        {/* Header com Nome e Status de Espera */}
+        {/* Header */}
         <div className="flex items-start justify-between gap-2">
           <div className="flex-1 min-w-0">
               <h4 className="font-semibold text-foreground truncate">
                 {lead.name || 'Lead sem nome'}
               </h4>
               
-              {/* Indicador de Tempo de Espera */}
+              {/* Tempo relativo */}
               {lead.last_message_at && (
                   <div className="flex items-center gap-1 mt-1">
                       <Clock className="h-3 w-3 text-muted-foreground" />
@@ -108,6 +99,19 @@ const KanbanCard = ({
             </Badge>
           )}
         </div>
+
+        {/* --- NOVO: Preview da Mensagem --- */}
+        {lead.last_message_content && (
+            <div className="bg-muted/30 p-2 rounded text-xs text-muted-foreground italic border border-border/50">
+                <div className="flex gap-2 items-start">
+                    <MessageCircle className="h-3 w-3 mt-0.5 flex-shrink-0 opacity-70" />
+                    <span className="line-clamp-2 leading-relaxed">
+                        "{lead.last_message_content}"
+                    </span>
+                </div>
+            </div>
+        )}
+        {/* --------------------------------- */}
 
         {/* Informações de Contato */}
         <div className="space-y-1.5">
