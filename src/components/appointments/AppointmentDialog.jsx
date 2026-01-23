@@ -191,12 +191,18 @@ const AppointmentDialog = ({ open, onOpenChange, appointment, onSuccess, onUpdat
       // Combinar data e hora preservando o fuso local
       const localDate = new Date(`${data.date}T${data.time}`);
       const startTimeUTC = localDate.toISOString();
-      const endTimeUTC = new Date(localDate.getTime() + data.duration * 60 * 1000).toISOString();
 
-      // PAYLOAD FINAL conforme solicitado
+      // CALCULAR END_TIME: Adicionar duração em minutos ao start_time
+      const endDate = new Date(localDate);
+      endDate.setMinutes(endDate.getMinutes() + parseInt(data.duration || 60));
+      const endTimeUTC = endDate.toISOString();
+
+      // PAYLOAD FINAL - GARANTIR SINCRONIZAÇÃO DE TODAS AS COLUNAS DE TEMPO
       const payload = {
         clinic_id: clinicId,
-        appointment_date: startTimeUTC, // Manda UTC
+        appointment_date: startTimeUTC, // Data/hora inicial (UTC)
+        start_time: startTimeUTC,       // SINCRONIZADO com appointment_date
+        end_time: endTimeUTC,           // Fim calculado corretamente
         appointment_type: data.type, // Grava na coluna appointment_type
         duration: parseInt(data.duration), // Grava na coluna duration
         notes: data.notes, // Grava na coluna notes
