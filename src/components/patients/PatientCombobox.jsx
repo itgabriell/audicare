@@ -151,8 +151,8 @@ const PatientCombobox = ({ patients = [], value, onChange, onPatientAdded }) => 
               <CommandGroup>
                 {Array.isArray(patients) && patients.map((patient) => (
                   <CommandItem
-                    key={patient.id}
-                    value={patient.name}
+                    value={patient.id} // <--- Use o ID, é seguro e único
+  keywords={[patient.name, patient.phone]}
                     onSelect={() => {
                       onChange(patient.id);
                       setOpen(false);
