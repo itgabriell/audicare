@@ -9,6 +9,7 @@ import { useToast } from '@/components/ui/use-toast';
 import { getLeads, addLead, updateLead, getTeamMembers } from '@/database';
 import { useAuth } from '@/contexts/SupabaseAuthContext';
 import { useNavigate } from 'react-router-dom';
+import { supabase } from '@/lib/customSupabaseClient'; // Import necessário para o Realtime
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -36,37 +37,53 @@ const CRM = () => {
 
   const loadLeads = useCallback(async () => {
     try {
-      setLoading(true);
+      // Não ativamos o loading global aqui para não piscar a tela no realtime
       const data = await getLeads();
       setLeads(Array.isArray(data) ? data : []);
     } catch (error) {
       console.error('[CRM] Erro ao carregar leads', error);
-      setLeads([]);
-      toast({
-        title: 'Erro ao carregar leads',
-        description:
-          error?.message ||
-          'Ocorreu um erro ao buscar os leads. Tente novamente em instantes.',
-        variant: 'destructive',
-      });
-    } finally {
-      setLoading(false);
     }
-  }, [toast]);
+  }, []);
 
+  // Carga inicial
   useEffect(() => {
-    loadLeads();
-    loadTeamMembers();
+    const init = async () => {
+        setLoading(true);
+        await loadLeads();
+        await loadTeamMembers();
+        setLoading(false);
+    };
+    init();
+  }, []);
+
+  // --- MÁGICA DO REALTIME ---
+  useEffect(() => {
+    const channel = supabase
+      .channel('leads-crm-realtime')
+      .on(
+        'postgres_changes',
+        { event: '*', schema: 'public', table: 'leads' },
+        (payload) => {
+          console.log('[CRM] Alteração detectada em tempo real:', payload);
+          // Recarrega os dados para garantir consistência (ordenação, filtros, etc)
+          loadLeads();
+        }
+      )
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
   }, [loadLeads]);
+  // --------------------------
 
   const loadTeamMembers = useCallback(async () => {
     try {
       const members = await getTeamMembers();
       setTeamMembers(members || []);
     } catch (error) {
-      // Erro não crítico - apenas loga se necessário
-      if (error?.code !== 'PGRST116') { // PGRST116 = no rows returned, não é erro
-        console.warn('[CRM] Aviso ao carregar membros da equipe:', error?.message || 'Erro desconhecido');
+      if (error?.code !== 'PGRST116') {
+        console.warn('[CRM] Aviso ao carregar equipe:', error?.message);
       }
       setTeamMembers([]);
     }
@@ -74,9 +91,7 @@ const CRM = () => {
 
   const handleSaveLead = async (leadData) => {
     try {
-      if (!user?.id) {
-        throw new Error('Usuário não autenticado.');
-      }
+      if (!user?.id) throw new Error('Usuário não autenticado.');
 
       const payload = {
         ...leadData,
@@ -84,26 +99,22 @@ const CRM = () => {
       };
 
       if (editingLead) {
-        const updatedLead = await updateLead(editingLead.id, payload);
-        setLeads((prev) =>
-          prev.map((lead) => (lead.id === editingLead.id ? updatedLead : lead))
-        );
-        toast({ title: 'Sucesso!', description: 'Lead atualizado com sucesso.' });
+        await updateLead(editingLead.id, payload);
+        toast({ title: 'Sucesso!', description: 'Lead atualizado.' });
       } else {
-        const addedLead = await addLead(payload, user.id);
-        setLeads((prev) => [addedLead, ...prev]);
+        await addLead(payload, user.id);
         toast({ title: 'Sucesso!', description: 'Novo lead adicionado.' });
       }
       
       setDialogOpen(false);
       setEditingLead(null);
+      // loadLeads será chamado pelo Realtime, mas podemos chamar aqui para feedback instantâneo
+      loadLeads();
     } catch (error) {
       console.error('[CRM] Erro ao salvar lead', error);
       toast({
-        title: 'Erro ao salvar lead',
-        description:
-          error?.message ||
-          'Não foi possível salvar o lead. Verifique os dados e tente novamente.',
+        title: 'Erro',
+        description: 'Não foi possível salvar o lead.',
         variant: 'destructive',
       });
     }
@@ -111,6 +122,7 @@ const CRM = () => {
 
   const handleUpdateLead = async (leadId, newStatus) => {
     try {
+      // Atualização otimista (muda na tela antes do banco responder)
       setLeads((prev) =>
         prev.map((lead) =>
           lead.id === leadId ? { ...lead, status: newStatus } : lead,
@@ -120,14 +132,8 @@ const CRM = () => {
       await updateLead(leadId, { status: newStatus });
     } catch (error) {
       console.error('[CRM] Erro ao atualizar lead', error);
-      toast({
-        title: 'Erro ao mover lead',
-        description:
-          error?.message ||
-          'Não foi possível mover o lead para a nova etapa. Atualize a página e tente novamente.',
-        variant: 'destructive',
-      });
-      loadLeads();
+      toast({ title: 'Erro', description: 'Falha ao mover lead.', variant: 'destructive' });
+      loadLeads(); // Reverte em caso de erro
     }
   };
 
@@ -143,12 +149,7 @@ const CRM = () => {
 
   const handleOpenConversation = (lead) => {
     if (!lead.phone) {
-      toast({
-        title: 'Telefone não informado',
-        description:
-          'Cadastre um telefone para este lead para abrir a conversa.',
-        variant: 'destructive',
-      });
+      toast({ title: 'Sem telefone', description: 'Cadastre um telefone para abrir a conversa.', variant: 'destructive' });
       return;
     }
     navigate(`/inbox?phone=${encodeURIComponent(lead.phone)}`);
@@ -191,20 +192,19 @@ const CRM = () => {
       total: filteredLeads.length,
       totalValue: totalValue,
       avgProbability: avgProbability,
-      byStage: {
-        new: filteredLeads.filter(l => l.status === 'new').length,
-        contact: filteredLeads.filter(l => l.status === 'contact').length,
-        likely_purchase: filteredLeads.filter(l => l.status === 'likely_purchase').length,
-        purchased: filteredLeads.filter(l => l.status === 'purchased').length,
-      }
+      converted: filteredLeads.filter(l => l.status === 'purchased').length,
     };
   }, [filteredLeads]);
 
+  // NOVAS ETAPAS DEFINIDAS
   const stageOptions = {
     all: 'Todas as etapas',
-    new: 'Novo',
-    contact: 'Em contato',
-    likely_purchase: 'Provável Compra',
+    new: 'Novos Leads',
+    in_conversation: 'Em Conversa',
+    scheduled: 'Agendou',
+    arrived: 'Compareceu',
+    no_show: 'Não Compareceu',
+    stopped_responding: 'Parou de Responder',
     purchased: 'Comprou',
     no_purchase: 'Não Comprou'
   };
@@ -215,10 +215,10 @@ const CRM = () => {
     instagram: 'Instagram',
     referral: 'Indicação',
     site: 'Site',
+    facebook: 'Facebook',
     other: 'Outro'
   };
 
-  // Owner filter options
   const ownerOptions = useMemo(() => {
     const options = { all: 'Todos responsáveis' };
     teamMembers.forEach(member => {
@@ -232,10 +232,6 @@ const CRM = () => {
     <>
       <Helmet>
         <title>CRM - Audicare</title>
-        <meta
-          name="description"
-          content="Gerenciamento de Relacionamento com o Cliente (CRM)"
-        />
       </Helmet>
 
       <div className="space-y-6">
@@ -244,16 +240,26 @@ const CRM = () => {
           <div>
             <h1 className="text-3xl font-bold text-foreground">CRM</h1>
             <p className="text-muted-foreground mt-1 text-sm">
-              Gerencie o funil de vendas, leads e oportunidades
+              Funil de vendas e oportunidades
             </p>
           </div>
-          <Button onClick={handleOpenNewLead}>
-            <Plus className="h-4 w-4 mr-2" />
-            Novo Lead
-          </Button>
+          <div className="flex gap-2">
+             {/* Indicador visual de realtime */}
+             <div className="flex items-center gap-2 px-3 py-1 bg-green-500/10 text-green-600 rounded-full text-xs font-medium border border-green-500/20">
+                <span className="relative flex h-2 w-2">
+                  <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-green-400 opacity-75"></span>
+                  <span className="relative inline-flex rounded-full h-2 w-2 bg-green-500"></span>
+                </span>
+                Ao vivo
+             </div>
+             <Button onClick={handleOpenNewLead}>
+                <Plus className="h-4 w-4 mr-2" />
+                Novo Lead
+             </Button>
+          </div>
         </div>
 
-        {/* Métricas Rápidas */}
+        {/* Métricas */}
         <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
           <div className="bg-card border rounded-lg p-4">
             <div className="flex items-center justify-between">
@@ -278,7 +284,7 @@ const CRM = () => {
           <div className="bg-card border rounded-lg p-4">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-sm text-muted-foreground">Probabilidade Média</p>
+                <p className="text-sm text-muted-foreground">Probabilidade</p>
                 <p className="text-2xl font-bold text-foreground mt-1">{Math.round(metrics.avgProbability)}%</p>
               </div>
               <TrendingUp className="h-8 w-8 text-muted-foreground/50" />
@@ -288,16 +294,15 @@ const CRM = () => {
             <div className="flex items-center justify-between">
               <div>
                 <p className="text-sm text-muted-foreground">Convertidos</p>
-                <p className="text-2xl font-bold text-foreground mt-1">{metrics.byStage.purchased}</p>
+                <p className="text-2xl font-bold text-foreground mt-1 text-green-600">{metrics.converted}</p>
               </div>
               <Briefcase className="h-8 w-8 text-muted-foreground/50" />
             </div>
           </div>
         </div>
 
-        {/* Busca e Filtros */}
+        {/* Filtros */}
         <div className="bg-card border rounded-lg p-3 flex flex-col gap-3">
-          {/* Busca */}
           <div className="relative">
             <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
             <Input
@@ -308,9 +313,7 @@ const CRM = () => {
             />
           </div>
 
-          {/* Filtros */}
           <div className="flex flex-wrap items-center gap-x-4 gap-y-2">
-            {/* Stage Filter */}
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
                 <Button variant="ghost" className="text-sm font-normal text-muted-foreground gap-1 px-2">
@@ -327,7 +330,6 @@ const CRM = () => {
               </DropdownMenuContent>
             </DropdownMenu>
 
-            {/* Owner Filter */}
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
                 <Button variant="ghost" className="text-sm font-normal text-muted-foreground gap-1 px-2">
@@ -344,7 +346,6 @@ const CRM = () => {
               </DropdownMenuContent>
             </DropdownMenu>
 
-            {/* Channel Filter */}
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
                 <Button variant="ghost" className="text-sm font-normal text-muted-foreground gap-1 px-2">
@@ -363,7 +364,7 @@ const CRM = () => {
           </div>
         </div>
 
-        {/* Main Content */}
+        {/* Kanban Board */}
         {loading ? (
           <div className="flex justify-center items-center h-64">
             <div className="w-8 h-8 border-2 border-primary border-t-transparent rounded-full animate-spin" />
@@ -380,17 +381,13 @@ const CRM = () => {
           <div className="text-center py-16 space-y-3 bg-card border rounded-lg">
             <Briefcase className="h-16 w-16 text-muted-foreground/30 mx-auto" />
             <h3 className="text-lg font-semibold text-foreground">Nenhum lead encontrado</h3>
-            <p className="text-sm text-muted-foreground max-w-sm mx-auto">
-              Comece cadastrando seu primeiro lead ou ajuste os filtros para ver os resultados.
-            </p>
             <Button className="mt-4" onClick={handleOpenNewLead}>
               <Plus className="h-4 w-4 mr-2" />
-              Adicionar seu primeiro lead
+              Adicionar Lead
             </Button>
           </div>
         )}
 
-        {/* Dialog for creating/editing */}
         <LeadDialog
           open={dialogOpen}
           onOpenChange={(open) => {
