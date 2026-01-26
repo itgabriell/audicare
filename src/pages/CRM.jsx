@@ -1,15 +1,15 @@
 import React, { useState, useEffect } from 'react';
 import { Helmet } from 'react-helmet';
-import { Plus, Search, Filter, RefreshCw, MessageSquare } from 'lucide-react';
+import { Plus, Search, Filter, RefreshCw, MessageSquare, Brain } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { useToast } from '@/components/ui/use-toast';
 import KanbanBoard from '@/components/crm/KanbanBoard';
 import LeadDialog from '@/components/crm/LeadDialog';
+import AITrainer from '@/components/crm/AITrainer'; // <--- O COMPONENTE DE TREINAMENTO
 import { getLeads, addLead, updateLead } from '@/database'; 
 import { useAuth } from '@/contexts/SupabaseAuthContext';
-// import ChatwootImporter from '@/components/crm/ChatwootImporter'; // Descomente se precisar resgatar leads
 
 const CRM = () => {
   const [leads, setLeads] = useState([]);
@@ -17,6 +17,9 @@ const CRM = () => {
   const [searchTerm, setSearchTerm] = useState('');
   const [statusFilter, setStatusFilter] = useState('all');
   
+  // Estado para mostrar/esconder o Treinador
+  const [showAITrainer, setShowAITrainer] = useState(false); 
+
   const [isLeadDialogOpen, setIsLeadDialogOpen] = useState(false);
   const [currentLead, setCurrentLead] = useState(null);
 
@@ -129,6 +132,17 @@ const CRM = () => {
             </p>
           </div>
           <div className="flex gap-2 w-full sm:w-auto">
+            
+            {/* BOTÃO NOVO: Toggle do Treinador */}
+            <Button 
+                variant={showAITrainer ? "secondary" : "outline"} 
+                onClick={() => setShowAITrainer(!showAITrainer)}
+                className="hidden sm:flex"
+            >
+                <Brain className="h-4 w-4 mr-2" />
+                {showAITrainer ? 'Fechar Treinador' : 'Treinar IA'}
+            </Button>
+
             <Button variant="outline" size="icon" onClick={fetchLeads} title="Atualizar">
                 <RefreshCw className={`h-4 w-4 ${loading ? 'animate-spin' : ''}`} />
             </Button>
@@ -139,8 +153,14 @@ const CRM = () => {
           </div>
         </div>
 
-        {/* <ChatwootImporter onImportComplete={fetchLeads} /> */}
+        {/* ÁREA DO TREINADOR (Condicional) */}
+        {showAITrainer && (
+            <div className="animate-in fade-in slide-in-from-top-4 duration-300">
+                <AITrainer />
+            </div>
+        )}
 
+        {/* Filtros e Busca */}
         <div className="flex flex-col sm:flex-row gap-3 bg-card p-3 rounded-lg border shadow-sm">
             <div className="relative flex-1">
                 <Search className="absolute left-2 top-2.5 h-4 w-4 text-muted-foreground" />
@@ -163,7 +183,7 @@ const CRM = () => {
                         <SelectItem value="all">Todos os Status</SelectItem>
                         <SelectItem value="new">Novos</SelectItem>
                         <SelectItem value="in_conversation">Em Conversa</SelectItem>
-                        <SelectItem value="stopped_responding">Parou de Responder</SelectItem> {/* OPÇÃO NOVA */}
+                        <SelectItem value="stopped_responding">Parou de Responder</SelectItem>
                         <SelectItem value="scheduled">Agendados</SelectItem>
                         <SelectItem value="likely_purchase">Provável Compra</SelectItem>
                         <SelectItem value="purchased">Venda Realizada</SelectItem>
@@ -172,6 +192,7 @@ const CRM = () => {
             </div>
         </div>
 
+        {/* Kanban Board */}
         <div className="flex-1 overflow-hidden bg-muted/20 rounded-xl border p-4">
             {loading ? (
                 <div className="flex justify-center items-center h-full text-muted-foreground">
