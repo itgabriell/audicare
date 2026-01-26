@@ -1,9 +1,8 @@
 import React from 'react';
 import { useNavigate } from 'react-router-dom';
 import { ThemeToggle } from '@/components/ThemeToggle';
-// --- CORREÇÃO AQUI: Importar o novo componente do caminho correto ---
-import NotificationBell from '@/components/layout/NotificationBell'; 
-// -------------------------------------------------------------------
+// CORREÇÃO: Apontando para o componente correto na pasta layout
+import NotificationBell from '@/components/layout/NotificationBell';
 import { useAuth } from '@/contexts/SupabaseAuthContext';
 import { Button } from '@/components/ui/button';
 import {
@@ -14,7 +13,7 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import { LogOut, Settings, Search, Menu } from 'lucide-react';
+import { User, LogOut, Settings, Search, Menu } from 'lucide-react';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
 import SocialLinks from '@/components/SocialLinks';
 
@@ -90,9 +89,8 @@ const Header = ({ children, onMenuClick, showMenuButton, onCommandPaletteOpen })
           <Search className="h-4 w-4" />
         </Button>
 
-        {/* --- NOVO SININHO INTEGRADO --- */}
+        {/* Notifications */}
         {user && <NotificationBell />}
-        {/* ----------------------------- */}
 
         <ThemeToggle />
 
