@@ -1,4 +1,5 @@
 import React from 'react';
+import { Droppable } from 'react-beautiful-dnd';
 import KanbanCard from './KanbanCard';
 
 const KanbanColumn = ({
@@ -26,33 +27,47 @@ const KanbanColumn = ({
 
   return (
     <div
-      className={`rounded-xl border ${colorClasses[column.color]} flex flex-col`}
+      className={`rounded-xl border ${colorClasses[column.color]} flex flex-col h-full min-h-[500px]`}
     >
-      <div className="p-4 border-b border-border">
+      {/* Cabeçalho da Coluna */}
+      <div className="p-4 border-b border-border bg-background/50 rounded-t-xl">
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-2">
             <div
               className={`w-2 h-2 rounded-full ${headerColorClasses[column.color]}`}
             />
-            <h3 className="font-semibold text-foreground">{column.title}</h3>
+            <h3 className="font-semibold text-foreground text-sm">{column.title}</h3>
           </div>
-          <span className="text-sm text-muted-foreground bg-muted rounded-full px-2 py-0.5">
+          <span className="text-xs text-muted-foreground bg-background/80 rounded-full px-2 py-0.5 border shadow-sm">
             {leads.length}
           </span>
         </div>
       </div>
 
-      <div className="p-2 space-y-2 overflow-y-auto flex-1">
-        {leads.map((lead) => (
-          <KanbanCard
-            key={lead.id}
-            lead={lead}
-            onEditLead={onEditLead}
-            onOpenConversation={onOpenConversation}
-            onScheduleFromLead={onScheduleFromLead}
-          />
-        ))}
-      </div>
+      {/* Área onde os cards caem (Droppable) */}
+      <Droppable droppableId={column.id}>
+        {(provided, snapshot) => (
+          <div
+            ref={provided.innerRef}
+            {...provided.droppableProps}
+            className={`
+              p-2 space-y-2 overflow-y-auto flex-1 transition-colors
+              ${snapshot.isDraggingOver ? 'bg-muted/30' : ''}
+            `}
+            style={{ minHeight: '100px' }} // Garante área de drop mesmo vazia
+          >
+            {leads.map((lead, index) => (
+              <KanbanCard
+                key={lead.id}
+                lead={lead}
+                index={index} // OBRIGATÓRIO PARA O DRAG AND DROP
+                onClick={onEditLead} // Mapeando o clique para edição
+              />
+            ))}
+            {provided.placeholder}
+          </div>
+        )}
+      </Droppable>
     </div>
   );
 };
