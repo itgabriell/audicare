@@ -12,25 +12,29 @@ const KanbanColumn = ({
   const colorClasses = {
     blue: 'bg-blue-500/10 border-blue-500/20',
     yellow: 'bg-yellow-500/10 border-yellow-500/20',
+    purple: 'bg-purple-500/10 border-purple-500/20',
     orange: 'bg-orange-500/10 border-orange-500/20',
     green: 'bg-green-500/10 border-green-500/20',
     red: 'bg-red-500/10 border-red-500/20',
+    gray: 'bg-gray-500/10 border-gray-500/20', // Estilo para 'Parou de Responder'
   };
 
   const headerColorClasses = {
     blue: 'bg-blue-500',
     yellow: 'bg-yellow-500',
+    purple: 'bg-purple-500',
     orange: 'bg-orange-500',
     green: 'bg-green-500',
     red: 'bg-red-500',
+    gray: 'bg-gray-500', // Header para 'Parou de Responder'
   };
 
   return (
     <div
-      className={`rounded-xl border ${colorClasses[column.color]} flex flex-col h-full min-h-[500px]`}
+      className={`rounded-xl border ${colorClasses[column.color]} flex flex-col h-full max-h-full`}
     >
       {/* Cabeçalho da Coluna */}
-      <div className="p-4 border-b border-border bg-background/50 rounded-t-xl">
+      <div className="p-3 border-b border-border bg-background/50 rounded-t-xl flex-shrink-0">
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-2">
             <div
@@ -51,17 +55,17 @@ const KanbanColumn = ({
             ref={provided.innerRef}
             {...provided.droppableProps}
             className={`
-              p-2 space-y-2 overflow-y-auto flex-1 transition-colors
+              p-2 space-y-2 overflow-y-auto flex-1 transition-colors scrollbar-thin scrollbar-thumb-gray-200
               ${snapshot.isDraggingOver ? 'bg-muted/30' : ''}
             `}
-            style={{ minHeight: '100px' }} // Garante área de drop mesmo vazia
+            style={{ minHeight: '100px' }} 
           >
             {leads.map((lead, index) => (
               <KanbanCard
                 key={lead.id}
                 lead={lead}
-                index={index} // OBRIGATÓRIO PARA O DRAG AND DROP
-                onClick={onEditLead} // Mapeando o clique para edição
+                index={index}
+                onClick={onEditLead}
               />
             ))}
             {provided.placeholder}

@@ -9,6 +9,7 @@ import KanbanBoard from '@/components/crm/KanbanBoard';
 import LeadDialog from '@/components/crm/LeadDialog';
 import { getLeads, addLead, updateLead } from '@/database'; 
 import { useAuth } from '@/contexts/SupabaseAuthContext';
+// import ChatwootImporter from '@/components/crm/ChatwootImporter'; // Descomente se precisar resgatar leads
 
 const CRM = () => {
   const [leads, setLeads] = useState([]);
@@ -74,10 +75,10 @@ const CRM = () => {
     }
   };
 
-  // Lógica de Arquivar (Soft Delete)
   const handleDeleteLead = async (id) => {
       if(confirm("Tem certeza que deseja arquivar este lead? Ele sumirá desta tela.")) {
           try {
+              // Soft Delete (Arquivar)
               await updateLead(id, { status: 'archived' });
               
               toast({ title: "Lead arquivado" });
@@ -101,7 +102,6 @@ const CRM = () => {
   };
 
   const filteredLeads = leads.filter(lead => {
-    // Esconde leads arquivados
     if (lead.status === 'archived') return false;
 
     const matchesSearch = lead.name?.toLowerCase().includes(searchTerm.toLowerCase()) || 
@@ -139,6 +139,8 @@ const CRM = () => {
           </div>
         </div>
 
+        {/* <ChatwootImporter onImportComplete={fetchLeads} /> */}
+
         <div className="flex flex-col sm:flex-row gap-3 bg-card p-3 rounded-lg border shadow-sm">
             <div className="relative flex-1">
                 <Search className="absolute left-2 top-2.5 h-4 w-4 text-muted-foreground" />
@@ -161,6 +163,7 @@ const CRM = () => {
                         <SelectItem value="all">Todos os Status</SelectItem>
                         <SelectItem value="new">Novos</SelectItem>
                         <SelectItem value="in_conversation">Em Conversa</SelectItem>
+                        <SelectItem value="stopped_responding">Parou de Responder</SelectItem> {/* OPÇÃO NOVA */}
                         <SelectItem value="scheduled">Agendados</SelectItem>
                         <SelectItem value="likely_purchase">Provável Compra</SelectItem>
                         <SelectItem value="purchased">Venda Realizada</SelectItem>

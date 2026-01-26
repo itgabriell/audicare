@@ -9,12 +9,12 @@ const KanbanBoard = ({
   onOpenConversation,
   onScheduleFromLead,
 }) => {
-  // --- AQUI ESTAVA O PROBLEMA ---
-  // Mudamos o id de 'contact' para 'in_conversation' para bater com o Webhook
+  // Configuração das Colunas
   const columns = [
     { id: 'new', title: 'Novos Leads', color: 'blue' },
-    { id: 'in_conversation', title: 'Em Conversa', color: 'yellow' }, 
-    { id: 'scheduled', title: 'Agendou', color: 'purple' }, // Adicionei esta pois é comum ter
+    { id: 'in_conversation', title: 'Em Conversa', color: 'yellow' },
+    { id: 'stopped_responding', title: 'Parou de Responder', color: 'gray' }, // NOVA COLUNA
+    { id: 'scheduled', title: 'Agendou', color: 'purple' },
     { id: 'likely_purchase', title: 'Provável Compra', color: 'orange' },
     { id: 'purchased', title: 'Venda Realizada', color: 'green' },
     { id: 'no_purchase', title: 'Perdido / Não Comprou', color: 'red' },
@@ -23,8 +23,10 @@ const KanbanBoard = ({
   const handleDragEnd = (result) => {
     const { destination, source, draggableId } = result;
 
+    // Se soltou fora de uma coluna válida, não faz nada
     if (!destination) return;
 
+    // Se soltou no mesmo lugar, não faz nada
     if (
       destination.droppableId === source.droppableId &&
       destination.index === source.index
@@ -32,6 +34,7 @@ const KanbanBoard = ({
       return;
     }
 
+    // Se mudou de coluna, chama a função de atualização
     if (destination.droppableId !== source.droppableId) {
       onUpdateLead(draggableId, destination.droppableId);
     }
