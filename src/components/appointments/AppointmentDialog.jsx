@@ -21,7 +21,7 @@ import {
 import { Trash2, Calendar, MapPin, User, FileText } from 'lucide-react';
 import PatientCombobox from '@/components/patients/PatientCombobox';
 import { useToast } from '@/components/ui/use-toast';
-import { format } from 'date-fns'; // Importante para o fuso horário
+import { format } from 'date-fns'; 
 
 const AppointmentDialog = ({ 
   open, 
@@ -51,9 +51,7 @@ const AppointmentDialog = ({
   useEffect(() => {
     if (open) {
       if (appointment) {
-        // --- EDIÇÃO (CORREÇÃO DE FUSO) ---
-        // Usa date-fns para formatar a data UTC do banco para o horário LOCAL do navegador
-        // 'yyyy-MM-ddTHH:mm' é o formato exato que o input datetime-local exige
+        // --- EDIÇÃO ---
         const start = appointment.start_time 
             ? format(new Date(appointment.start_time), "yyyy-MM-dd'T'HH:mm") 
             : '';
@@ -81,7 +79,6 @@ const AppointmentDialog = ({
              start.setHours(now.getHours() + 1, 0, 0, 0);
         }
 
-        // Formata para local antes de jogar no input
         const startFormatted = format(start, "yyyy-MM-dd'T'HH:mm");
 
         reset({
@@ -117,25 +114,21 @@ const AppointmentDialog = ({
   }, [appointment, initialData, open, reset]);
 
   const onSubmit = (data) => {
-    // 1. Cria objeto Date a partir do input local
-    // Isso garante que se o usuário colocou 16:00, o objeto Date representará 16:00 local
+    // Cria objeto Date a partir do input local
     const startTimeLocal = new Date(data.start_time);
     
     // Calcula fim (+1 hora)
     const endTimeLocal = new Date(startTimeLocal);
     endTimeLocal.setHours(endTimeLocal.getHours() + 1);
 
-    // 2. Prepara o payload
-    // Mapeia 'type' para 'appointment_type'
     const payload = {
         ...data,
         appointment_type: data.type, 
-        start_time: startTimeLocal.toISOString(), // Converte para UTC correto
-        end_time: endTimeLocal.toISOString(),     // Converte para UTC correto
+        start_time: startTimeLocal.toISOString(),
+        end_time: endTimeLocal.toISOString(),
         id: appointment?.id
     };
 
-    // Remove campos que não devem ir ao banco ou que já foram mapeados
     delete payload.type;
 
     onSave(payload);
@@ -206,6 +199,7 @@ const AppointmentDialog = ({
                       </SelectTrigger>
                       <SelectContent>
                         <SelectItem value="avaliacao">Avaliação</SelectItem>
+                        <SelectItem value="ajuste">Ajuste</SelectItem> {/* ADICIONADO AQUI */}
                         <SelectItem value="exame">Exame</SelectItem>
                         <SelectItem value="retorno">Retorno</SelectItem>
                         <SelectItem value="retorno_teste">Retorno de Teste</SelectItem>
