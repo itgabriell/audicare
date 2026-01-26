@@ -7,8 +7,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { useToast } from '@/components/ui/use-toast';
 import KanbanBoard from '@/components/crm/KanbanBoard';
 import LeadDialog from '@/components/crm/LeadDialog';
-import ChatwootImporter from '@/components/crm/ChatwootImporter'; // Mantendo o Resgatador
-import { getLeads, addLead, updateLead } from '@/database'; // Não precisa importar deleteLead
+import { getLeads, addLead, updateLead } from '@/database'; 
 import { useAuth } from '@/contexts/SupabaseAuthContext';
 
 const CRM = () => {
@@ -75,11 +74,10 @@ const CRM = () => {
     }
   };
 
-  // --- VOLTAMOS PARA ARQUIVAR (SAFE) ---
+  // Lógica de Arquivar (Soft Delete)
   const handleDeleteLead = async (id) => {
       if(confirm("Tem certeza que deseja arquivar este lead? Ele sumirá desta tela.")) {
           try {
-              // Apenas muda o status para 'archived', mantendo o histórico no banco
               await updateLead(id, { status: 'archived' });
               
               toast({ title: "Lead arquivado" });
@@ -103,7 +101,7 @@ const CRM = () => {
   };
 
   const filteredLeads = leads.filter(lead => {
-    // Esconde os arquivados da visualização principal
+    // Esconde leads arquivados
     if (lead.status === 'archived') return false;
 
     const matchesSearch = lead.name?.toLowerCase().includes(searchTerm.toLowerCase()) || 
@@ -140,11 +138,6 @@ const CRM = () => {
             </Button>
           </div>
         </div>
-
-        {/* --- ÁREA DE RESGATE DO FIM DE SEMANA --- */}
-        {/* Clique no botão, espere importar, e depois delete essa linha do código */}
-        <ChatwootImporter onImportComplete={fetchLeads} />
-        {/* ---------------------------------------- */}
 
         <div className="flex flex-col sm:flex-row gap-3 bg-card p-3 rounded-lg border shadow-sm">
             <div className="relative flex-1">
