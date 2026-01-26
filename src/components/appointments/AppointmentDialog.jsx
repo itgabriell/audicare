@@ -6,6 +6,7 @@ import {
   DialogHeader,
   DialogTitle,
   DialogFooter,
+  DialogDescription, // <--- ADICIONADO AQUI
 } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -67,18 +68,14 @@ const AppointmentDialog = ({
           professional_name: appointment.professional_name || ''
         });
       } else if (initialData) {
-        // --- NOVO (Do Calendário ou Botão "Nova Consulta") ---
-        // Aqui initialData.date virá preenchido com a data da visualização
+        // --- NOVO ---
         const date = initialData.date || new Date();
         const start = new Date(date);
         
         if (initialData.time) {
-            // Se clicou num slot de hora específico (na visualização semanal)
             const [hours, minutes] = initialData.time.split(':');
             start.setHours(parseInt(hours), parseInt(minutes), 0, 0);
         } else {
-             // Se clicou no dia ou no botão "Nova Consulta"
-             // Mantém o dia/mês/ano da visualização, mas sugere a próxima hora cheia do relógio atual
              const now = new Date();
              start.setHours(now.getHours() + 1, 0, 0, 0);
         }
@@ -96,7 +93,7 @@ const AppointmentDialog = ({
           professional_name: ''
         });
       } else {
-        // --- Fallback (se não houver initialData, usa Agora) ---
+        // --- Fallback ---
         const start = new Date();
         start.setMinutes(0, 0, 0);
         start.setHours(start.getHours() + 1);
@@ -148,6 +145,10 @@ const AppointmentDialog = ({
           <DialogTitle className="text-xl font-semibold">
             {appointment ? 'Editar Agendamento' : 'Novo Agendamento'}
           </DialogTitle>
+          {/* --- CORREÇÃO DO WARNING AQUI --- */}
+          <DialogDescription>
+            Preencha os dados abaixo para {appointment ? 'editar o' : 'criar um novo'} agendamento.
+          </DialogDescription>
         </DialogHeader>
 
         <form onSubmit={handleSubmit(onSubmit)} className="space-y-5">
