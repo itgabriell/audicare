@@ -22,6 +22,29 @@ const DashboardLayout = () => {
 
   const isInbox = location.pathname.startsWith('/inbox');
 
+  // --- NOVA LÓGICA DE TÍTULOS ---
+  const getPageTitle = (pathname) => {
+    if (pathname.startsWith('/dashboard')) return 'Visão Geral';
+    if (pathname.startsWith('/appointments')) return 'Agenda';
+    if (pathname.startsWith('/patients')) return 'Pacientes';
+    if (pathname.startsWith('/crm')) return 'CRM';
+    if (pathname.startsWith('/tasks')) return 'Tarefas';
+    if (pathname.startsWith('/repairs')) return 'Reparos';
+    if (pathname.startsWith('/social-media')) return 'Redes Sociais';
+    if (pathname.startsWith('/email-campaigns')) return 'Campanhas';
+    if (pathname.startsWith('/automations')) return 'Automações';
+    if (pathname.startsWith('/invoices')) return 'Financeiro';
+    if (pathname.startsWith('/users')) return 'Usuários';
+    if (pathname.startsWith('/settings')) return 'Configurações';
+    if (pathname.startsWith('/profile')) return 'Meu Perfil';
+    if (pathname.startsWith('/inbox')) return 'Inbox'; // Título correto para Inbox
+    
+    return 'Audicare'; // Padrão
+  };
+
+  const currentTitle = getPageTitle(location.pathname);
+  // -----------------------------
+
   return (
     <div className="flex min-h-screen bg-background">
       {/* Validation Banner is placed here to be visible across all dashboard pages */}
@@ -41,17 +64,22 @@ const DashboardLayout = () => {
 
       {/* Main Content */}
       <div className="flex-1 md:pl-72 flex flex-col relative min-w-0 overflow-hidden">
+        
+        {/* Renderiza o Header exceto no Inbox (que tem layout próprio) ou se quiser forçar o título */}
         {!isInbox && (
           <div className="relative z-10">
             <Header
               onMenuClick={() => setSidebarOpen(true)}
               showMenuButton={true}
               onCommandPaletteOpen={openPalette}
-            />
+            >
+              {/* Passando o título dinâmico aqui */}
+              {currentTitle}
+            </Header>
           </div>
         )}
 
-        <main className={`flex-1 overflow-y-auto ${isInbox ? 'p-2 md:p-3 pb-4' : 'p-4 md:p-6 pb-20 md:pb-6'} relative`}>
+        <main className={`flex-1 overflow-y-auto ${isInbox ? 'p-0 md:p-0 pb-0' : 'p-4 md:p-6 pb-20 md:pb-6'} relative`}>
           <Outlet />
         </main>
 
