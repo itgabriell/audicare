@@ -32,12 +32,12 @@ const AppointmentDialog = ({
   patients = [],
   onPatientsUpdate
 }) => {
-  const { register, handleSubmit, control, reset, watch } = useForm({
+  const { register, handleSubmit, control, reset } = useForm({
     defaultValues: {
       patient_id: '',
       title: '',
       start_time: '',
-      type: 'consulta',
+      type: 'avaliacao',
       status: 'scheduled',
       notes: '',
       location: 'consultorio',
@@ -51,14 +51,13 @@ const AppointmentDialog = ({
     if (open) {
       if (appointment) {
         // --- EDIÇÃO ---
-        // Apenas horário de início importa para o usuário
         const start = appointment.start_time ? new Date(appointment.start_time).toISOString().slice(0, 16) : '';
         
         reset({
           patient_id: appointment.contact_id || appointment.patient_id || '',
           title: appointment.title || '',
-          start_time: start, // Single field
-          type: appointment.appointment_type || 'consulta',
+          start_time: start,
+          type: appointment.appointment_type || appointment.type || 'avaliacao',
           status: appointment.status || 'scheduled',
           notes: appointment.notes || '',
           location: appointment.location || 'consultorio',
@@ -69,12 +68,11 @@ const AppointmentDialog = ({
         const date = initialData.date || new Date();
         const start = new Date(date);
         
-        // Se vier com hora (clique no slot de hora), usa. Se não (clique no dia), define hora atual ou zero.
         if (initialData.time) {
             const [hours, minutes] = initialData.time.split(':');
             start.setHours(parseInt(hours), parseInt(minutes), 0, 0);
         } else if (initialData.date && !initialData.time) {
-             // Se clicou no "Dia" (sem hora específica), sugere horário atual arredondado
+             // Se clicou no dia, joga para a próxima hora cheia
              const now = new Date();
              start.setHours(now.getHours() + 1, 0, 0, 0);
         }
@@ -83,7 +81,7 @@ const AppointmentDialog = ({
           patient_id: initialData.leadId || '',
           title: '',
           start_time: start.toISOString().slice(0, 16),
-          type: 'consulta',
+          type: 'avaliacao',
           status: 'scheduled',
           notes: '',
           location: 'consultorio',
@@ -99,7 +97,7 @@ const AppointmentDialog = ({
           patient_id: '',
           title: '',
           start_time: start.toISOString().slice(0, 16),
-          type: 'consulta',
+          type: 'avaliacao',
           status: 'scheduled',
           notes: '',
           location: 'consultorio',
@@ -110,20 +108,24 @@ const AppointmentDialog = ({
   }, [appointment, initialData, open, reset]);
 
   const onSubmit = (data) => {
-    // Calcula o FIM automaticamente (ex: +1 hora) já que removemos o campo
+    // 1. Calcula Horário Final (Backend precisa)
     const startTime = new Date(data.start_time);
     const endTime = new Date(startTime);
     endTime.setHours(endTime.getHours() + 1); // Duração padrão de 1h
 
+    // 2. Prepara o objeto para salvar
+    // AQUI ESTÁ A MUDANÇA: Agora enviamos 'location' e 'professional_name'
+    // IMPORTANTE: Rode o SQL fornecido para criar essas colunas no banco!
+    
     onSave({
       ...data,
-      end_time: endTime.toISOString(), // Envia para o banco, mas o usuário não vê
+      end_time: endTime.toISOString(),
       id: appointment?.id
     });
   };
 
   const handleDelete = () => {
-    if (confirm('Tem certeza que deseja excluir este agendamento?')) {
+    if (confirm('Tem certeza que deseja excluir este agendamento? Esta ação não pode ser desfeita.')) {
         onDelete(appointment.id);
     }
   };
@@ -139,7 +141,7 @@ const AppointmentDialog = ({
 
         <form onSubmit={handleSubmit(onSubmit)} className="space-y-5">
           
-          {/* 1. PACIENTE (Destaque principal) */}
+          {/* 1. PACIENTE */}
           <div className="space-y-1.5">
             <Label className="flex items-center gap-2 text-primary font-medium">
                 <User className="w-4 h-4" /> 
@@ -161,7 +163,7 @@ const AppointmentDialog = ({
           </div>
 
           <div className="grid grid-cols-2 gap-4">
-            {/* 2. DATA E HORA (Campo Único) */}
+            {/* 2. DATA E HORA */}
             <div className="space-y-1.5">
                 <Label className="flex items-center gap-2">
                     <Calendar className="w-4 h-4 text-muted-foreground" />
@@ -186,9 +188,10 @@ const AppointmentDialog = ({
                         <SelectValue />
                       </SelectTrigger>
                       <SelectContent>
-                        <SelectItem value="consulta">Consulta</SelectItem>
+                        <SelectItem value="avaliacao">Avaliação</SelectItem>
                         <SelectItem value="exame">Exame</SelectItem>
                         <SelectItem value="retorno">Retorno</SelectItem>
+                        <SelectItem value="retorno_teste">Retorno de Teste</SelectItem>
                         <SelectItem value="aparelho">Entrega Aparelho</SelectItem>
                         <SelectItem value="domiciliar">Atendimento Domiciliar</SelectItem>
                       </SelectContent>
@@ -199,7 +202,7 @@ const AppointmentDialog = ({
           </div>
 
           <div className="grid grid-cols-2 gap-4">
-             {/* 4. LOCAL */}
+             {/* 4. LOCAL (Agora será salvo!) */}
              <div className="space-y-1.5">
                 <Label className="flex items-center gap-2">
                     <MapPin className="w-4 h-4 text-muted-foreground" />
@@ -262,7 +265,7 @@ const AppointmentDialog = ({
 
           {/* RODAPÉ E BOTÕES */}
           <DialogFooter className="flex items-center justify-between sm:justify-between pt-2 border-t mt-4">
-            {/* Botão EXCLUIR no canto esquerdo */}
+            {/* Botão EXCLUIR */}
             {appointment?.id ? (
                 <Button 
                     type="button" 
