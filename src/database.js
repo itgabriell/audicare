@@ -236,7 +236,7 @@ export const getPatientsByTags = async (tagIds) => {
 };
 
 // ======================================================================
-// Agendamentos (Appointments) - CORRIGIDO
+// Agendamentos (Appointments) - CORRIGIDO E ROBUSTO
 // ======================================================================
 
 export const getAppointments = async (filters = {}) => {
@@ -260,11 +260,10 @@ export const getAppointments = async (filters = {}) => {
   }));
 };
 
-// --- CORREÇÃO PRINCIPAL: Remover ID antes de inserir ---
+// --- CORREÇÃO: Remove ID antes de inserir para evitar erro 23505 ---
 export const addAppointment = async (d) => {
     const cid = await getClinicId();
     // Remove o ID do objeto para garantir que o banco gere um novo
-    // Isso evita o erro 23505 (duplicate key)
     const { id, ...dataToInsert } = d;
     
     const { data, error } = await supabase
@@ -277,27 +276,40 @@ export const addAppointment = async (d) => {
     return data;
 };
 
-// --- CORREÇÃO: Update robusto ---
-export const updateAppointment = async (id, updates) => {
+// --- CORREÇÃO: Aceita (objeto) OU (id, updates) para evitar TypeError ---
+export const updateAppointment = async (arg1, arg2) => {
     const cid = await getClinicId();
     
-    // Filtra campos permitidos (e remove 'id' do corpo do update)
+    let id, updates;
+
+    // Lógica para detectar como a função foi chamada
+    // Se arg1 for um objeto com dados, extrai o ID dele
+    if (typeof arg1 === 'object' && arg1 !== null) {
+        id = arg1.id;
+        updates = { ...arg1 };
+        delete updates.id; // Remove ID do corpo do update
+    } else {
+        // Se arg1 for o ID e arg2 for os updates (formato antigo)
+        id = arg1;
+        updates = arg2;
+    }
+
+    if (!id) throw new Error("ID do agendamento é obrigatório para atualização.");
+    if (!updates) throw new Error("Dados para atualização não fornecidos.");
+
     const allowedColumns = [
         'clinic_id', 'patient_id', 'professional_id', 'appointment_date', 
         'status', 'appointment_type', 'duration', 'notes', 'obs',
         'contact_id', 'title', 'start_time', 'end_time', 
-        'location', 'professional_name' // Adicionado campos novos
+        'location', 'professional_name' // Incluído para Domiciliar
     ];
 
     const cleanUpdates = Object.keys(updates)
-        .filter(key => allowedColumns.includes(key) && key !== 'id')
+        .filter(key => allowedColumns.includes(key))
         .reduce((obj, key) => {
             obj[key] = updates[key];
             return obj;
         }, {});
-
-    // Fallback de profissional se necessário (opcional)
-    // if (!cleanUpdates.professional_id) cleanUpdates.professional_id = 'DEFAULT_UUID';
 
     const { data, error } = await supabase
         .from('appointments')
@@ -412,7 +424,7 @@ export const updateNotificationSettings = async (settings) => {
 };
 
 // ======================================================================
-// Outras Entidades
+// Outras Entidades (Tasks, Leads, Social, Repairs, Team)
 // ======================================================================
 
 export const getRepairs = async () => {
