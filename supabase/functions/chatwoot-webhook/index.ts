@@ -38,7 +38,7 @@ serve(async (req) => {
     const payload = await req.json()
     const { event, conversation, message_type, content, labels } = payload 
 
-    console.log(`Evento: ${event}`)
+    console.log(`Evento: ${event}, Tipo: ${message_type}`)
 
     const phone = conversation?.meta?.sender?.phone_number?.replace('+', '') 
                || conversation?.contact_inbox?.source_id?.replace('+', '')
@@ -60,22 +60,17 @@ serve(async (req) => {
       }
 
       if (newStatus) {
-        console.log(`Etiqueta detectada! Movendo lead ${phone} para ${newStatus}`);
-        const { error } = await supabase
+        await supabase
           .from('leads')
           .update({ status: newStatus, last_activity_at: new Date().toISOString() })
           .eq('phone', phone);
-
-        if (!error) {
-           return new Response(JSON.stringify({ success: true, action: 'moved_stage' }), { headers: { 'Content-Type': 'application/json' } })
-        }
       }
     }
 
     // --- 2. MENSAGENS ---
     if (event === 'message_created') {
       
-      // INCOMING (Cliente enviou)
+      // INCOMING (Cliente enviou) -> ATENÇÃO NECESSÁRIA
       if (message_type === 'incoming') {
         const { data: patient } = await supabase.from('patients').select('id').eq('phone', phone).maybeSingle()
         if (patient) return new Response(JSON.stringify({ status: 'is_patient' }), { status: 200 })
@@ -87,54 +82,60 @@ serve(async (req) => {
           const updates: any = {
             last_message_at: new Date().toISOString(),
             last_message_content: content,
+            last_message_type: 'incoming', // <--- IMPORTANTE: Marca que o cliente falou
             chatwoot_conversation_id: conversation.id
           }
           
-          // Reativa se estava parado
+          // Se estava "morto", revive para "Em Conversa"
           if (['stopped_responding', 'new', 'scheduled', 'no_show'].includes(lead.status)) {
              updates.status = 'in_conversation';
           }
 
           await supabase.from('leads').update(updates).eq('id', lead.id);
 
-          // NOTIFICAÇÃO
+          // Notificação Interna
           if (!conversation.meta?.sender?.type || conversation.meta.sender.type === 'contact') {
              await supabase.from('notifications').insert({
                clinic_id: DEFAULT_CLINIC_ID,
                title: `Nova mensagem de ${conversation.meta?.sender?.name || phone}`,
                message: content ? (content.length > 50 ? content.substring(0, 50) + '...' : content) : 'Enviou um anexo/áudio',
-               type: 'info',
-               link: `/inbox?phone=${phone}`,
-               related_entity_type: 'message',
+               type: 'message',
+               link: `/crm`, // Link para o CRM
+               related_entity_type: 'lead',
+               related_entity_id: lead.id,
                is_read: false
              });
           }
 
         } else {
           // Cria Novo Lead
-          const detectedSource = detectSource(content);
           await supabase.from('leads').insert({
             name: conversation.meta?.sender?.name || `Lead ${phone}`,
             phone: phone,
             status: 'new',
-            source: detectedSource,
+            source: detectSource(content),
             channel: 'whatsapp',
             clinic_id: DEFAULT_CLINIC_ID,
             chatwoot_conversation_id: conversation.id,
             chatwoot_contact_id: conversation.contact_inbox.contact_id,
             last_message_at: new Date().toISOString(),
             last_message_content: content,
+            last_message_type: 'incoming', // <--- Novo Lead já nasce incoming
             created_at: new Date().toISOString()
           })
         }
       }
       
-      // OUTGOING (Atendente respondeu)
+      // OUTGOING (Nós enviamos) -> TÁ TRANQUILO
       else if (message_type === 'outgoing') {
         const { data: lead } = await supabase.from('leads').select('*').eq('phone', phone).maybeSingle()
         if (lead) {
           const now = new Date()
-          const updates: any = { last_message_content: `Você: ${content}` }
+          const updates: any = { 
+              last_message_content: `Você: ${content}`,
+              last_message_at: now.toISOString(),
+              last_message_type: 'outgoing' // <--- IMPORTANTE: Marca que nós respondemos
+          }
 
           if (lead.status === 'new') {
             updates.status = 'in_conversation'
