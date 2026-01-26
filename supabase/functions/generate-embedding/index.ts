@@ -14,24 +14,26 @@ serve(async (req) => {
 
     if (!GEMINI_API_KEY) throw new Error('GEMINI_KEY não configurada');
 
-    // Chama a API do Google para criar o embedding
+    // --- MUDANÇA: Usando text-embedding-004 que aparece na sua lista ---
     const response = await fetch(
-      `https://generativelanguage.googleapis.com/v1beta/models/embedding-001:embedContent?key=${GEMINI_API_KEY}`,
+      `https://generativelanguage.googleapis.com/v1beta/models/text-embedding-004:embedContent?key=${GEMINI_API_KEY}`,
       {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          model: "models/embedding-001",
+          model: "models/text-embedding-004",
           content: { parts: [{ text: input }] }
         })
       }
     );
 
-    const data = await response.json();
-    
-    if (!data.embedding) {
-        throw new Error('Erro ao gerar embedding: ' + JSON.stringify(data));
+    if (!response.ok) {
+        const t = await response.text();
+        console.error("Erro Embedding:", t);
+        throw new Error(t);
     }
+
+    const data = await response.json();
 
     return new Response(JSON.stringify({ embedding: data.embedding.values }), {
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },
