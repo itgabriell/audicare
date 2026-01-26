@@ -57,6 +57,7 @@ const AppointmentDialog = ({
           patient_id: appointment.contact_id || appointment.patient_id || '',
           title: appointment.title || '',
           start_time: start,
+          // Mapeia do banco (appointment_type) para o form (type)
           type: appointment.appointment_type || appointment.type || 'avaliacao',
           status: appointment.status || 'scheduled',
           notes: appointment.notes || '',
@@ -72,7 +73,6 @@ const AppointmentDialog = ({
             const [hours, minutes] = initialData.time.split(':');
             start.setHours(parseInt(hours), parseInt(minutes), 0, 0);
         } else if (initialData.date && !initialData.time) {
-             // Se clicou no dia, joga para a próxima hora cheia
              const now = new Date();
              start.setHours(now.getHours() + 1, 0, 0, 0);
         }
@@ -108,20 +108,23 @@ const AppointmentDialog = ({
   }, [appointment, initialData, open, reset]);
 
   const onSubmit = (data) => {
-    // 1. Calcula Horário Final (Backend precisa)
+    // 1. Calcula Horário Final
     const startTime = new Date(data.start_time);
     const endTime = new Date(startTime);
-    endTime.setHours(endTime.getHours() + 1); // Duração padrão de 1h
+    endTime.setHours(endTime.getHours() + 1);
 
-    // 2. Prepara o objeto para salvar
-    // AQUI ESTÁ A MUDANÇA: Agora enviamos 'location' e 'professional_name'
-    // IMPORTANTE: Rode o SQL fornecido para criar essas colunas no banco!
-    
-    onSave({
-      ...data,
-      end_time: endTime.toISOString(),
-      id: appointment?.id
-    });
+    // 2. Prepara o payload CORRETO para o banco
+    const payload = {
+        ...data,
+        appointment_type: data.type, // Mapeia 'type' -> 'appointment_type'
+        end_time: endTime.toISOString(),
+        id: appointment?.id
+    };
+
+    // Remove a chave 'type' antiga para não dar erro no banco
+    delete payload.type;
+
+    onSave(payload);
   };
 
   const handleDelete = () => {
@@ -202,7 +205,7 @@ const AppointmentDialog = ({
           </div>
 
           <div className="grid grid-cols-2 gap-4">
-             {/* 4. LOCAL (Agora será salvo!) */}
+             {/* 4. LOCAL */}
              <div className="space-y-1.5">
                 <Label className="flex items-center gap-2">
                     <MapPin className="w-4 h-4 text-muted-foreground" />
@@ -263,9 +266,8 @@ const AppointmentDialog = ({
             />
           </div>
 
-          {/* RODAPÉ E BOTÕES */}
+          {/* RODAPÉ */}
           <DialogFooter className="flex items-center justify-between sm:justify-between pt-2 border-t mt-4">
-            {/* Botão EXCLUIR */}
             {appointment?.id ? (
                 <Button 
                     type="button" 
