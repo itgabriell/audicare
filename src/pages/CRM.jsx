@@ -7,7 +7,8 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { useToast } from '@/components/ui/use-toast';
 import KanbanBoard from '@/components/crm/KanbanBoard';
 import LeadDialog from '@/components/crm/LeadDialog';
-import { getLeads, addLead, updateLead } from '@/database';
+import ChatwootImporter from '@/components/crm/ChatwootImporter'; // Mantendo o Resgatador
+import { getLeads, addLead, updateLead } from '@/database'; // Não precisa importar deleteLead
 import { useAuth } from '@/contexts/SupabaseAuthContext';
 
 const CRM = () => {
@@ -74,15 +75,19 @@ const CRM = () => {
     }
   };
 
+  // --- VOLTAMOS PARA ARQUIVAR (SAFE) ---
   const handleDeleteLead = async (id) => {
-      if(confirm("Tem certeza que deseja excluir este lead?")) {
+      if(confirm("Tem certeza que deseja arquivar este lead? Ele sumirá desta tela.")) {
           try {
+              // Apenas muda o status para 'archived', mantendo o histórico no banco
               await updateLead(id, { status: 'archived' });
+              
               toast({ title: "Lead arquivado" });
-              fetchLeads();
               setIsLeadDialogOpen(false);
+              fetchLeads();
           } catch (error) {
-              toast({ title: "Erro", description: "Falha ao excluir.", variant: "destructive" });
+              console.error(error);
+              toast({ title: "Erro", description: "Falha ao arquivar.", variant: "destructive" });
           }
       }
   };
@@ -98,7 +103,7 @@ const CRM = () => {
   };
 
   const filteredLeads = leads.filter(lead => {
-    // Filtra fora os arquivados
+    // Esconde os arquivados da visualização principal
     if (lead.status === 'archived') return false;
 
     const matchesSearch = lead.name?.toLowerCase().includes(searchTerm.toLowerCase()) || 
@@ -136,6 +141,11 @@ const CRM = () => {
           </div>
         </div>
 
+        {/* --- ÁREA DE RESGATE DO FIM DE SEMANA --- */}
+        {/* Clique no botão, espere importar, e depois delete essa linha do código */}
+        <ChatwootImporter onImportComplete={fetchLeads} />
+        {/* ---------------------------------------- */}
+
         <div className="flex flex-col sm:flex-row gap-3 bg-card p-3 rounded-lg border shadow-sm">
             <div className="relative flex-1">
                 <Search className="absolute left-2 top-2.5 h-4 w-4 text-muted-foreground" />
@@ -157,7 +167,7 @@ const CRM = () => {
                     <SelectContent>
                         <SelectItem value="all">Todos os Status</SelectItem>
                         <SelectItem value="new">Novos</SelectItem>
-                        <SelectItem value="in_conversation">Em Conversa</SelectItem> {/* CORRIGIDO */}
+                        <SelectItem value="in_conversation">Em Conversa</SelectItem>
                         <SelectItem value="scheduled">Agendados</SelectItem>
                         <SelectItem value="likely_purchase">Provável Compra</SelectItem>
                         <SelectItem value="purchased">Venda Realizada</SelectItem>
