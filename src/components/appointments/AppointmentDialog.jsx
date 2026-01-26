@@ -21,6 +21,7 @@ import {
 import { Trash2, Calendar, MapPin, User, FileText } from 'lucide-react';
 import PatientCombobox from '@/components/patients/PatientCombobox';
 import { useToast } from '@/components/ui/use-toast';
+import { format } from 'date-fns'; // Importante para o fuso horário
 
 const AppointmentDialog = ({ 
   open, 
@@ -50,14 +51,17 @@ const AppointmentDialog = ({
   useEffect(() => {
     if (open) {
       if (appointment) {
-        // --- EDIÇÃO ---
-        const start = appointment.start_time ? new Date(appointment.start_time).toISOString().slice(0, 16) : '';
+        // --- EDIÇÃO (CORREÇÃO DE FUSO) ---
+        // Usa date-fns para formatar a data UTC do banco para o horário LOCAL do navegador
+        // 'yyyy-MM-ddTHH:mm' é o formato exato que o input datetime-local exige
+        const start = appointment.start_time 
+            ? format(new Date(appointment.start_time), "yyyy-MM-dd'T'HH:mm") 
+            : '';
         
         reset({
           patient_id: appointment.contact_id || appointment.patient_id || '',
           title: appointment.title || '',
           start_time: start,
-          // Mapeia do banco (appointment_type) para o form (type)
           type: appointment.appointment_type || appointment.type || 'avaliacao',
           status: appointment.status || 'scheduled',
           notes: appointment.notes || '',
@@ -77,10 +81,13 @@ const AppointmentDialog = ({
              start.setHours(now.getHours() + 1, 0, 0, 0);
         }
 
+        // Formata para local antes de jogar no input
+        const startFormatted = format(start, "yyyy-MM-dd'T'HH:mm");
+
         reset({
           patient_id: initialData.leadId || '',
           title: '',
-          start_time: start.toISOString().slice(0, 16),
+          start_time: startFormatted,
           type: 'avaliacao',
           status: 'scheduled',
           notes: '',
@@ -92,11 +99,13 @@ const AppointmentDialog = ({
         const start = new Date();
         start.setMinutes(0, 0, 0);
         start.setHours(start.getHours() + 1);
+        
+        const startFormatted = format(start, "yyyy-MM-dd'T'HH:mm");
 
         reset({
           patient_id: '',
           title: '',
-          start_time: start.toISOString().slice(0, 16),
+          start_time: startFormatted,
           type: 'avaliacao',
           status: 'scheduled',
           notes: '',
@@ -108,27 +117,32 @@ const AppointmentDialog = ({
   }, [appointment, initialData, open, reset]);
 
   const onSubmit = (data) => {
-    // 1. Calcula Horário Final
-    const startTime = new Date(data.start_time);
-    const endTime = new Date(startTime);
-    endTime.setHours(endTime.getHours() + 1);
+    // 1. Cria objeto Date a partir do input local
+    // Isso garante que se o usuário colocou 16:00, o objeto Date representará 16:00 local
+    const startTimeLocal = new Date(data.start_time);
+    
+    // Calcula fim (+1 hora)
+    const endTimeLocal = new Date(startTimeLocal);
+    endTimeLocal.setHours(endTimeLocal.getHours() + 1);
 
-    // 2. Prepara o payload CORRETO para o banco
+    // 2. Prepara o payload
+    // Mapeia 'type' para 'appointment_type'
     const payload = {
         ...data,
-        appointment_type: data.type, // Mapeia 'type' -> 'appointment_type'
-        end_time: endTime.toISOString(),
+        appointment_type: data.type, 
+        start_time: startTimeLocal.toISOString(), // Converte para UTC correto
+        end_time: endTimeLocal.toISOString(),     // Converte para UTC correto
         id: appointment?.id
     };
 
-    // Remove a chave 'type' antiga para não dar erro no banco
+    // Remove campos que não devem ir ao banco ou que já foram mapeados
     delete payload.type;
 
     onSave(payload);
   };
 
   const handleDelete = () => {
-    if (confirm('Tem certeza que deseja excluir este agendamento? Esta ação não pode ser desfeita.')) {
+    if (confirm('Tem certeza que deseja excluir este agendamento?')) {
         onDelete(appointment.id);
     }
   };
@@ -144,7 +158,7 @@ const AppointmentDialog = ({
 
         <form onSubmit={handleSubmit(onSubmit)} className="space-y-5">
           
-          {/* 1. PACIENTE */}
+          {/* PACIENTE */}
           <div className="space-y-1.5">
             <Label className="flex items-center gap-2 text-primary font-medium">
                 <User className="w-4 h-4" /> 
@@ -166,7 +180,7 @@ const AppointmentDialog = ({
           </div>
 
           <div className="grid grid-cols-2 gap-4">
-            {/* 2. DATA E HORA */}
+            {/* DATA E HORA */}
             <div className="space-y-1.5">
                 <Label className="flex items-center gap-2">
                     <Calendar className="w-4 h-4 text-muted-foreground" />
@@ -179,7 +193,7 @@ const AppointmentDialog = ({
                 />
             </div>
 
-            {/* 3. TIPO */}
+            {/* TIPO */}
             <div className="space-y-1.5">
                 <Label>Tipo</Label>
                 <Controller
@@ -205,7 +219,7 @@ const AppointmentDialog = ({
           </div>
 
           <div className="grid grid-cols-2 gap-4">
-             {/* 4. LOCAL */}
+             {/* LOCAL */}
              <div className="space-y-1.5">
                 <Label className="flex items-center gap-2">
                     <MapPin className="w-4 h-4 text-muted-foreground" />
@@ -229,7 +243,7 @@ const AppointmentDialog = ({
                 />
             </div>
 
-            {/* 5. STATUS */}
+            {/* STATUS */}
             <div className="space-y-1.5">
                 <Label>Status</Label>
                 <Controller
@@ -253,7 +267,7 @@ const AppointmentDialog = ({
             </div>
           </div>
 
-          {/* 6. OBSERVAÇÕES */}
+          {/* OBSERVAÇÕES */}
           <div className="space-y-1.5">
             <Label className="flex items-center gap-2">
                 <FileText className="w-4 h-4 text-muted-foreground" />

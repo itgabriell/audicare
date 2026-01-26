@@ -1,14 +1,13 @@
 import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import { Helmet } from 'react-helmet';
-import { Plus, ChevronLeft, ChevronRight, Send, MessageSquare, Calendar, List, Loader2, Clock, MapPin, User, Home } from 'lucide-react';
+import { Plus, ChevronLeft, ChevronRight, Send, MessageSquare, Calendar, Loader2, MapPin, User, Home } from 'lucide-react';
 import { useSearchParams } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import DraggableAppointmentCalendar from '@/components/appointments/DraggableAppointmentCalendar';
 import MonthlyCalendarView from '@/components/appointments/MonthlyCalendarView';
 import AppointmentDialog from '@/components/appointments/AppointmentDialog';
 import { useToast } from '@/components/ui/use-toast';
-// IMPORTANTE: Adicionado updateAppointment aqui
-import { getAppointments, addAppointment, updateAppointment, getPatients, createNotification } from '@/database';
+import { getPatients, updateAppointment, addAppointment, createNotification } from '@/database';
 import { format } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 import { useAuth } from '@/contexts/SupabaseAuthContext';
@@ -34,12 +33,10 @@ const Appointments = () => {
   const [processingAction, setProcessingAction] = useState(null);
 
   const { toast } = useToast();
-  const { profile } = useAuth();
   
   const { 
       getAppointmentsForReminders, 
-      sendBulkReminders, 
-      loading: remindersLoading 
+      sendBulkReminders 
   } = useAppointmentReminders();
 
   const [searchParams, setSearchParams] = useSearchParams();
@@ -69,7 +66,6 @@ const Appointments = () => {
     setSearchParams(params, { replace: true });
   }, [leadIdFromQuery, patients, searchParams, setSearchParams]);
 
-  // --- AÇÕES RÁPIDAS ---
   const handleQuickAction = async (actionType) => {
       setProcessingAction(actionType);
       try {
@@ -128,22 +124,18 @@ const Appointments = () => {
       }
   };
 
-  // --- CORREÇÃO AQUI: Lógica de Salvar ---
   const handleSaveAppointment = useCallback(async (appointmentData) => {
     try {
       let savedAppointment;
 
-      // Se tiver ID, é EDIÇÃO -> updateAppointment
-      // Se não tiver ID, é CRIAÇÃO -> addAppointment
       if (appointmentData.id) {
           savedAppointment = await updateAppointment(appointmentData);
       } else {
           savedAppointment = await addAppointment(appointmentData);
       }
       
-      loadAppointments(); // Atualiza a lista
+      loadAppointments(); 
 
-      // Notificação
       try {
         const patientName = patients.find((p) => p.id === savedAppointment.contact_id || p.id === savedAppointment.patient_id)?.name || 'Paciente';
         const appointmentDate = format(new Date(savedAppointment.start_time), "dd/MM/yyyy 'às' HH:mm", { locale: ptBR });
@@ -167,7 +159,7 @@ const Appointments = () => {
       console.error('[Appointments] Erro ao salvar', error);
       toast({ title: 'Erro', description: error.message || 'Não foi possível salvar.', variant: 'destructive' });
     }
-  }, [patients, toast, createNotification, loadAppointments]);
+  }, [patients, toast, loadAppointments]);
 
   const handleDeleteAppointment = async (id) => {
       const { success } = await deleteAppointment(id);
