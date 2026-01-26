@@ -105,6 +105,28 @@ export const deletePatient = async (patientId) => {
   if (error) throw error;
 };
 
+// --- FUNÇÃO QUE FALTAVA (Correção do Build) ---
+export const checkDuplicatePatient = async (name, cpf) => {
+    const clinicId = await getClinicId();
+    if (!clinicId) return false;
+    
+    const conditions = [];
+    // Escapa aspas duplas para evitar erro na query
+    if (name) conditions.push(`name.eq."${name.replace(/"/g, '""')}"`);
+    if (cpf) conditions.push(`cpf.eq."${cpf.replace(/"/g, '""')}"`);
+    
+    if (conditions.length === 0) return false;
+
+    const { data, error } = await supabase
+        .from('patients')
+        .select('id')
+        .eq('clinic_id', clinicId)
+        .or(conditions.join(','));
+
+    if (error) return false;
+    return data && data.length > 0;
+};
+
 // ======================================================================
 // Tags 
 // ======================================================================
@@ -149,7 +171,7 @@ export const getPatientTags = async (patientId) => {
 };
 
 // ======================================================================
-// Agendamentos (Appointments) - CORRIGIDO
+// Agendamentos (Appointments)
 // ======================================================================
 
 export const getAppointments = async (filters = {}) => {
@@ -294,9 +316,9 @@ export const createNotification = async (notificationData) => {
   return data;
 };
 
-// ... Restante do código (Tasks, Leads, Metrics) mantém igual ...
-// Para não ficar gigante aqui, mantenha o resto do arquivo como estava,
-// pois o erro estava concentrado nas funções acima.
+// ======================================================================
+// Outros (Tasks, Leads, etc)
+// ======================================================================
 
 export const getTasks = async () => {
     const cid = await getClinicId();
@@ -379,6 +401,32 @@ export const getConversations = async (f={}) => {
     const { data } = await q.order('last_message_at', {ascending: false});
     return data || [];
 };
+
+// ======================================================================
+// Outras Entidades (Repairs)
+// ======================================================================
+
+export const getRepairs = async () => {
+    const cid = await getClinicId();
+    const { data } = await supabase.from('repairs').select('*').eq('clinic_id', cid).order('created_at', {ascending: false});
+    return data || [];
+};
+export const addRepair = async (d) => {
+    const cid = await getClinicId();
+    const { data, error } = await supabase.from('repairs').insert([{...d, clinic_id: cid}]).select().single();
+    if(error) throw error; return data;
+};
+export const updateRepair = async (id, u) => {
+    const cid = await getClinicId();
+    const { data, error } = await supabase.from('repairs').update(u).eq('id', id).eq('clinic_id', cid).select().single();
+    if(error) throw error; return data;
+};
+export const deleteRepair = async (id) => {
+    const cid = await getClinicId();
+    const { error } = await supabase.from('repairs').delete().eq('id', id).eq('clinic_id', cid);
+    if(error) throw error;
+};
+
 export const getDashboardMetrics = async () => {
   const clinicId = await getClinicId();
   if (!clinicId) return null;
@@ -392,6 +440,30 @@ export const getDashboardMetrics = async () => {
     totalLeadsMonth: leads.length,
     funnel: { total: leads.length, scheduled, purchased },
   };
+};
+
+// Exporta mais uma vez as configurações de notificação para garantir
+export const getNotificationSettings = async () => {
+  const userId = await getUserId();
+  if (!userId) return { appointment: true, message: true, task: true, system: true, patient: true };
+  const { data } = await supabase.from('notification_settings').select('*').eq('user_id', userId);
+  if (!data) return { appointment: true, message: true, task: true, system: true, patient: true };
+  const settings = {};
+  data.forEach(s => settings[s.notification_type] = s.enabled);
+  return settings;
+};
+
+export const updateNotificationSettings = async (settings) => {
+  const userId = await getUserId();
+  if (!userId) return;
+  const settingsArray = Object.entries(settings).map(([type, enabled]) => ({
+    user_id: userId,
+    notification_type: type,
+    enabled,
+    updated_at: new Date().toISOString()
+  }));
+  await supabase.from('notification_settings').upsert(settingsArray, { onConflict: 'user_id,notification_type' });
+  return true;
 };
 
 export { supabase, getClinicId };
