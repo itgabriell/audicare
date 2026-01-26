@@ -1,13 +1,13 @@
 import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import { Helmet } from 'react-helmet';
-import { Plus, ChevronLeft, ChevronRight, Send, MessageSquare, Calendar, Loader2, MapPin, User, Home } from 'lucide-react';
-import { useSearchParams } from 'react-router-dom';
+import { Plus, ChevronLeft, ChevronRight, Send, MessageSquare, Calendar, Loader2, MapPin, User, Home, ExternalLink } from 'lucide-react';
+import { useSearchParams, useNavigate } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import DraggableAppointmentCalendar from '@/components/appointments/DraggableAppointmentCalendar';
 import MonthlyCalendarView from '@/components/appointments/MonthlyCalendarView';
 import AppointmentDialog from '@/components/appointments/AppointmentDialog';
 import { useToast } from '@/components/ui/use-toast';
-import { getPatients, updateAppointment, addAppointment, createNotification } from '@/database';
+import { getPatients, updateAppointment, addAppointment, createNotification, deleteAppointment } from '@/database';
 import { format } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 import { useAuth } from '@/contexts/SupabaseAuthContext';
@@ -20,11 +20,16 @@ const Appointments = () => {
   const [dialogOpen, setDialogOpen] = useState(false);
   const [patients, setPatients] = useState([]);
   
+  // Hook de navegação para redirecionar ao clicar no nome
+  const navigate = useNavigate();
+
   const { 
       appointments, 
       loading, 
       refetch: loadAppointments, 
-      deleteAppointment 
+      // deleteAppointment já vem importado do database no topo para evitar conflito de nomes, 
+      // mas se estiver usando o hook useAppointments, precisamos garantir que a função delete esteja disponível.
+      // Vou usar a função importada diretamente do database para garantir consistência neste arquivo.
   } = useAppointments();
 
   const [dialogInitialData, setDialogInitialData] = useState(null);
@@ -65,6 +70,16 @@ const Appointments = () => {
     params.delete('leadId');
     setSearchParams(params, { replace: true });
   }, [leadIdFromQuery, patients, searchParams, setSearchParams]);
+
+  // --- Função para navegar para o paciente (com stopPropagation) ---
+  const handleNavigateToPatient = (e, patientId) => {
+    e.stopPropagation(); // Impede que o clique abra o modal de edição
+    if (patientId) {
+        navigate(`/patients/${patientId}`);
+    } else {
+        toast({ title: "Erro", description: "Paciente não vinculado.", variant: "destructive" });
+    }
+  };
 
   const handleQuickAction = async (actionType) => {
       setProcessingAction(actionType);
@@ -166,6 +181,7 @@ const Appointments = () => {
       if (success) {
           toast({ title: "Agendamento excluído" });
           setDialogOpen(false);
+          loadAppointments(); // Recarrega a lista após excluir
       } else {
           toast({ title: "Erro ao excluir", variant: "destructive" });
       }
@@ -177,9 +193,9 @@ const Appointments = () => {
     setDialogOpen(true);
   }, []);
 
-  // --- MUDANÇA AQUI: Passa a currentDate para o modal ---
+  // Passa a currentDate para o modal
   const handleOpenDialog = useCallback(() => {
-    setDialogInitialData({ date: currentDate }); // Usa a data visualizada no calendário
+    setDialogInitialData({ date: currentDate }); 
     setEditingAppointment(null);
     setDialogOpen(true);
   }, [currentDate]);
@@ -221,15 +237,10 @@ const Appointments = () => {
 
   const handleAppointmentMove = useCallback(async (appointment, newDate) => {
     try {
-      const { error } = await supabase
-        .from('appointments')
-        .update({
-          start_time: newDate.toISOString(),
-          updated_at: new Date().toISOString()
-        })
-        .eq('id', appointment.id);
-
-      if (error) throw error;
+      // Usando updateAppointment para garantir consistência
+      await updateAppointment(appointment.id, {
+          start_time: newDate.toISOString()
+      });
       
       loadAppointments(); 
       toast({ title: 'Consulta reagendada', description: `Movida para ${format(newDate, "dd/MM/yyyy 'às' HH:mm", { locale: ptBR })}` });
@@ -372,6 +383,7 @@ const Appointments = () => {
                     <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
                         {dayAppointments.map(app => {
                             const isDomiciliar = app.appointment_type === 'domiciliar' || app.location?.toLowerCase() === 'domiciliar';
+                            const patientName = app.contact?.name || app.contact_name || 'Paciente sem nome';
                             
                             return (
                                 <div 
@@ -394,9 +406,17 @@ const Appointments = () => {
                                                     </span>
                                                 )}
                                             </span>
-                                            <span className="text-sm font-medium text-muted-foreground">
-                                                {app.contact?.name || app.contact_name || 'Paciente sem nome'}
-                                            </span>
+                                            
+                                            {/* NOME CLICÁVEL */}
+                                            <div 
+                                                className="text-sm font-medium text-muted-foreground hover:text-primary hover:underline flex items-center gap-1 mt-1 w-fit z-20"
+                                                onClick={(e) => handleNavigateToPatient(e, app.contact_id || app.patient_id)}
+                                                title="Ir para ficha do paciente"
+                                            >
+                                                {patientName}
+                                                <ExternalLink className="h-3 w-3 opacity-50" />
+                                            </div>
+
                                         </div>
                                     </div>
 
