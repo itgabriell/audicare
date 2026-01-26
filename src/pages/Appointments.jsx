@@ -7,20 +7,20 @@ import DraggableAppointmentCalendar from '@/components/appointments/DraggableApp
 import MonthlyCalendarView from '@/components/appointments/MonthlyCalendarView';
 import AppointmentDialog from '@/components/appointments/AppointmentDialog';
 import { useToast } from '@/components/ui/use-toast';
-import { getAppointments, addAppointment, getPatients, createNotification } from '@/database';
+// IMPORTANTE: Adicionado updateAppointment aqui
+import { getAppointments, addAppointment, updateAppointment, getPatients, createNotification } from '@/database';
 import { format } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 import { useAuth } from '@/contexts/SupabaseAuthContext';
 import { supabase } from '@/lib/customSupabaseClient';
 import { useAppointmentReminders } from '@/hooks/useAppointmentReminders';
-import { useAppointments } from '@/hooks/useAppointments'; // Importando o hook correto
+import { useAppointments } from '@/hooks/useAppointments';
 
 const Appointments = () => {
   const [currentDate, setCurrentDate] = useState(new Date());
   const [dialogOpen, setDialogOpen] = useState(false);
   const [patients, setPatients] = useState([]);
   
-  // Usando o Hook centralizado para gerenciar estado e ações
   const { 
       appointments, 
       loading, 
@@ -30,10 +30,7 @@ const Appointments = () => {
 
   const [dialogInitialData, setDialogInitialData] = useState(null);
   const [editingAppointment, setEditingAppointment] = useState(null);
-  
-  // MUDANÇA: View padrão agora é 'day'
   const [viewMode, setViewMode] = useState('day'); 
-  
   const [processingAction, setProcessingAction] = useState(null);
 
   const { toast } = useToast();
@@ -48,7 +45,6 @@ const Appointments = () => {
   const [searchParams, setSearchParams] = useSearchParams();
   const leadIdFromQuery = searchParams.get('leadId');
 
-  // Carregar pacientes apenas (agendamentos vêm do hook)
   useEffect(() => {
     const fetchPatients = async () => {
         const patientsData = await getPatients(1, 1000);
@@ -57,7 +53,6 @@ const Appointments = () => {
     fetchPatients();
   }, []);
 
-  // Abrir modal se vier do CRM
   useEffect(() => {
     if (!leadIdFromQuery) return;
     if (!patients.length) return;
@@ -133,21 +128,29 @@ const Appointments = () => {
       }
   };
 
+  // --- CORREÇÃO AQUI: Lógica de Salvar ---
   const handleSaveAppointment = useCallback(async (appointmentData) => {
     try {
-      const savedAppointment = await addAppointment(appointmentData);
+      let savedAppointment;
+
+      // Se tiver ID, é EDIÇÃO -> updateAppointment
+      // Se não tiver ID, é CRIAÇÃO -> addAppointment
+      if (appointmentData.id) {
+          savedAppointment = await updateAppointment(appointmentData);
+      } else {
+          savedAppointment = await addAppointment(appointmentData);
+      }
       
-      // Atualiza via refetch do hook para garantir consistência
-      loadAppointments();
+      loadAppointments(); // Atualiza a lista
 
       // Notificação
       try {
-        const patientName = patients.find((p) => p.id === savedAppointment.contact_id)?.name || 'Paciente';
+        const patientName = patients.find((p) => p.id === savedAppointment.contact_id || p.id === savedAppointment.patient_id)?.name || 'Paciente';
         const appointmentDate = format(new Date(savedAppointment.start_time), "dd/MM/yyyy 'às' HH:mm", { locale: ptBR });
         
         await createNotification({
             type: 'appointment',
-            title: editingAppointment ? 'Consulta reagendada' : 'Nova consulta agendada',
+            title: appointmentData.id ? 'Consulta reagendada' : 'Nova consulta agendada',
             message: `Consulta de ${patientName} para ${appointmentDate}`,
             related_entity_type: 'appointment',
             related_entity_id: savedAppointment.id,
@@ -162,11 +165,10 @@ const Appointments = () => {
 
     } catch (error) {
       console.error('[Appointments] Erro ao salvar', error);
-      toast({ title: 'Erro', description: 'Não foi possível salvar.', variant: 'destructive' });
+      toast({ title: 'Erro', description: error.message || 'Não foi possível salvar.', variant: 'destructive' });
     }
-  }, [patients, toast, editingAppointment, createNotification, loadAppointments]);
+  }, [patients, toast, createNotification, loadAppointments]);
 
-  // Função de Deletar para passar pro Dialog
   const handleDeleteAppointment = async (id) => {
       const { success } = await deleteAppointment(id);
       if (success) {
@@ -236,7 +238,7 @@ const Appointments = () => {
 
       if (error) throw error;
       
-      loadAppointments(); // Atualiza via hook
+      loadAppointments(); 
       toast({ title: 'Consulta reagendada', description: `Movida para ${format(newDate, "dd/MM/yyyy 'às' HH:mm", { locale: ptBR })}` });
     } catch (error) {
       toast({ title: 'Erro ao reagendar', description: 'Não foi possível mover a consulta.', variant: 'destructive' });
@@ -254,7 +256,6 @@ const Appointments = () => {
       </Helmet>
 
       <div className="space-y-6">
-        {/* Header */}
         <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
           <div>
             <h1 className="text-3xl font-bold text-foreground">Agenda</h1>
@@ -273,7 +274,6 @@ const Appointments = () => {
           </div>
         </div>
 
-        {/* Ações Rápidas */}
         <div className="bg-card rounded-xl shadow-sm border p-4">
           <h3 className="text-lg font-semibold text-foreground mb-4 flex items-center gap-2">
             <MessageSquare className="h-5 w-5" />
@@ -295,13 +295,8 @@ const Appointments = () => {
           </div>
         </div>
 
-        {/* Calendário Principal */}
         <div className="bg-card rounded-xl shadow-sm border p-4">
-          
-          {/* Barra de Controles */}
           <div className="flex flex-col sm:flex-row items-center justify-between gap-4 mb-6">
-            
-            {/* Navegação de Data */}
             <div className="flex items-center gap-2">
               <Button variant="outline" size="icon" onClick={() => changePeriod('prev')}>
                 <ChevronLeft className="h-4 w-4" />
@@ -321,7 +316,6 @@ const Appointments = () => {
               </Button>
             </div>
 
-            {/* Filtros de Visualização (Ordem Invertida: Dia - Semana - Mês) */}
             <div className="flex bg-muted rounded-lg p-1">
                 <Button
                   variant={viewMode === 'day' ? 'default' : 'ghost'}
@@ -363,7 +357,6 @@ const Appointments = () => {
               onAppointmentMove={handleAppointmentMove}
             />
           ) : viewMode === 'day' ? (
-             /* --- VISUALIZAÇÃO DIÁRIA (BOX ARREDONDADO) --- */
              <div className="space-y-4 min-h-[400px]">
                 {(() => {
                   const dayAppointments = appointments.filter(app => {
@@ -385,7 +378,7 @@ const Appointments = () => {
                   return (
                     <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
                         {dayAppointments.map(app => {
-                            const isDomiciliar = app.type === 'domiciliar' || app.location?.toLowerCase() === 'domiciliar';
+                            const isDomiciliar = app.appointment_type === 'domiciliar' || app.location?.toLowerCase() === 'domiciliar';
                             
                             return (
                                 <div 
@@ -396,7 +389,6 @@ const Appointments = () => {
                                         ${isDomiciliar ? 'bg-blue-50/50 border-blue-200 hover:border-blue-300' : 'bg-card hover:border-primary/50'}
                                     `}
                                 >
-                                    {/* Faixa lateral colorida */}
                                     <div className={`absolute left-0 top-0 bottom-0 w-1 ${isDomiciliar ? 'bg-blue-500' : 'bg-primary'}`} />
                                     
                                     <div className="flex justify-between items-start mb-2 pl-2">
@@ -410,7 +402,7 @@ const Appointments = () => {
                                                 )}
                                             </span>
                                             <span className="text-sm font-medium text-muted-foreground">
-                                                {app.contact?.name || 'Paciente sem nome'}
+                                                {app.contact?.name || app.contact_name || 'Paciente sem nome'}
                                             </span>
                                         </div>
                                     </div>
@@ -437,7 +429,7 @@ const Appointments = () => {
               currentDate={currentDate}
               appointments={appointments}
               onDayClick={(date) => {
-                setViewMode('day'); // Ao clicar no mês, vai para o dia
+                setViewMode('day');
                 setCurrentDate(date);
               }}
               onAppointmentClick={handleAppointmentClick}
@@ -445,7 +437,6 @@ const Appointments = () => {
           )}
         </div>
 
-        {/* Dialog de nova/edição de consulta */}
         <AppointmentDialog
           open={dialogOpen}
           onOpenChange={(open) => {
@@ -457,9 +448,9 @@ const Appointments = () => {
           }}
           appointment={editingAppointment}
           onSave={handleSaveAppointment}
-          onDelete={handleDeleteAppointment} // PASSANDO A FUNÇÃO DE DELETE
+          onDelete={handleDeleteAppointment}
           initialData={dialogInitialData}
-          patients={patients} // Passando a lista de pacientes carregada
+          patients={patients}
         />
       </div>
     </>

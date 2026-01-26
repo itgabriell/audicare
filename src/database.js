@@ -71,7 +71,6 @@ export const getPatients = async (page = 1, pageSize = 10, searchTerm = '', sort
   return { data, count };
 };
 
-// --- CORREÇÃO APLICADA AQUI ---
 export const getPatientById = async (id) => {
   const clinicId = await getClinicId();
   if (!clinicId) return null;
@@ -82,7 +81,7 @@ export const getPatientById = async (id) => {
       *, 
       tags:patient_tags(tag:tags(*)),
       phones:patient_phones(*) 
-    `) // <--- ADICIONADO: phones:patient_phones(*)
+    `) 
     .eq('id', id)
     .eq('clinic_id', clinicId)
     .single();
@@ -237,7 +236,7 @@ export const getPatientsByTags = async (tagIds) => {
 };
 
 // ======================================================================
-// Agendamentos (Appointments)
+// Agendamentos (Appointments) - CORRIGIDO
 // ======================================================================
 
 export const getAppointments = async (filters = {}) => {
@@ -255,38 +254,50 @@ export const getAppointments = async (filters = {}) => {
   const { data, error } = await query.order('appointment_date', { ascending: true });
   if (error) throw error;
   
-  // Mapper para compatibilidade
   return data.map(apt => ({
       ...apt,
       contact: apt.patient ? { id: apt.patient.id, name: apt.patient.name } : { name: 'Paciente' }
   }));
 };
 
+// --- CORREÇÃO PRINCIPAL: Remover ID antes de inserir ---
 export const addAppointment = async (d) => {
     const cid = await getClinicId();
-    const { data, error } = await supabase.from('appointments').insert([{...d, clinic_id: cid}]).select().single();
-    if(error) throw error; return data;
+    // Remove o ID do objeto para garantir que o banco gere um novo
+    // Isso evita o erro 23505 (duplicate key)
+    const { id, ...dataToInsert } = d;
+    
+    const { data, error } = await supabase
+        .from('appointments')
+        .insert([{ ...dataToInsert, clinic_id: cid }])
+        .select()
+        .single();
+    
+    if(error) throw error; 
+    return data;
 };
 
+// --- CORREÇÃO: Update robusto ---
 export const updateAppointment = async (id, updates) => {
     const cid = await getClinicId();
     
+    // Filtra campos permitidos (e remove 'id' do corpo do update)
     const allowedColumns = [
         'clinic_id', 'patient_id', 'professional_id', 'appointment_date', 
         'status', 'appointment_type', 'duration', 'notes', 'obs',
-        'contact_id', 'title', 'start_time', 'end_time'
+        'contact_id', 'title', 'start_time', 'end_time', 
+        'location', 'professional_name' // Adicionado campos novos
     ];
 
     const cleanUpdates = Object.keys(updates)
-        .filter(key => allowedColumns.includes(key))
+        .filter(key => allowedColumns.includes(key) && key !== 'id')
         .reduce((obj, key) => {
             obj[key] = updates[key];
             return obj;
         }, {});
 
-    if (!cleanUpdates.professional_id) {
-        cleanUpdates.professional_id = 'd717c381-7600-4ce5-a6e8-cb411533d1e6'; 
-    }
+    // Fallback de profissional se necessário (opcional)
+    // if (!cleanUpdates.professional_id) cleanUpdates.professional_id = 'DEFAULT_UUID';
 
     const { data, error } = await supabase
         .from('appointments')
@@ -307,6 +318,7 @@ export const deleteAppointment = async (id) => {
     const cid = await getClinicId();
     const { error } = await supabase.from('appointments').delete().eq('id', id).eq('clinic_id', cid);
     if(error) throw error;
+    return { success: true };
 };
 
 export const getPatientAppointments = async (patientId) => {
@@ -400,7 +412,7 @@ export const updateNotificationSettings = async (settings) => {
 };
 
 // ======================================================================
-// Outras Entidades (Tasks, Leads, Social, Repairs, Team)
+// Outras Entidades
 // ======================================================================
 
 export const getRepairs = async () => {
@@ -516,11 +528,9 @@ export const getDashboardMetrics = async () => {
   const clinicId = await getClinicId();
   if (!clinicId) return null;
 
-  // Define janela de 30 dias para as métricas
   const thirtyDaysAgo = new Date();
   thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
   
-  // 1. Buscar Leads dos últimos 30 dias
   const { data: leads, error } = await supabase
     .from('leads')
     .select('status, source, response_time_seconds, followup_count, estimated_value, created_at')
@@ -532,15 +542,11 @@ export const getDashboardMetrics = async () => {
       return null;
   }
 
-  // --- CÁLCULOS ---
-
-  // 1. Tempo Médio de Resposta (em minutos)
   const leadsWithResponse = leads.filter(l => l.response_time_seconds > 0);
   const avgResponseTimeSeconds = leadsWithResponse.length > 0
     ? leadsWithResponse.reduce((acc, curr) => acc + curr.response_time_seconds, 0) / leadsWithResponse.length
     : 0;
   
-  // 2. Taxa de Resgate (Leads com followup > 0 que NÃO estão perdidos)
   const leadsRecebendoFollowup = leads.filter(l => l.followup_count > 0);
   const leadsResgatados = leadsRecebendoFollowup.filter(l => 
     !['stopped_responding', 'no_purchase'].includes(l.status)
@@ -550,14 +556,12 @@ export const getDashboardMetrics = async () => {
     ? Math.round((leadsResgatados.length / leadsRecebendoFollowup.length) * 100) 
     : 0;
 
-  // 3. Origem (Top Sources)
   const sources = {};
   leads.forEach(l => {
     const src = l.source || 'Desconhecido';
     sources[src] = (sources[src] || 0) + 1;
   });
   
-  // 4. Funil Simplificado
   const funnel = {
     total: leads.length,
     scheduled: leads.filter(l => ['scheduled', 'arrived', 'purchased'].includes(l.status)).length,
