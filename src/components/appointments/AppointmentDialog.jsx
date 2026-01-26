@@ -1,245 +1,96 @@
-import React, { useEffect, useState } from 'react';
-import { useForm } from 'react-hook-form';
-import { zodResolver } from '@hookform/resolvers/zod';
-import * as z from 'zod';
+import React, { useEffect } from 'react';
+import { useForm, Controller } from 'react-hook-form';
 import {
-  Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogFooter,
 } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { useToast } from '@/components/ui/use-toast';
-import { supabase } from '@/lib/customSupabaseClient';
-import { getClinicId } from '@/database';
-import { MessageCircle, Bell } from 'lucide-react';
-import { useNavigate } from 'react-router-dom';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select';
+import { Switch } from '@/components/ui/switch'; // Se usar switch para domiciliar
 import PatientCombobox from '@/components/patients/PatientCombobox';
-import { useAppointmentReminders } from '@/hooks/useAppointmentReminders';
-import { usePatients } from '@/hooks/usePatients'; // IMPORTANTE: Hook de busca
-import { useChatNavigation } from '@/hooks/useChatNavigation'; // Importe o hook
+import { useToast } from '@/components/ui/use-toast';
+import { Trash2 } from 'lucide-react'; // Ícone de lixeira
 
-const appointmentSchema = z.object({
-  contact_id: z.string().min(1, "Paciente é obrigatório"),
-  professional_name: z.string().min(1, "Profissional é obrigatório"),
-  date: z.string().min(1, "Data é obrigatória"),
-  time: z.string().min(1, "Hora é obrigatória"),
-  type: z.string().min(1, "Tipo de agendamento é obrigatório"),
-  duration: z.number().min(1, "Duração deve ser maior que 0"),
-  status: z.string().default('scheduled'),
-  notes: z.string().optional(),
-  professional_id: z.string().optional(),
-  patient_id: z.string().optional(),
-});
-
-const AppointmentDialog = ({ open, onOpenChange, appointment, onSuccess, onUpdate, initialData, onPatientsUpdate }) => {
-  const { toast } = useToast();
-  const navigate = useNavigate();
-  const [loading, setLoading] = useState(false);
-  const [selectedPatient, setSelectedPatient] = useState(null);
-  const { sendAppointmentReminder, loading: reminderLoading } = useAppointmentReminders();
-  
-  // Hook de navegação inteligente para o Chatwoot
-  const { openChat, loading: chatLoading } = useChatNavigation();
-
-  // --- NOVA LÓGICA DE BUSCA ---
-  const [searchTerm, setSearchTerm] = useState('');
-  // Busca dinâmica: Pega 50 pacientes baseados no termo digitado
-  const { data: searchResult } = usePatients(1, 50, searchTerm);
-  const dynamicPatients = searchResult?.data || [];
-  // -----------------------------
-
-  const form = useForm({
-    resolver: zodResolver(appointmentSchema),
+const AppointmentDialog = ({ 
+  open, 
+  onOpenChange, 
+  onSave, 
+  onDelete, // Nova prop para função de deletar
+  appointment, 
+  patients = [],
+  teamMembers = []
+}) => {
+  const { register, handleSubmit, control, reset, setValue, watch } = useForm({
     defaultValues: {
-      contact_id: '',
-      professional_name: '',
-      date: '',
-      time: '',
-      type: 'consulta',
-      duration: 30,
+      patient_id: '',
+      title: '',
+      start_time: '',
+      end_time: '',
+      type: 'consulta', // consulta, retorno, exame, domiciliar
       status: 'scheduled',
       notes: '',
+      professional_id: '',
+      location: 'consultorio' // consultorio, domiciliar
     }
   });
 
+  const { toast } = useToast();
+
   useEffect(() => {
     if (appointment) {
-      // Para edição
-      const patientId = appointment.contact?.id || appointment.contact_id || appointment.patient_id;
-
-      // Conversões de data UTC -> Local
-      const dbDate = new Date(appointment.appointment_date || appointment.start_time);
-      const dateStr = dbDate.toLocaleDateString('sv'); // YYYY-MM-DD
-      const timeStr = dbDate.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
-
-      form.reset({
-        contact_id: patientId,
-        professional_name: appointment.professional_name || 'Dra. Karine Brandão',
-        date: dateStr,
-        time: timeStr,
-        type: appointment.appointment_type || 'consulta',
-        duration: appointment.duration || 30,
-        notes: appointment.notes || appointment.obs || '',
-        status: appointment.status || 'scheduled',
-      });
+      // Formata as datas para o input datetime-local
+      const start = appointment.start ? new Date(appointment.start).toISOString().slice(0, 16) : '';
+      const end = appointment.end ? new Date(appointment.end).toISOString().slice(0, 16) : '';
       
-      if (patientId) {
-          fetchPatient(patientId);
-      }
-    } else if (initialData) {
-      // Criação via clique no calendário
-      let dateValue = '';
-      let timeValue = '';
-      if (initialData.date && initialData.time) {
-        const dateTime = new Date(initialData.date);
-        const [hours, minutes] = initialData.time.split(':');
-        dateTime.setHours(parseInt(hours), parseInt(minutes || 0), 0, 0);
-        dateValue = dateTime.toLocaleDateString('sv');
-        timeValue = dateTime.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
-      } else if (initialData.date) {
-        const dateTime = new Date(initialData.date);
-        dateTime.setHours(9, 0, 0, 0);
-        dateValue = dateTime.toLocaleDateString('sv');
-        timeValue = dateTime.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
-      }
-
-      form.reset({
-        contact_id: initialData.contact_id || '',
-        professional_name: 'Dra. Karine Brandão',
-        date: dateValue,
-        time: timeValue,
-        type: initialData.appointment_type || 'consulta',
-        duration: 30,
-        notes: initialData.obs || '',
-        status: 'scheduled',
+      reset({
+        patient_id: appointment.patient_id || '',
+        title: appointment.title || '',
+        start_time: start,
+        end_time: end,
+        type: appointment.type || 'consulta',
+        status: appointment.status || 'scheduled',
+        notes: appointment.description || '', // FullCalendar usa description, banco usa notes
+        professional_id: appointment.resourceId || '', // FullCalendar usa resourceId
+        location: appointment.location || 'consultorio'
       });
-      if (initialData.contact_id) {
-        fetchPatient(initialData.contact_id);
-      }
     } else {
-      // Novo vazio
-      form.reset({
-        contact_id: '',
-        professional_name: 'Dra. Karine Brandão',
-        date: '',
-        time: '',
+      reset({
+        patient_id: '',
+        title: '',
+        start_time: '',
+        end_time: '',
         type: 'consulta',
-        duration: 30,
-        notes: '',
         status: 'scheduled',
+        notes: '',
+        professional_id: '',
+        location: 'consultorio'
       });
-      setSelectedPatient(null);
-      setSearchTerm(''); // Limpa a busca ao abrir novo
     }
-  }, [appointment, initialData, open]);
+  }, [appointment, reset, open]);
 
-  const fetchPatient = async (id) => {
-      if (!id) {
-        setSelectedPatient(null);
-        return;
-      }
-
-      try {
-        // Tenta buscar em contacts
-        const { data: contactData, error: contactError } = await supabase
-          .from('contacts')
-          .select('id, name, phone')
-          .eq('id', id)
-          .maybeSingle();
-
-        if (contactData && !contactError) {
-          setSelectedPatient({ ...contactData, source: 'contacts' });
-          return;
-        }
-
-        // Fallback para patients
-        const { data: patientData, error: patientError } = await supabase
-          .from('patients')
-          .select('id, name, phone')
-          .eq('id', id)
-          .maybeSingle();
-
-        if (patientData && !patientError) {
-          setSelectedPatient({ ...patientData, source: 'patients' });
-          return;
-        }
-
-        setSelectedPatient(null);
-      } catch (error) {
-        console.warn('Error fetching patient data:', error.message);
-        setSelectedPatient(null);
-      }
+  const onSubmit = (data) => {
+    onSave({
+      ...data,
+      id: appointment?.id // Passa o ID se for edição
+    });
   };
 
-  const onSubmit = async (data) => {
-    setLoading(true);
-    try {
-      const clinicId = await getClinicId();
-      if (!clinicId) throw new Error("Clínica não identificada");
-
-      let patientId = null;
-      let contactId = data.contact_id;
-
-      if (selectedPatient?.source === 'patients') {
-        patientId = selectedPatient.id;
-        contactId = null;
-      } else if (selectedPatient?.source === 'contacts') {
-        contactId = selectedPatient.id;
-        patientId = null;
-      }
-
-      const localDate = new Date(`${data.date}T${data.time}`);
-      const startTimeUTC = localDate.toISOString();
-
-      const endDate = new Date(localDate);
-      endDate.setMinutes(endDate.getMinutes() + parseInt(data.duration || 60));
-      const endTimeUTC = endDate.toISOString();
-
-      const payload = {
-        clinic_id: clinicId,
-        appointment_date: startTimeUTC,
-        start_time: startTimeUTC,
-        end_time: endTimeUTC,
-        appointment_type: data.type,
-        duration: parseInt(data.duration),
-        notes: data.notes,
-        obs: data.notes,
-        status: data.status,
-        professional_name: data.professional_name,
-        professional_id: null, // Deixe null, o banco preenche com Dra. Karine
-        patient_id: patientId,
-        contact_id: contactId,
-      };
-
-      console.log('[AppointmentDialog] Payload:', payload);
-
-      let error;
-      if (appointment?.id) {
-        const { error: updateError } = await supabase
-          .from('appointments')
-          .update(payload)
-          .eq('id', appointment.id);
-        error = updateError;
-      } else {
-        const { error: insertError } = await supabase
-          .from('appointments')
-          .insert(payload);
-        error = insertError;
-      }
-
-      if (error) throw error;
-
-      toast({ title: "Sucesso", description: "Agendamento salvo com sucesso." });
-      onSuccess?.();
-      onUpdate?.();
-      onOpenChange(false);
-    } catch (error) {
-      console.error('[AppointmentDialog] Erro:', error);
-      toast({ variant: "destructive", title: "Erro", description: "Falha ao salvar agendamento." });
-    } finally {
-      setLoading(false);
+  const handleDelete = () => {
+    if (confirm('Tem certeza que deseja excluir este agendamento?')) {
+        onDelete(appointment.id);
+        onOpenChange(false);
     }
   };
 
@@ -248,151 +99,135 @@ const AppointmentDialog = ({ open, onOpenChange, appointment, onSuccess, onUpdat
       <DialogContent className="sm:max-w-[500px]">
         <DialogHeader>
           <DialogTitle>{appointment ? 'Editar Agendamento' : 'Novo Agendamento'}</DialogTitle>
-          <DialogDescription>
-            {appointment ? 'Edite os detalhes do agendamento existente.' : 'Preencha os dados para criar um novo agendamento.'}
-          </DialogDescription>
         </DialogHeader>
-        
-        <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4 py-4">
+
+        <form onSubmit={handleSubmit(onSubmit)} className="space-y-4 py-2">
+          
+          {/* Paciente */}
           <div className="space-y-2">
             <Label>Paciente</Label>
-            {/* COMPONENTE DE BUSCA ATUALIZADO */}
-            <PatientCombobox
-                patients={dynamicPatients} // Lista dinâmica vinda do hook
-                value={form.watch('contact_id')}
-                onSearchChange={setSearchTerm} // Conecta digitação à busca no banco
-                onChange={(val) => {
-                    form.setValue('contact_id', val);
-                    fetchPatient(val);
-                }}
-                onPatientAdded={(newPatient) => {
-                    setSearchTerm(newPatient.name); // Atualiza busca para achar o novo
-                    if (onPatientsUpdate) onPatientsUpdate();
-                }}
-                disabled={!!appointment}
+            <Controller
+              name="patient_id"
+              control={control}
+              rules={{ required: true }}
+              render={({ field }) => (
+                <PatientCombobox 
+                  patients={patients} 
+                  value={field.value} 
+                  onChange={field.onChange} 
+                />
+              )}
             />
-            {appointment && selectedPatient && (
-                <Button 
-                    type="button" 
-                    variant="link" 
-                    className="h-auto p-0 text-xs text-blue-600 flex items-center gap-1"
-                    onClick={() => openChat(selectedPatient)} // Usando o novo hook de navegação
-                    disabled={chatLoading} // Desabilita enquanto carrega
-                >
-                    <MessageCircle className="h-3 w-3" />
-                    {chatLoading ? "Abrindo conversa..." : `Enviar mensagem para ${selectedPatient.name}`}
-                </Button>
-            )}
           </div>
 
+          {/* Tipo e Local */}
           <div className="grid grid-cols-2 gap-4">
             <div className="space-y-2">
-                <Label>Data</Label>
-                <Input type="date" {...form.register('date')} />
-                {form.formState.errors.date && (
-                    <span className="text-xs text-red-500">{form.formState.errors.date.message}</span>
-                )}
+                <Label>Tipo</Label>
+                <Controller
+                  name="type"
+                  control={control}
+                  render={({ field }) => (
+                    <Select onValueChange={field.onChange} value={field.value}>
+                      <SelectTrigger>
+                        <SelectValue placeholder="Selecione" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="consulta">Consulta</SelectItem>
+                        <SelectItem value="exame">Exame</SelectItem>
+                        <SelectItem value="retorno">Retorno</SelectItem>
+                        <SelectItem value="aparelho">Entrega Aparelho</SelectItem>
+                        <SelectItem value="domiciliar">Domiciliar</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  )}
+                />
             </div>
+            
             <div className="space-y-2">
-                <Label>Hora</Label>
-                <Input type="time" {...form.register('time')} />
-                {form.formState.errors.time && (
-                    <span className="text-xs text-red-500">{form.formState.errors.time.message}</span>
-                )}
+                <Label>Local</Label>
+                <Controller
+                  name="location"
+                  control={control}
+                  render={({ field }) => (
+                    <Select onValueChange={field.onChange} value={field.value}>
+                      <SelectTrigger>
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="consultorio">Consultório</SelectItem>
+                        <SelectItem value="domiciliar">Domiciliar</SelectItem>
+                        <SelectItem value="online">Online</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  )}
+                />
             </div>
           </div>
 
+          {/* Horários */}
           <div className="grid grid-cols-2 gap-4">
             <div className="space-y-2">
-                <Label>Duração (minutos)</Label>
-                <Input type="number" {...form.register('duration', { valueAsNumber: true })} placeholder="30" />
-                {form.formState.errors.duration && (
-                    <span className="text-xs text-red-500">{form.formState.errors.duration.message}</span>
-                )}
+              <Label>Início</Label>
+              <Input type="datetime-local" {...register('start_time', { required: true })} />
             </div>
             <div className="space-y-2">
-                <Label>Status</Label>
-                <Select
-                    onValueChange={(val) => form.setValue('status', val)}
-                    value={form.watch('status')} // Usando value para refletir estado real
-                >
-                    <SelectTrigger><SelectValue placeholder="Selecione" /></SelectTrigger>
-                    <SelectContent>
-                        <SelectItem value="scheduled">Agendado</SelectItem>
-                        <SelectItem value="not_confirmed">Não Confirmado</SelectItem>
-                        <SelectItem value="confirmed">Confirmado</SelectItem>
-                        <SelectItem value="arrived">Paciente Chegou</SelectItem>
-                        <SelectItem value="completed">Concluído</SelectItem>
-                        <SelectItem value="no_show">Não Compareceu</SelectItem>
-                        <SelectItem value="rescheduled">Reagendado</SelectItem>
-                        <SelectItem value="cancelled">Cancelado</SelectItem>
-                    </SelectContent>
-                </Select>
+              <Label>Fim</Label>
+              <Input type="datetime-local" {...register('end_time', { required: true })} />
             </div>
           </div>
 
+          {/* Profissional */}
           <div className="space-y-2">
             <Label>Profissional</Label>
-            <Input {...form.register('professional_name')} placeholder="Nome do médico/especialista" />
-             {form.formState.errors.professional_name && (
-                <span className="text-xs text-red-500">{form.formState.errors.professional_name.message}</span>
-            )}
+            <Controller
+              name="professional_id"
+              control={control}
+              render={({ field }) => (
+                <Select onValueChange={field.onChange} value={field.value}>
+                  <SelectTrigger>
+                    <SelectValue placeholder="Selecione o profissional" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {teamMembers.map(member => (
+                        <SelectItem key={member.id} value={member.id}>
+                            {member.full_name || member.email}
+                        </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              )}
+            />
           </div>
 
-          <div className="space-y-2">
-            <Label>Tipo de Consulta</Label>
-            <Select
-                onValueChange={(val) => form.setValue('type', val)}
-                value={form.watch('type')} // Usando value para refletir estado real
-            >
-                <SelectTrigger><SelectValue placeholder="Selecione o tipo" /></SelectTrigger>
-                <SelectContent>
-                    <SelectItem value="Avaliação">Avaliação</SelectItem>
-                    <SelectItem value="Molde">Molde</SelectItem>
-                    <SelectItem value="Retorno pós compra">Retorno pós compra</SelectItem>
-                    <SelectItem value="Retorno comum">Retorno comum</SelectItem>
-                    <SelectItem value="Ajuste">Ajuste</SelectItem>
-                    <SelectItem value="Reparo">Reparo</SelectItem>
-                </SelectContent>
-            </Select>
-             {form.formState.errors.type && (
-                <span className="text-xs text-red-500">{form.formState.errors.type.message}</span>
-            )}
-          </div>
-
+          {/* Notas */}
           <div className="space-y-2">
             <Label>Observações</Label>
-            <Textarea {...form.register('notes')} placeholder="Detalhes adicionais..." />
+            <Textarea {...register('notes')} placeholder="Detalhes adicionais..." />
           </div>
 
-          <DialogFooter className="flex-col sm:flex-row gap-2">
-            <div className="flex gap-2 w-full sm:w-auto">
-              <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>Cancelar</Button>
-              {appointment && selectedPatient && (
-                <Button
-                  type="button"
-                  variant="outline"
-                  size="sm"
-                  onClick={async () => {
-                    if (!appointment.id) return;
-                    const result = await sendAppointmentReminder(appointment.id);
-                    if (result.success) {
-                      toast({ title: "Sucesso", description: result.message });
-                    } else if (!result.alreadySent) {
-                      toast({ variant: "destructive", title: "Erro", description: result.message });
-                    }
-                  }}
-                  disabled={reminderLoading}
-                  className="flex items-center gap-1"
+          <DialogFooter className="flex justify-between items-center sm:justify-between w-full">
+            {/* Botão de Excluir (Só aparece se for edição) */}
+            {appointment?.id ? (
+                <Button 
+                    type="button" 
+                    variant="destructive" 
+                    onClick={handleDelete}
+                    className="gap-2"
                 >
-                  <Bell className="h-3 w-3" />
-                  {reminderLoading ? 'Enviando...' : 'Enviar Lembrete'}
+                    <Trash2 className="h-4 w-4" />
+                    Excluir
                 </Button>
-              )}
+            ) : (
+                <div></div> // Div vazio para manter o layout flex space-between
+            )}
+
+            <div className="flex gap-2">
+                <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>
+                Cancelar
+                </Button>
+                <Button type="submit">Salvar</Button>
             </div>
-            <Button type="submit" disabled={loading}>
-                {loading ? 'Salvando...' : 'Salvar Agendamento'}
-            </Button>
           </DialogFooter>
         </form>
       </DialogContent>

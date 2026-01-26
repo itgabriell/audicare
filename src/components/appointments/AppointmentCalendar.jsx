@@ -1,84 +1,204 @@
-import React, { useMemo, memo } from 'react';
-import { format, startOfWeek, addDays, isToday as isTodayFns } from 'date-fns';
+import React, { useState, useEffect } from 'react';
+import FullCalendar from '@fullcalendar/react';
+import dayGridPlugin from '@fullcalendar/daygrid';
+import timeGridPlugin from '@fullcalendar/timegrid';
+import interactionPlugin from '@fullcalendar/interaction';
+import listPlugin from '@fullcalendar/list';
+import ptBrLocale from '@fullcalendar/core/locales/pt-br';
+import { Button } from '@/components/ui/button';
+import { 
+  ChevronLeft, 
+  ChevronRight, 
+  Calendar as CalendarIcon, 
+  Clock, 
+  MapPin, 
+  User,
+  Home // Ícone para Domiciliar
+} from 'lucide-react';
+import { Badge } from '@/components/ui/badge';
+import { format } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 
-const AppointmentCalendar = ({ currentDate, appointments, onSlotClick, onAppointmentClick }) => {
-    const timeSlots = useMemo(() => 
-        Array.from({ length: 11 }, (_, i) => `${i + 8}:00`), // 8:00 to 18:00
-        []
-    );
+const AppointmentCalendar = ({ 
+  appointments, 
+  onDateClick, 
+  onEventClick, 
+  onEventDrop,
+  onViewChange 
+}) => {
+  const calendarRef = React.useRef(null);
+  const [currentView, setCurrentView] = useState('timeGridDay'); // Padrão: DIA
+  const [currentDate, setCurrentDate] = useState(new Date());
 
-    const weekDates = useMemo(() => {
-        const start = startOfWeek(currentDate, { locale: ptBR });
-        return Array.from({ length: 7 }, (_, i) => addDays(start, i));
-    }, [currentDate]);
+  // Atualiza o título da data
+  const dateTitle = React.useMemo(() => {
+    if (currentView === 'dayGridMonth') {
+      return format(currentDate, 'MMMM yyyy', { locale: ptBR });
+    }
+    if (currentView === 'timeGridDay') {
+      return format(currentDate, "dd 'de' MMMM", { locale: ptBR });
+    }
+    return 'Agenda';
+  }, [currentDate, currentView]);
 
-    // Memoizar todos os agendamentos por slot de uma vez
-    const appointmentsBySlot = useMemo(() => {
-        const map = new Map();
-        appointments.forEach(app => {
-            const appDate = new Date(app.start_time);
-            const dateKey = appDate.toDateString();
-            const hour = appDate.getHours();
-            const slotKey = `${dateKey}_${hour}`;
+  const handlePrev = () => {
+    const calendarApi = calendarRef.current.getApi();
+    calendarApi.prev();
+    setCurrentDate(calendarApi.getDate());
+  };
 
-            if (!map.has(slotKey)) {
-                map.set(slotKey, []);
-            }
-            map.get(slotKey).push(app);
-        });
-        return map;
-    }, [appointments]);
+  const handleNext = () => {
+    const calendarApi = calendarRef.current.getApi();
+    calendarApi.next();
+    setCurrentDate(calendarApi.getDate());
+  };
 
+  const handleToday = () => {
+    const calendarApi = calendarRef.current.getApi();
+    calendarApi.today();
+    setCurrentDate(calendarApi.getDate());
+  };
+
+  const changeView = (view) => {
+    const calendarApi = calendarRef.current.getApi();
+    calendarApi.changeView(view);
+    setCurrentView(view);
+    if (onViewChange) onViewChange(view);
+  };
+
+  // --- RENDERIZAÇÃO CUSTOMIZADA DO EVENTO ---
+  const renderEventContent = (eventInfo) => {
+    const { event } = eventInfo;
+    const isDomiciliar = event.extendedProps.type === 'domiciliar' || event.extendedProps.location?.toLowerCase().includes('domiciliar');
+    
+    // Design Box Arredondado Melhorado
     return (
-        <div className="overflow-x-auto bg-card rounded-lg border">
-            <div className="grid grid-cols-[auto_repeat(7,1fr)] min-w-[900px]">
-                {/* Time column header */}
-                <div className="sticky left-0 bg-card z-10 p-2"></div>
-
-                {/* Day headers */}
-                {weekDates.map((date, index) => (
-                    <div key={index} className="text-center p-2 border-b border-l">
-                        <p className="text-sm font-medium text-muted-foreground capitalize">{format(date, 'EEE', { locale: ptBR })}</p>
-                        <p className={`font-semibold text-2xl mt-1 ${isTodayFns(date) ? 'text-primary' : 'text-foreground'}`}>{format(date, 'd')}</p>
-                    </div>
-                ))}
-
-                {/* Time slots and appointments */}
-                {timeSlots.map(time => {
-                    const timeHour = parseInt(time.split(':')[0]);
-                    return (
-                        <React.Fragment key={time}>
-                            <div className="p-2 border-b text-sm text-muted-foreground text-right sticky left-0 bg-card z-10 h-24 flex items-center justify-end pr-4">{time}</div>
-                            {weekDates.map((date, dayIndex) => {
-                                const slotKey = `${date.toDateString()}_${timeHour}`;
-                                const appointmentsForSlot = appointmentsBySlot.get(slotKey) || [];
-
-                                return (
-                                    <div 
-                                        key={dayIndex} 
-                                        className="border-l border-b p-1 h-24 overflow-y-auto cursor-pointer hover:bg-muted/50 transition-colors" 
-                                        onClick={() => onSlotClick(date, time)}
-                                    >
-                                        {appointmentsForSlot.map(app => (
-                                            <div 
-                                                key={app.id} 
-                                                className="bg-primary/10 text-primary-foreground p-1.5 rounded-md text-xs mb-1 hover:bg-primary/20 transition-colors"
-                                                onClick={(e) => { e.stopPropagation(); onAppointmentClick(app); }}
-                                            >
-                                                <p className="font-semibold text-primary truncate">{app.contact?.name || 'Paciente'}</p>
-                                                <p className="text-primary/80 truncate">{app.appointment_type}</p>
-                                            </div>
-                                        ))}
-                                    </div>
-                                );
-                            })}
-                        </React.Fragment>
-                    );
-                })}
+      <div className={`flex flex-col h-full w-full p-1.5 rounded-md border-l-4 overflow-hidden shadow-sm transition-all hover:shadow-md ${
+        isDomiciliar 
+          ? 'bg-blue-50 border-blue-500 text-blue-900' // Estilo Domiciliar
+          : 'bg-card border-primary/60 text-card-foreground' // Estilo Padrão
+      }`}>
+        <div className="flex items-center justify-between gap-1 mb-0.5">
+          <span className="font-bold text-xs truncate flex-1">
+            {event.title}
+          </span>
+          {isDomiciliar && (
+            <div className="bg-blue-200 text-blue-800 p-0.5 rounded flex items-center justify-center" title="Atendimento Domiciliar">
+               <Home className="h-3 w-3" />
             </div>
+          )}
         </div>
+        
+        <div className="flex items-center gap-1 text-[10px] opacity-90">
+          <Clock className="h-2.5 w-2.5" />
+          <span className="truncate">
+            {eventInfo.timeText}
+          </span>
+        </div>
+
+        {event.extendedProps.professional && (
+           <div className="flex items-center gap-1 text-[10px] opacity-80 mt-auto pt-1">
+             <User className="h-2.5 w-2.5" />
+             <span className="truncate">{event.extendedProps.professional}</span>
+           </div>
+        )}
+      </div>
     );
+  };
+
+  return (
+    <div className="flex flex-col h-full bg-background rounded-lg border shadow-sm overflow-hidden">
+      {/* Header do Calendário */}
+      <div className="p-4 border-b flex flex-col sm:flex-row items-center justify-between gap-4">
+        
+        {/* Controles de Navegação */}
+        <div className="flex items-center gap-2">
+          <div className="flex items-center rounded-md border bg-card p-0.5">
+            <Button variant="ghost" size="icon" className="h-8 w-8" onClick={handlePrev}>
+              <ChevronLeft className="h-4 w-4" />
+            </Button>
+            <Button variant="ghost" size="sm" onClick={handleToday} className="px-3 text-xs font-medium">
+              Hoje
+            </Button>
+            <Button variant="ghost" size="icon" className="h-8 w-8" onClick={handleNext}>
+              <ChevronRight className="h-4 w-4" />
+            </Button>
+          </div>
+          <h2 className="text-lg font-semibold capitalize ml-2 min-w-[140px]">
+            {dateTitle}
+          </h2>
+        </div>
+
+        {/* Filtros de Visualização (Ordem Invertida: Dia - Semana - Mês) */}
+        <div className="flex bg-muted p-1 rounded-lg">
+          <Button
+            variant={currentView === 'timeGridDay' ? 'default' : 'ghost'}
+            size="sm"
+            onClick={() => changeView('timeGridDay')}
+            className="text-xs"
+          >
+            Dia
+          </Button>
+          <Button
+            variant={currentView === 'timeGridWeek' ? 'default' : 'ghost'}
+            size="sm"
+            onClick={() => changeView('timeGridWeek')}
+            className="text-xs"
+          >
+            Semana
+          </Button>
+          <Button
+            variant={currentView === 'dayGridMonth' ? 'default' : 'ghost'}
+            size="sm"
+            onClick={() => changeView('dayGridMonth')}
+            className="text-xs"
+          >
+            Mês
+          </Button>
+        </div>
+      </div>
+
+      {/* Corpo do Calendário */}
+      <div className="flex-1 p-0 overflow-auto calendar-container">
+        <style>{`
+          .fc { --fc-border-color: hsl(var(--border)); }
+          .fc .fc-col-header-cell { background-color: hsl(var(--muted)/0.5); padding: 8px 0; }
+          .fc-theme-standard td, .fc-theme-standard th { border-color: hsl(var(--border)); }
+          .fc-timegrid-slot { height: 3rem; } /* Altura maior para os slots */
+          .fc-event { border: none !important; background: transparent !important; box-shadow: none !important; }
+        `}</style>
+        
+        <FullCalendar
+          ref={calendarRef}
+          plugins={[dayGridPlugin, timeGridPlugin, interactionPlugin, listPlugin]}
+          initialView="timeGridDay" // Inicia no DIA
+          locale={ptBrLocale}
+          headerToolbar={false}
+          events={appointments}
+          dateClick={onDateClick}
+          eventClick={onEventClick}
+          eventDrop={onEventDrop}
+          editable={true}
+          selectable={true}
+          selectMirror={true}
+          dayMaxEvents={true}
+          allDaySlot={false}
+          slotMinTime="07:00:00"
+          slotMaxTime="20:00:00"
+          height="100%"
+          expandRows={true}
+          stickyHeaderDates={true}
+          slotLabelFormat={{
+            hour: '2-digit',
+            minute: '2-digit',
+            meridiem: false,
+            hour12: false
+          }}
+          eventContent={renderEventContent}
+        />
+      </div>
+    </div>
+  );
 };
 
-export default memo(AppointmentCalendar);
+export default AppointmentCalendar;

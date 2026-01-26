@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback } from 'react';
-import { getAppointments } from '@/database'; // CORRIGIDO: mudado de getAppointmentsForClinic para getAppointments
+import { getAppointments, deleteAppointment as deleteAppointmentDb } from '@/database'; // Importar do database (assumindo que existe lá)
 import { useAuth } from '@/contexts/SupabaseAuthContext';
 import { supabase } from '@/lib/customSupabaseClient';
 
@@ -10,16 +10,11 @@ export const useAppointments = () => {
   const { user } = useAuth();
 
   const loadAppointments = useCallback(async () => {
-    // Verifica apenas se o usuário tem profile carregado
-    if (!user?.profile?.clinic_id) {
-      // Se não tiver clinic_id ainda, não tenta buscar (evita erro)
-      return; 
-    }
+    if (!user?.profile?.clinic_id) return;
 
     try {
       setLoading(true);
       setError(null);
-      // getAppointments() sem argumentos busca todos os agendamentos da clínica do usuário atual
       const data = await getAppointments(); 
       setAppointments(data || []);
     } catch (err) {
@@ -29,6 +24,26 @@ export const useAppointments = () => {
       setLoading(false);
     }
   }, [user?.profile?.clinic_id]);
+
+  // --- NOVA FUNÇÃO DE DELETAR ---
+  const deleteAppointment = useCallback(async (appointmentId) => {
+    try {
+        const { error } = await supabase
+            .from('appointments')
+            .delete()
+            .eq('id', appointmentId);
+
+        if (error) throw error;
+
+        // Atualiza estado local para feedback instantâneo
+        setAppointments(prev => prev.filter(a => a.id !== appointmentId));
+        return { success: true };
+    } catch (err) {
+        console.error('Error deleting appointment:', err);
+        return { success: false, error: err };
+    }
+  }, []);
+  // -----------------------------
 
   useEffect(() => {
     loadAppointments();
@@ -58,5 +73,11 @@ export const useAppointments = () => {
     };
   }, [user?.profile?.clinic_id, loadAppointments]);
 
-  return { appointments, loading, error, refetch: loadAppointments };
+  return { 
+      appointments, 
+      loading, 
+      error, 
+      refetch: loadAppointments,
+      deleteAppointment // <--- Exportando a nova função
+  };
 };
