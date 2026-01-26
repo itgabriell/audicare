@@ -177,11 +177,12 @@ const Appointments = () => {
     setDialogOpen(true);
   }, []);
 
+  // --- MUDANÇA AQUI: Passa a currentDate para o modal ---
   const handleOpenDialog = useCallback(() => {
-    setDialogInitialData(null);
+    setDialogInitialData({ date: currentDate }); // Usa a data visualizada no calendário
     setEditingAppointment(null);
     setDialogOpen(true);
-  }, []);
+  }, [currentDate]);
 
   const changePeriod = useCallback((direction) => {
     if (viewMode === 'week') {

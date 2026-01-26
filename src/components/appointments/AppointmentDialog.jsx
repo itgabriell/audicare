@@ -67,14 +67,18 @@ const AppointmentDialog = ({
           professional_name: appointment.professional_name || ''
         });
       } else if (initialData) {
-        // --- NOVO (Do Calendário) ---
+        // --- NOVO (Do Calendário ou Botão "Nova Consulta") ---
+        // Aqui initialData.date virá preenchido com a data da visualização
         const date = initialData.date || new Date();
         const start = new Date(date);
         
         if (initialData.time) {
+            // Se clicou num slot de hora específico (na visualização semanal)
             const [hours, minutes] = initialData.time.split(':');
             start.setHours(parseInt(hours), parseInt(minutes), 0, 0);
-        } else if (initialData.date && !initialData.time) {
+        } else {
+             // Se clicou no dia ou no botão "Nova Consulta"
+             // Mantém o dia/mês/ano da visualização, mas sugere a próxima hora cheia do relógio atual
              const now = new Date();
              start.setHours(now.getHours() + 1, 0, 0, 0);
         }
@@ -92,7 +96,7 @@ const AppointmentDialog = ({
           professional_name: ''
         });
       } else {
-        // --- NOVO (Botão Genérico) ---
+        // --- Fallback (se não houver initialData, usa Agora) ---
         const start = new Date();
         start.setMinutes(0, 0, 0);
         start.setHours(start.getHours() + 1);
@@ -114,10 +118,7 @@ const AppointmentDialog = ({
   }, [appointment, initialData, open, reset]);
 
   const onSubmit = (data) => {
-    // Cria objeto Date a partir do input local
     const startTimeLocal = new Date(data.start_time);
-    
-    // Calcula fim (+1 hora)
     const endTimeLocal = new Date(startTimeLocal);
     endTimeLocal.setHours(endTimeLocal.getHours() + 1);
 
@@ -199,7 +200,7 @@ const AppointmentDialog = ({
                       </SelectTrigger>
                       <SelectContent>
                         <SelectItem value="avaliacao">Avaliação</SelectItem>
-                        <SelectItem value="ajuste">Ajuste</SelectItem> {/* ADICIONADO AQUI */}
+                        <SelectItem value="ajuste">Ajuste</SelectItem>
                         <SelectItem value="exame">Exame</SelectItem>
                         <SelectItem value="retorno">Retorno</SelectItem>
                         <SelectItem value="retorno_teste">Retorno de Teste</SelectItem>
