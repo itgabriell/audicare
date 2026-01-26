@@ -2,24 +2,11 @@ import axios from 'axios';
 
 class ChatwootService {
   constructor() {
-    // 1. URL Base
     this.apiUrl = import.meta.env.VITE_CHATWOOT_BASE_URL || 'https://chat.audicarefono.com.br';
-    
-    // 2. Token de Acesso
-    // Tenta VITE_CHATWOOT_API_TOKEN, se não tiver, usa VITE_CHATWOOT_WEBSITE_TOKEN (que vi no seu .env)
     this.apiToken = import.meta.env.VITE_CHATWOOT_API_TOKEN || import.meta.env.VITE_CHATWOOT_WEBSITE_TOKEN;
-    
-    // 3. ID da Conta
-    // Tenta pegar do .env, se não tiver, usa '1' como padrão (ou '2' se preferir forçar)
-    // No seu backend vi que é 2, então vamos garantir que o frontend também use 2 se não especificado
-    this.accountId = import.meta.env.VITE_CHATWOOT_ACCOUNT_ID || '1'; 
-    
-    // 4. Inbox ID
-    // O ERRO ESTAVA AQUI: O frontend não via CHATWOOT_INBOX_ID.
-    // Adicionei um fallback para '2' (baseado no seu .env local) para garantir que funcione
+    this.accountId = import.meta.env.VITE_CHATWOOT_ACCOUNT_ID || '1';
     this.inboxId = import.meta.env.VITE_CHATWOOT_INBOX_ID || '2';
 
-    // Debug em desenvolvimento
     if (import.meta.env.DEV) {
         console.log('[Chatwoot Config]', {
             url: this.apiUrl,
@@ -36,7 +23,6 @@ class ChatwootService {
       });
     }
 
-    // Instância Axios Dedicada
     this.api = axios.create({
         baseURL: this.apiUrl,
         headers: {
@@ -49,7 +35,6 @@ class ChatwootService {
 
   // --- MÉTODOS PÚBLICOS ---
 
-  // Busca contato pelo telefone
   async findContact(phone) {
     try {
         const cleanPhone = phone.replace(/\D/g, '');
@@ -63,7 +48,6 @@ class ChatwootService {
     }
   }
 
-  // Cria contato se não existir
   async createContact(contactData) {
     try {
         const payload = {
@@ -74,7 +58,6 @@ class ChatwootService {
         const response = await this.api.post(`/api/v1/accounts/${this.accountId}/contacts`, payload);
         return response.data.payload.contact;
     } catch (error) {
-        // Se der erro de duplicidade (422), tenta buscar
         if (error.response?.status === 422) {
             return this.findContact(contactData.phone);
         }
@@ -83,17 +66,13 @@ class ChatwootService {
     }
   }
 
-  // Busca ou cria conversa
   async findOrCreateConversation(contactId) {
     try {
-        // 1. Tenta buscar conversas existentes
         const search = await this.api.get(`/api/v1/accounts/${this.accountId}/contacts/${contactId}/conversations`);
         
-        // Se achar conversa na inbox correta, retorna ela
         const existing = search.data.payload.find(c => c.inbox_id === parseInt(this.inboxId));
         if (existing) return existing;
 
-        // 2. Se não, cria nova
         const response = await this.api.post(`/api/v1/accounts/${this.accountId}/conversations`, {
             source_id: contactId,
             inbox_id: this.inboxId,
@@ -107,26 +86,25 @@ class ChatwootService {
     }
   }
 
-  // Método principal chamado pelo botão do frontend
   async ensureConversationForNavigation(patient) {
     try {
       const phone = patient.phone || patient.phones?.[0]?.phone;
       if (!phone) throw new Error('Paciente sem telefone');
 
-      // 1. Busca ou Cria Contato
-      let contact = await this.findContact(phone);
+      const cleanPhone = phone.replace(/\D/g, '');
+      const formattedPhone = cleanPhone.startsWith('55') ? cleanPhone : `55${cleanPhone}`;
+
+      let contact = await this.findContact(formattedPhone);
       if (!contact) {
           contact = await this.createContact({
               name: patient.name,
-              phone: phone,
+              phone: formattedPhone,
               email: patient.email
           });
       }
 
-      // 2. Busca ou Cria Conversa
       const conversation = await this.findOrCreateConversation(contact.id);
 
-      // Retorna dados para abrir o iframe/link
       return {
         contactId: contact.id,
         conversationId: conversation.id,
@@ -137,6 +115,37 @@ class ChatwootService {
       console.error('Erro ao preparar navegação Chatwoot:', error);
       throw error;
     }
+  }
+
+  // --- NOVO: FUNÇÃO PARA ENVIAR LEMBRETE ---
+  async sendAppointmentReminder(appointment, patient, template = null) {
+      try {
+          // 1. Garante que a conversa existe
+          const { conversationId } = await this.ensureConversationForNavigation(patient);
+          
+          // 2. Formata a mensagem
+          const date = new Date(appointment.start_time).toLocaleDateString('pt-BR');
+          const time = new Date(appointment.start_time).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
+          
+          let message = template || "Olá {patient_name}, lembramos do seu agendamento para {date} às {time}. Por favor, confirme sua presença.";
+          
+          message = message
+              .replace('{patient_name}', patient.name)
+              .replace('{date}', date)
+              .replace('{time}', time);
+
+          // 3. Envia a mensagem
+          await this.api.post(`/api/v1/accounts/${this.accountId}/conversations/${conversationId}/messages`, {
+              content: message,
+              message_type: 'outgoing',
+              private: false
+          });
+
+          return { success: true };
+      } catch (error) {
+          console.error('Erro ao enviar lembrete:', error);
+          return { success: false, error: error.message };
+      }
   }
 }
 

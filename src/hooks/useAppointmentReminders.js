@@ -1,6 +1,6 @@
 import { useState, useCallback } from 'react';
 import { supabase } from '@/lib/customSupabaseClient';
-import chatwootService from '@/services/chatwootService';
+import { chatwootService } from '@/services/chatwootService'; // <--- CORRIGIDO: Importação nomeada
 import { notificationService } from '@/services/notificationService';
 
 /**
@@ -12,10 +12,6 @@ export const useAppointmentReminders = () => {
 
   /**
    * Envia lembrete de agendamento via Chatwoot
-   * @param {string} appointmentId - ID do agendamento
-   * @param {string} template - Template personalizado (opcional)
-   * @param {boolean} forceSend - Forçar envio mesmo que já tenha sido enviado
-   * @returns {Promise<Object>} - Resultado do envio
    */
   const sendAppointmentReminder = useCallback(async (appointmentId, template = null, forceSend = false) => {
     try {
@@ -84,11 +80,13 @@ export const useAppointmentReminders = () => {
         }
 
         // Notificar usuário localmente
-        notificationService.notify(
-          'Lembrete Enviado',
-          `Lembrete enviado com sucesso para ${patient.name}`,
-          { appointmentId, patientName: patient.name }
-        );
+        if (notificationService) {
+            notificationService.notify(
+            'Lembrete Enviado',
+            `Lembrete enviado com sucesso para ${patient.name}`,
+            { appointmentId, patientName: patient.name }
+            );
+        }
 
         console.log(`✅ Lembrete enviado com sucesso para ${patient.name}`);
         return {
@@ -106,11 +104,13 @@ export const useAppointmentReminders = () => {
       setError(err.message);
 
       // Notificar erro
-      notificationService.notify(
-        'Erro no Lembrete',
-        `Falha ao enviar lembrete: ${err.message}`,
-        { appointmentId, error: err.message }
-      );
+      if (notificationService) {
+          notificationService.notify(
+            'Erro no Lembrete',
+            `Falha ao enviar lembrete: ${err.message}`,
+            { appointmentId, error: err.message }
+          );
+      }
 
       return {
         success: false,
@@ -125,9 +125,6 @@ export const useAppointmentReminders = () => {
 
   /**
    * Envia lembretes em lote para múltiplos agendamentos
-   * @param {Array<string>} appointmentIds - IDs dos agendamentos
-   * @param {string} template - Template personalizado (opcional)
-   * @returns {Promise<Object>} - Resultado do envio em lote
    */
   const sendBulkReminders = useCallback(async (appointmentIds, template = null) => {
     try {
@@ -177,12 +174,13 @@ export const useAppointmentReminders = () => {
 
       console.log(`📊 Lembretes em lote concluídos: ${successCount} sucesso, ${errorCount} erros`);
 
-      // Notificar resultado
-      notificationService.notify(
-        'Lembretes Enviados',
-        `${successCount} lembretes enviados com sucesso${errorCount > 0 ? `, ${errorCount} falharam` : ''}`,
-        summary
-      );
+      if (notificationService) {
+          notificationService.notify(
+            'Lembretes Enviados',
+            `${successCount} lembretes enviados com sucesso${errorCount > 0 ? `, ${errorCount} falharam` : ''}`,
+            summary
+          );
+      }
 
       return summary;
 
@@ -190,11 +188,13 @@ export const useAppointmentReminders = () => {
       console.error('❌ Erro no envio em lote:', err.message);
       setError(err.message);
 
-      notificationService.notify(
-        'Erro nos Lembretes',
-        `Falha no envio em lote: ${err.message}`,
-        { error: err.message }
-      );
+      if (notificationService) {
+          notificationService.notify(
+            'Erro nos Lembretes',
+            `Falha no envio em lote: ${err.message}`,
+            { error: err.message }
+          );
+      }
 
       return {
         total: appointmentIds.length,
@@ -210,8 +210,6 @@ export const useAppointmentReminders = () => {
 
   /**
    * Busca agendamentos que precisam de lembretes
-   * @param {Object} filters - Filtros para buscar agendamentos
-   * @returns {Promise<Array>} - Lista de agendamentos
    */
   const getAppointmentsForReminders = useCallback(async (filters = {}) => {
     try {
@@ -239,14 +237,23 @@ export const useAppointmentReminders = () => {
             avatar_url
           )
         `)
-        .eq('status', 'scheduled') // Apenas agendamentos confirmados
-        .gte('start_time', new Date().toISOString()); // Futuros
+        .eq('status', 'scheduled')
+        .gte('start_time', new Date().toISOString()); 
 
-      // Aplicar filtros
-      if (filters.daysAhead) {
+      if (filters.daysAhead !== undefined) {
         const futureDate = new Date();
         futureDate.setDate(futureDate.getDate() + filters.daysAhead);
-        query = query.lte('start_time', futureDate.toISOString());
+        
+        // Define o início do dia alvo (00:00:00)
+        const targetStart = new Date(futureDate);
+        targetStart.setHours(0, 0, 0, 0);
+        
+        // Define o fim do dia alvo (23:59:59)
+        const targetEnd = new Date(futureDate);
+        targetEnd.setHours(23, 59, 59, 999);
+
+        query = query.gte('start_time', targetStart.toISOString())
+                     .lte('start_time', targetEnd.toISOString());
       }
 
       if (filters.withoutReminders) {
@@ -282,12 +289,6 @@ export const useAppointmentReminders = () => {
     }
   }, []);
 
-  /**
-   * Cancela/envia lembretes automáticos agendados
-   * @param {string} appointmentId - ID do agendamento
-   * @param {boolean} enable - Habilitar ou desabilitar
-   * @returns {Promise<Object>} - Resultado da operação
-   */
   const toggleAutoReminder = useCallback(async (appointmentId, enable) => {
     try {
       setLoading(true);
@@ -303,8 +304,6 @@ export const useAppointmentReminders = () => {
 
       if (error) throw error;
 
-      console.log(`✅ Auto-lembrete ${enable ? 'habilitado' : 'desabilitado'} para agendamento ${appointmentId}`);
-
       return {
         success: true,
         message: `Auto-lembrete ${enable ? 'habilitado' : 'desabilitado'}`
@@ -313,32 +312,23 @@ export const useAppointmentReminders = () => {
     } catch (err) {
       console.error('❌ Erro ao alterar auto-lembrete:', err.message);
       setError(err.message);
-
       return {
         success: false,
         error: err.message
       };
-
     } finally {
       setLoading(false);
     }
   }, []);
 
-  /**
-   * Obtém estatísticas de lembretes enviados
-   * @param {Object} dateRange - Período para análise
-   * @returns {Promise<Object>} - Estatísticas
-   */
   const getReminderStats = useCallback(async (dateRange = {}) => {
     try {
       setLoading(true);
-
       let query = supabase
         .from('appointments')
         .select('reminder_sent_at, reminder_count, status')
         .not('reminder_sent_at', 'is', null);
 
-      // Aplicar range de datas se fornecido
       if (dateRange.start) {
         query = query.gte('reminder_sent_at', dateRange.start);
       }
@@ -347,26 +337,22 @@ export const useAppointmentReminders = () => {
       }
 
       const { data: appointments, error } = await query;
-
       if (error) throw error;
 
       const stats = {
         totalSent: appointments.length,
-        averagePerAppointment: appointments.reduce((sum, apt) => sum + (apt.reminder_count || 0), 0) / appointments.length,
+        averagePerAppointment: appointments.length ? appointments.reduce((sum, apt) => sum + (apt.reminder_count || 0), 0) / appointments.length : 0,
         byStatus: appointments.reduce((acc, apt) => {
           acc[apt.status] = (acc[apt.status] || 0) + 1;
           return acc;
         }, {}),
         timestamp: new Date().toISOString()
       };
-
       return stats;
-
     } catch (err) {
       console.error('❌ Erro ao obter estatísticas:', err.message);
       setError(err.message);
       return null;
-
     } finally {
       setLoading(false);
     }
