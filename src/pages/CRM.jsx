@@ -7,7 +7,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { useToast } from '@/components/ui/use-toast';
 import KanbanBoard from '@/components/crm/KanbanBoard';
 import LeadDialog from '@/components/crm/LeadDialog';
-import { getLeads, addLead, updateLead, deleteLead } from '@/database'; // Importando funções do banco
+import { getLeads, addLead, updateLead } from '@/database';
 import { useAuth } from '@/contexts/SupabaseAuthContext';
 
 const CRM = () => {
@@ -16,18 +16,16 @@ const CRM = () => {
   const [searchTerm, setSearchTerm] = useState('');
   const [statusFilter, setStatusFilter] = useState('all');
   
-  // Estados para Modais
   const [isLeadDialogOpen, setIsLeadDialogOpen] = useState(false);
   const [currentLead, setCurrentLead] = useState(null);
 
   const { toast } = useToast();
   const { user } = useAuth();
 
-  // Carregar Leads
   const fetchLeads = async () => {
     setLoading(true);
     try {
-      const data = await getLeads(); // Busca do Supabase via database.js
+      const data = await getLeads();
       setLeads(data || []);
     } catch (error) {
       console.error('Erro ao buscar leads:', error);
@@ -45,9 +43,6 @@ const CRM = () => {
     fetchLeads();
   }, []);
 
-  // --- AÇÕES DO KANBAN ---
-
-  // 1. Salvar Novo Lead ou Edição
   const handleSaveLead = async (data) => {
     try {
       if (data.id) {
@@ -59,40 +54,31 @@ const CRM = () => {
       }
       setIsLeadDialogOpen(false);
       setCurrentLead(null);
-      fetchLeads(); // Recarrega a lista
+      fetchLeads(); 
     } catch (error) {
       console.error('Erro ao salvar lead:', error);
       toast({ title: "Erro", description: "Falha ao salvar lead.", variant: "destructive" });
     }
   };
 
-  // 2. Mover Card (Arrastar e Soltar)
   const handleUpdateStatus = async (leadId, newStatus) => {
-    // Atualização Otimista (Visual muda na hora)
     const originalLeads = [...leads];
     setLeads(prev => prev.map(l => l.id === leadId ? { ...l, status: newStatus } : l));
 
     try {
       await updateLead(leadId, { status: newStatus });
-      // Sucesso silencioso, não precisa de toast pra cada movimento
     } catch (error) {
       console.error('Erro ao mover card:', error);
       toast({ title: "Erro ao mover", description: "O status não foi salvo.", variant: "destructive" });
-      setLeads(originalLeads); // Reverte se der erro
+      setLeads(originalLeads); 
     }
   };
 
-  // 3. Deletar Lead
   const handleDeleteLead = async (id) => {
       if(confirm("Tem certeza que deseja excluir este lead?")) {
           try {
-              // Se tiver função deleteLead no database.js, usamos. Se não, update para status 'deleted' ou similar.
-              // Assumindo que existe deleteLead ou você implementará. 
-              // Se não existir, vamos improvisar com updateLead para um status 'archived'
-              // await deleteLead(id); <--- Ideal
-              await updateLead(id, { status: 'archived' }); // <--- Seguro por enquanto
-              
-              toast({ title: "Lead arquivado/excluído" });
+              await updateLead(id, { status: 'archived' });
+              toast({ title: "Lead arquivado" });
               fetchLeads();
               setIsLeadDialogOpen(false);
           } catch (error) {
@@ -101,20 +87,20 @@ const CRM = () => {
       }
   };
 
-  // 4. Abrir Modal de Edição (Clique no Card)
   const handleEditLead = (lead) => {
     setCurrentLead(lead);
     setIsLeadDialogOpen(true);
   };
 
-  // 5. Novo Lead (Botão)
   const handleNewLead = () => {
     setCurrentLead(null);
     setIsLeadDialogOpen(true);
   };
 
-  // Filtragem local
   const filteredLeads = leads.filter(lead => {
+    // Filtra fora os arquivados
+    if (lead.status === 'archived') return false;
+
     const matchesSearch = lead.name?.toLowerCase().includes(searchTerm.toLowerCase()) || 
                           lead.phone?.includes(searchTerm);
     const matchesStatus = statusFilter === 'all' || lead.status === statusFilter;
@@ -129,7 +115,6 @@ const CRM = () => {
 
       <div className="flex flex-col h-[calc(100vh-6rem)] space-y-4">
         
-        {/* TOPO: Título e Ações */}
         <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
           <div>
             <h1 className="text-3xl font-bold text-foreground flex items-center gap-2">
@@ -151,7 +136,6 @@ const CRM = () => {
           </div>
         </div>
 
-        {/* BARRA DE FILTROS */}
         <div className="flex flex-col sm:flex-row gap-3 bg-card p-3 rounded-lg border shadow-sm">
             <div className="relative flex-1">
                 <Search className="absolute left-2 top-2.5 h-4 w-4 text-muted-foreground" />
@@ -173,15 +157,15 @@ const CRM = () => {
                     <SelectContent>
                         <SelectItem value="all">Todos os Status</SelectItem>
                         <SelectItem value="new">Novos</SelectItem>
-                        <SelectItem value="in_conversation">Em Conversa</SelectItem>
+                        <SelectItem value="in_conversation">Em Conversa</SelectItem> {/* CORRIGIDO */}
                         <SelectItem value="scheduled">Agendados</SelectItem>
-                        <SelectItem value="sales">Vendas</SelectItem>
+                        <SelectItem value="likely_purchase">Provável Compra</SelectItem>
+                        <SelectItem value="purchased">Venda Realizada</SelectItem>
                     </SelectContent>
                 </Select>
             </div>
         </div>
 
-        {/* ÁREA DO KANBAN (Scrollável) */}
         <div className="flex-1 overflow-hidden bg-muted/20 rounded-xl border p-4">
             {loading ? (
                 <div className="flex justify-center items-center h-full text-muted-foreground">
@@ -190,13 +174,12 @@ const CRM = () => {
             ) : (
                 <KanbanBoard 
                     leads={filteredLeads} 
-                    onUpdateLead={handleUpdateStatus} // Conecta o Drag&Drop ao Banco
-                    onEditLead={handleEditLead}       // Conecta o Clique ao Modal
+                    onUpdateLead={handleUpdateStatus} 
+                    onEditLead={handleEditLead}       
                 />
             )}
         </div>
 
-        {/* MODAL DE LEAD (Criação/Edição) */}
         <LeadDialog 
             open={isLeadDialogOpen}
             onOpenChange={setIsLeadDialogOpen}
