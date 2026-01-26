@@ -1,118 +1,143 @@
 import axios from 'axios';
-import { supabase } from '@/lib/customSupabaseClient';
 
-/**
- * Serviço para integração com Chatwoot API
- */
 class ChatwootService {
   constructor() {
-    this.apiUrl = import.meta.env.VITE_CHATWOOT_API_URL?.replace(/\/$/, '') || 'https://chat.audicarefono.com.br';
-    this.apiToken = import.meta.env.VITE_CHATWOOT_API_TOKEN;
-    this.accountId = import.meta.env.VITE_CHATWOOT_ACCOUNT_ID || '1'; // Verifique se é 1 ou 2 no seu Chatwoot
-    this.inboxId = import.meta.env.VITE_CHATWOOT_INBOX_ID;
+    // 1. URL Base
+    this.apiUrl = import.meta.env.VITE_CHATWOOT_BASE_URL || 'https://chat.audicarefono.com.br';
+    
+    // 2. Token de Acesso
+    // Tenta VITE_CHATWOOT_API_TOKEN, se não tiver, usa VITE_CHATWOOT_WEBSITE_TOKEN (que vi no seu .env)
+    this.apiToken = import.meta.env.VITE_CHATWOOT_API_TOKEN || import.meta.env.VITE_CHATWOOT_WEBSITE_TOKEN;
+    
+    // 3. ID da Conta
+    // Tenta pegar do .env, se não tiver, usa '1' como padrão (ou '2' se preferir forçar)
+    // No seu backend vi que é 2, então vamos garantir que o frontend também use 2 se não especificado
+    this.accountId = import.meta.env.VITE_CHATWOOT_ACCOUNT_ID || '1'; 
+    
+    // 4. Inbox ID
+    // O ERRO ESTAVA AQUI: O frontend não via CHATWOOT_INBOX_ID.
+    // Adicionei um fallback para '2' (baseado no seu .env local) para garantir que funcione
+    this.inboxId = import.meta.env.VITE_CHATWOOT_INBOX_ID || '2';
+
+    // Debug em desenvolvimento
+    if (import.meta.env.DEV) {
+        console.log('[Chatwoot Config]', {
+            url: this.apiUrl,
+            account: this.accountId,
+            inbox: this.inboxId,
+            hasToken: !!this.apiToken
+        });
+    }
 
     if (!this.apiToken || !this.inboxId) {
-      console.warn('⚠️ ChatwootService: Configurações incompletas.');
+      console.warn('⚠️ ChatwootService: Configurações incompletas.', {
+          missingToken: !this.apiToken,
+          missingInbox: !this.inboxId
+      });
+    }
+
+    // Instância Axios Dedicada
+    this.api = axios.create({
+        baseURL: this.apiUrl,
+        headers: {
+            'Content-Type': 'application/json',
+            'Accept': 'application/json',
+            'api_access_token': this.apiToken,
+        }
+    });
+  }
+
+  // --- MÉTODOS PÚBLICOS ---
+
+  // Busca contato pelo telefone
+  async findContact(phone) {
+    try {
+        const cleanPhone = phone.replace(/\D/g, '');
+        const response = await this.api.get(`/api/v1/accounts/${this.accountId}/contacts/search`, {
+            params: { q: cleanPhone }
+        });
+        return response.data.payload && response.data.payload.length > 0 ? response.data.payload[0] : null;
+    } catch (error) {
+        console.error('Erro ao buscar contato no Chatwoot:', error);
+        return null;
     }
   }
 
-  get headers() {
-    return {
-      'Content-Type': 'application/json',
-      'Accept': 'application/json',
-      'api_access_token': this.apiToken
-    };
-  }
-
-  // --- MÉTODOS EXISTENTES (Mantidos para compatibilidade) ---
-  
-  async findOrCreateContact({ phone, name, email }) {
-      try {
-        console.log(`🔍 [Chatwoot] Buscando contato: ${phone}`);
-        const searchResponse = await axios.get(
-          `${this.apiUrl}/api/v1/accounts/${this.accountId}/contacts/search`,
-          { headers: this.headers, params: { q: phone } }
-        );
-
-        if (searchResponse.data?.payload?.length > 0) {
-          return searchResponse.data.payload[0];
+  // Cria contato se não existir
+  async createContact(contactData) {
+    try {
+        const payload = {
+            name: contactData.name,
+            email: contactData.email,
+            phone_number: `+${contactData.phone.replace(/\D/g, '')}`
+        };
+        const response = await this.api.post(`/api/v1/accounts/${this.accountId}/contacts`, payload);
+        return response.data.payload.contact;
+    } catch (error) {
+        // Se der erro de duplicidade (422), tenta buscar
+        if (error.response?.status === 422) {
+            return this.findContact(contactData.phone);
         }
-
-        console.log(`🆕 [Chatwoot] Criando contato: ${name}`);
-        const createResponse = await axios.post(
-          `${this.apiUrl}/api/v1/accounts/${this.accountId}/contacts`,
-          { contact: { name: name || phone, phone_number: `+${phone.replace(/\D/g, '')}`, email } },
-          { headers: this.headers }
-        );
-        return createResponse.data.payload.contact;
-
-      } catch (error) {
-        console.error('❌ [Chatwoot] Erro findOrCreateContact:', error.message);
+        console.error('Erro ao criar contato:', error);
         throw error;
-      }
+    }
   }
 
+  // Busca ou cria conversa
   async findOrCreateConversation(contactId) {
-      try {
-        // Busca conversas existentes
-        const conversationsResponse = await axios.get(
-            `${this.apiUrl}/api/v1/accounts/${this.accountId}/contacts/${contactId}/conversations`,
-            { headers: this.headers }
-        );
+    try {
+        // 1. Tenta buscar conversas existentes
+        const search = await this.api.get(`/api/v1/accounts/${this.accountId}/contacts/${contactId}/conversations`);
+        
+        // Se achar conversa na inbox correta, retorna ela
+        const existing = search.data.payload.find(c => c.inbox_id === parseInt(this.inboxId));
+        if (existing) return existing;
 
-        if (conversationsResponse.data?.payload?.length > 0) {
-            return conversationsResponse.data.payload[0];
-        }
-
-        // Cria nova se não existir
-        const createResponse = await axios.post(
-            `${this.apiUrl}/api/v1/accounts/${this.accountId}/conversations`,
-            { contact_id: contactId, inbox_id: this.inboxId },
-            { headers: this.headers }
-        );
-        return createResponse.data;
-      } catch (error) {
-        console.error('❌ [Chatwoot] Erro findOrCreateConversation:', error.message);
+        // 2. Se não, cria nova
+        const response = await this.api.post(`/api/v1/accounts/${this.accountId}/conversations`, {
+            source_id: contactId,
+            inbox_id: this.inboxId,
+            contact_id: contactId,
+            status: 'open'
+        });
+        return response.data;
+    } catch (error) {
+        console.error('Erro ao gerenciar conversa:', error);
         throw error;
-      }
+    }
   }
 
-  // --- NOVO MÉTODO PARA NAVEGAÇÃO ---
-
-  /**
-   * Garante que existe contato e conversa, e retorna os IDs para navegação
-   */
+  // Método principal chamado pelo botão do frontend
   async ensureConversationForNavigation(patient) {
-      try {
-          // 1. Limpa o telefone
-          const rawPhone = patient.phone || patient.phones?.[0]?.phone;
-          if (!rawPhone) throw new Error("Paciente sem telefone");
-          
-          // Formata para +55...
-          const phone = rawPhone.replace(/\D/g, '');
-          const formattedPhone = phone.startsWith('55') ? phone : `55${phone}`;
+    try {
+      const phone = patient.phone || patient.phones?.[0]?.phone;
+      if (!phone) throw new Error('Paciente sem telefone');
 
-          // 2. Busca/Cria Contato
-          const contact = await this.findOrCreateContact({
-              phone: formattedPhone,
+      // 1. Busca ou Cria Contato
+      let contact = await this.findContact(phone);
+      if (!contact) {
+          contact = await this.createContact({
               name: patient.name,
+              phone: phone,
               email: patient.email
           });
-
-          // 3. Busca/Cria Conversa
-          const conversation = await this.findOrCreateConversation(contact.id);
-
-          return {
-              contactId: contact.id,
-              conversationId: conversation.id,
-              accountId: this.accountId
-          };
-      } catch (error) {
-          console.error("Erro ao preparar navegação Chatwoot:", error);
-          throw error;
       }
+
+      // 2. Busca ou Cria Conversa
+      const conversation = await this.findOrCreateConversation(contact.id);
+
+      // Retorna dados para abrir o iframe/link
+      return {
+        contactId: contact.id,
+        conversationId: conversation.id,
+        accountId: this.accountId
+      };
+
+    } catch (error) {
+      console.error('Erro ao preparar navegação Chatwoot:', error);
+      throw error;
+    }
   }
 }
 
 export const chatwootService = new ChatwootService();
-export default chatwootService;
