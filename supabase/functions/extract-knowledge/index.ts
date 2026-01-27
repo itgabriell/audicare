@@ -11,64 +11,69 @@ serve(async (req) => {
   }
 
   try {
-    console.log("🚀 Iniciando extract-knowledge (Usando Gemini 2.0 Flash)...");
-
     const { transcript } = await req.json();
+    
     const GEMINI_API_KEY = Deno.env.get('GEMINI_API_KEY') || Deno.env.get('VITE_GOOGLE_GEMINI_API_KEY');
+    if (!GEMINI_API_KEY) {
+      throw new Error("CONFIG_ERROR: GEMINI_API_KEY não encontrada nos Secrets.");
+    }
 
-    if (!GEMINI_API_KEY) throw new Error("API Key configuration missing");
+    // --- MUDANÇA DEFINITIVA: Usando o ALIAS que nunca falha ---
+    const MODEL_NAME = "gemini-flash-latest"; 
+    
+    console.log(`📡 Conectando no modelo: ${MODEL_NAME}`);
+
+    const URL = `https://generativelanguage.googleapis.com/v1beta/models/${MODEL_NAME}:generateContent?key=${GEMINI_API_KEY}`;
 
     const prompt = `
-      Você é um analista de dados de CRM.
-      Analise a transcrição abaixo. Extraia pares de "Perguntas do Cliente" e "Respostas do Atendente".
-      Ignore saudações. Foque em informações úteis.
-      
-      IMPORTANTE: Retorne APENAS um JSON válido. Não use crases (\`\`\`).
-      Formato: [{"question": "...", "answer": "..."}]
+      Analise a conversa abaixo. Extraia pares de perguntas e respostas.
+      Retorne APENAS um JSON puro no formato: [{"question": "...", "answer": "..."}].
+      Sem markdown, sem explicações.
 
-      Transcrição:
+      Conversa:
       ${transcript}
     `;
 
-    // --- MUDANÇA: Usando o modelo Gemini 2.0 Flash da sua lista ---
-    const response = await fetch(
-      `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${GEMINI_API_KEY}`,
-      {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          contents: [{ parts: [{ text: prompt }] }]
-        })
-      }
-    );
+    const response = await fetch(URL, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        contents: [{ parts: [{ text: prompt }] }]
+      })
+    });
 
     if (!response.ok) {
-        const errorText = await response.text();
-        console.error("❌ Erro Google:", errorText);
-        throw new Error(`Google API Error: ${response.status} - ${errorText}`);
+      const errorBody = await response.text();
+      console.error("❌ Erro Google API:", errorBody);
+      throw new Error(`GOOGLE_API_ERROR (${response.status}): ${errorBody}`);
     }
 
     const data = await response.json();
     
-    // Ajuste para estrutura do Gemini 2.0 (que é similar, mas garantindo)
-    let rawText = data.candidates?.[0]?.content?.parts?.[0]?.text;
+    const rawText = data.candidates?.[0]?.content?.parts?.[0]?.text;
+    if (!rawText) {
+      throw new Error("AI_EMPTY_RESPONSE: A IA não retornou texto.");
+    }
 
-    if (!rawText) throw new Error("Empty response from AI");
+    const cleanJson = rawText.replace(/```json/g, '').replace(/```/g, '').trim();
     
-    // Limpeza do JSON
-    rawText = rawText.replace(/```json/g, '').replace(/```/g, '').trim();
-    
-    const pairs = JSON.parse(rawText);
+    let pairs;
+    try {
+      pairs = JSON.parse(cleanJson);
+    } catch (e) {
+      throw new Error(`JSON_PARSE_ERROR: Texto inválido recebido da IA.`);
+    }
 
     return new Response(JSON.stringify({ pairs }), {
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      status: 200,
     })
 
   } catch (error) {
-    console.error("🚨 ERRO:", error.message);
+    console.error("🚨 ERRO CAPTURADO:", error.message);
     return new Response(JSON.stringify({ error: error.message }), {
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-      status: 500,
+      status: 400,
     })
   }
 })
