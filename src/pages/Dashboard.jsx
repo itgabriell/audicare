@@ -1,245 +1,228 @@
 import React, { useEffect, useState } from 'react';
-import { Helmet } from 'react-helmet';
-import { useAuth } from '@/contexts/SupabaseAuthContext';
-import { getDashboardMetrics } from '@/database';
 import { 
-  Activity, 
-  Clock, 
-  RefreshCcw, 
-  Target, 
-  TrendingUp, 
-  Users, 
-  Instagram, 
-  Globe, 
-  MessageCircle,
-  Share2
+  Users, Calendar, Wrench, TrendingUp, 
+  Activity, ArrowUpRight, DollarSign 
 } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Progress } from '@/components/ui/progress';
+import { getDashboardStats } from '@/database';
+import { useToast } from '@/components/ui/use-toast';
+import {
+  BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer,
+  PieChart, Pie, Cell, Legend
+} from 'recharts';
 
 const Dashboard = () => {
-  const { user } = useAuth();
-  const [metrics, setMetrics] = useState(null);
+  const [stats, setStats] = useState(null);
   const [loading, setLoading] = useState(true);
+  const { toast } = useToast();
 
   useEffect(() => {
-    const loadData = async () => {
+    async function loadStats() {
       try {
-        const data = await getDashboardMetrics();
-        setMetrics(data);
+        const data = await getDashboardStats();
+        setStats(data);
       } catch (error) {
-        console.error("Erro ao carregar dashboard:", error);
+        console.error(error);
+        // Não mostramos toast de erro no dashboard para não assustar no login, 
+        // apenas logamos, a menos que seja crítico.
       } finally {
         setLoading(false);
       }
-    };
-    loadData();
+    }
+    loadStats();
   }, []);
 
-  // Helpers de Ícone e Cor para Origem
-  const getSourceIcon = (source) => {
-    switch(source) {
-      case 'instagram': return <Instagram className="h-4 w-4 text-pink-600" />;
-      case 'facebook': return <span className="font-bold text-blue-600 text-xs">FB</span>;
-      case 'whatsapp': return <MessageCircle className="h-4 w-4 text-green-600" />;
-      case 'site': return <Globe className="h-4 w-4 text-blue-500" />; // "google" cai aqui se mapeado como site
-      case 'google': return <Globe className="h-4 w-4 text-blue-500" />;
-      case 'referral': return <Share2 className="h-4 w-4 text-purple-600" />;
-      default: return <Activity className="h-4 w-4 text-gray-400" />;
-    }
+  // Processamento dos dados para os gráficos
+  const processWeekData = () => {
+    if (!stats?.charts?.weekAppointments) return [];
+    
+    // Agrupa por dia
+    const counts = {};
+    stats.charts.weekAppointments.forEach(app => {
+        const date = new Date(app.appointment_date).toLocaleDateString('pt-BR', { weekday: 'short' });
+        counts[date] = (counts[date] || 0) + 1;
+    });
+
+    return Object.keys(counts).map(key => ({
+        name: key.toUpperCase(),
+        consultas: counts[key]
+    }));
   };
 
-  const getSlaColor = (minutes) => {
-    if (minutes <= 5) return 'text-green-600';
-    if (minutes <= 30) return 'text-yellow-600';
-    return 'text-red-600';
+  const processRepairData = () => {
+      if (!stats?.charts?.repairsStatus) return [];
+      
+      const counts = {};
+      stats.charts.repairsStatus.forEach(r => {
+          // Traduz status para nome amigável
+          let name = r.status;
+          if(name === 'received') name = 'Na Clínica';
+          if(name === 'sent_to_lab') name = 'No Lab';
+          if(name === 'ready') name = 'Pronto';
+          if(name === 'returning') name = 'Voltando';
+          
+          counts[name] = (counts[name] || 0) + 1;
+      });
+
+      return Object.keys(counts).map(key => ({
+          name: key,
+          value: counts[key]
+      }));
   };
+
+  const COLORS = ['#0088FE', '#00C49F', '#FFBB28', '#FF8042', '#8884d8'];
 
   if (loading) {
-    return <div className="p-8 flex justify-center"><div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div></div>;
+      return <div className="p-8 flex items-center justify-center h-screen text-muted-foreground">Carregando painel...</div>;
   }
 
   return (
-    <div className="space-y-6">
-      <Helmet>
-        <title>Dashboard - Audicare</title>
-      </Helmet>
-
-      <div>
-        <h1 className="text-3xl font-bold tracking-tight">Visão Geral</h1>
-        <p className="text-muted-foreground">
-          Performance dos últimos 30 dias.
-        </p>
+    <div className="p-6 space-y-6 bg-slate-50/50 dark:bg-slate-900/50 min-h-screen">
+      
+      {/* Cabelhado */}
+      <div className="flex justify-between items-center">
+        <div>
+            <h1 className="text-3xl font-bold tracking-tight text-slate-900 dark:text-slate-100">Dashboard</h1>
+            <p className="text-muted-foreground">Visão geral da Audicare hoje.</p>
+        </div>
+        <div className="text-sm text-muted-foreground bg-white dark:bg-slate-800 px-3 py-1 rounded-full border shadow-sm">
+            📅 {new Date().toLocaleDateString('pt-BR', { dateStyle: 'full' })}
+        </div>
       </div>
 
-      {/* --- CARDS PRINCIPAIS --- */}
+      {/* Cards de Métricas (KPIs) */}
       <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
         
-        {/* Card 1: Tempo de Resposta */}
-        <Card>
+        {/* Card 1: Agenda Hoje */}
+        <Card className="shadow-sm border-l-4 border-l-blue-500">
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">
-              Tempo Médio de Resposta
-            </CardTitle>
-            <Clock className="h-4 w-4 text-muted-foreground" />
+            <CardTitle className="text-sm font-medium">Agenda Hoje</CardTitle>
+            <Calendar className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            <div className={`text-2xl font-bold ${getSlaColor(metrics?.avgResponseTimeMinutes || 0)}`}>
-              {metrics?.avgResponseTimeMinutes || 0} min
-            </div>
-            <p className="text-xs text-muted-foreground">
-              Do 1º contato até a resposta
-            </p>
+            <div className="text-2xl font-bold">{stats?.metrics?.appointmentsToday || 0}</div>
+            <p className="text-xs text-muted-foreground">pacientes agendados</p>
           </CardContent>
         </Card>
 
-        {/* Card 2: Leads Totais */}
-        <Card>
+        {/* Card 2: Reparos Ativos */}
+        <Card className="shadow-sm border-l-4 border-l-orange-500">
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">
-              Novos Leads (Mês)
-            </CardTitle>
+            <CardTitle className="text-sm font-medium">Reparos na Oficina</CardTitle>
+            <Wrench className="h-4 w-4 text-muted-foreground" />
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold">{stats?.metrics?.activeRepairs || 0}</div>
+            <p className="text-xs text-muted-foreground">aparelhos em processo</p>
+          </CardContent>
+        </Card>
+
+        {/* Card 3: Vendas Mês */}
+        <Card className="shadow-sm border-l-4 border-l-green-500">
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+            <CardTitle className="text-sm font-medium">Vendas (Mês)</CardTitle>
+            <TrendingUp className="h-4 w-4 text-muted-foreground" />
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold">{stats?.metrics?.salesMonth || 0}</div>
+            <p className="text-xs text-muted-foreground">leads convertidos</p>
+          </CardContent>
+        </Card>
+
+        {/* Card 4: Total Pacientes */}
+        <Card className="shadow-sm border-l-4 border-l-purple-500">
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+            <CardTitle className="text-sm font-medium">Total Pacientes</CardTitle>
             <Users className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">{metrics?.totalLeadsMonth || 0}</div>
-            <p className="text-xs text-muted-foreground">
-              +10% em relação ao mês anterior
-            </p>
-          </CardContent>
-        </Card>
-
-        {/* Card 3: Taxa de Resgate (Automations) */}
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">
-              Taxa de Resgate
-            </CardTitle>
-            <RefreshCcw className="h-4 w-4 text-muted-foreground" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">{metrics?.rescueRate || 0}%</div>
-            <p className="text-xs text-muted-foreground">
-              {metrics?.totalRescued || 0} recuperados de {metrics?.totalFollowups || 0} tentativas
-            </p>
-          </CardContent>
-        </Card>
-
-        {/* Card 4: Conversão em Agendamento */}
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">
-              Taxa de Agendamento
-            </CardTitle>
-            <Target className="h-4 w-4 text-muted-foreground" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">
-              {metrics?.totalLeadsMonth > 0 
-                ? Math.round((metrics.funnel.scheduled / metrics.totalLeadsMonth) * 100) 
-                : 0}%
-            </div>
-            <p className="text-xs text-muted-foreground">
-              Leads que viraram consulta
-            </p>
+            <div className="text-2xl font-bold">{stats?.metrics?.totalPatients || 0}</div>
+            <p className="text-xs text-muted-foreground">base ativa cadastrada</p>
           </CardContent>
         </Card>
       </div>
 
-      {/* --- SEGUNDA LINHA: GRÁFICOS E LISTAS --- */}
+      {/* Área de Gráficos */}
       <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-7">
         
-        {/* Origem dos Leads */}
-        <Card className="col-span-4">
+        {/* Gráfico Principal: Agendamentos */}
+        <Card className="col-span-4 shadow-sm">
           <CardHeader>
-            <CardTitle>Origem dos Leads</CardTitle>
+            <CardTitle className="text-base font-semibold flex items-center gap-2">
+                <Activity className="w-4 h-4 text-blue-500"/> Fluxo da Agenda (Próx. Dias)
+            </CardTitle>
           </CardHeader>
-          <CardContent>
-            <div className="space-y-4">
-              {metrics?.sources && Object.entries(metrics.sources)
-                .sort(([,a], [,b]) => b - a) // Ordenar do maior para menor
-                .map(([source, count]) => (
-                  <div key={source} className="flex items-center">
-                    <div className="flex items-center gap-2 w-32">
-                        {getSourceIcon(source)}
-                        <span className="text-sm font-medium capitalize truncate">
-                            {source === 'site' ? 'Google/Site' : source}
-                        </span>
+          <CardContent className="pl-2">
+            <div className="h-[300px] w-full">
+                {processWeekData().length > 0 ? (
+                     <ResponsiveContainer width="100%" height="100%">
+                     <BarChart data={processWeekData()}>
+                       <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#e5e7eb" />
+                       <XAxis 
+                            dataKey="name" 
+                            stroke="#888888" 
+                            fontSize={12} 
+                            tickLine={false} 
+                            axisLine={false} 
+                        />
+                       <YAxis 
+                            stroke="#888888" 
+                            fontSize={12} 
+                            tickLine={false} 
+                            axisLine={false} 
+                            tickFormatter={(value) => `${value}`} 
+                        />
+                       <Tooltip 
+                            cursor={{fill: 'transparent'}}
+                            contentStyle={{ borderRadius: '8px', border: 'none', boxShadow: '0 4px 6px -1px rgb(0 0 0 / 0.1)' }}
+                       />
+                       <Bar dataKey="consultas" fill="#3b82f6" radius={[4, 4, 0, 0]} barSize={40} />
+                     </BarChart>
+                   </ResponsiveContainer>
+                ) : (
+                    <div className="h-full flex items-center justify-center text-muted-foreground text-sm">
+                        Sem agendamentos previstos para esta semana.
                     </div>
-                    <div className="flex-1 mx-4">
-                       {/* Barra de Progresso relativa ao total */}
-                       <Progress value={(count / metrics.totalLeadsMonth) * 100} className="h-2" />
-                    </div>
-                    <div className="w-12 text-right text-sm text-muted-foreground">
-                        {count}
-                    </div>
-                  </div>
-              ))}
-              
-              {(!metrics?.sources || Object.keys(metrics.sources).length === 0) && (
-                  <div className="text-center text-sm text-muted-foreground py-6">
-                      Nenhum dado de origem detectado ainda.
-                  </div>
-              )}
+                )}
             </div>
           </CardContent>
         </Card>
 
-        {/* Funil de Vendas Simplificado */}
-        <Card className="col-span-3">
+        {/* Gráfico Secundário: Reparos */}
+        <Card className="col-span-3 shadow-sm">
           <CardHeader>
-            <CardTitle>Funil de Conversão</CardTitle>
+            <CardTitle className="text-base font-semibold flex items-center gap-2">
+                <Wrench className="w-4 h-4 text-orange-500"/> Status da Oficina
+            </CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="space-y-8 mt-4">
-                
-                {/* Etapa 1: Leads */}
-                <div className="flex items-center">
-                    <div className="w-2 h-2 bg-blue-500 rounded-full mr-2"></div>
-                    <div className="flex-1 space-y-1">
-                        <p className="text-sm font-medium leading-none">Total de Leads</p>
-                        <p className="text-xs text-muted-foreground">Entrada no funil</p>
+             <div className="h-[300px] w-full flex items-center justify-center">
+                {processRepairData().length > 0 ? (
+                    <ResponsiveContainer width="100%" height="100%">
+                    <PieChart>
+                      <Pie
+                        data={processRepairData()}
+                        cx="50%"
+                        cy="50%"
+                        innerRadius={60}
+                        outerRadius={80}
+                        paddingAngle={5}
+                        dataKey="value"
+                      >
+                        {processRepairData().map((entry, index) => (
+                          <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
+                        ))}
+                      </Pie>
+                      <Tooltip />
+                      <Legend verticalAlign="bottom" height={36}/>
+                    </PieChart>
+                  </ResponsiveContainer>
+                ) : (
+                    <div className="h-full flex items-center justify-center text-muted-foreground text-sm">
+                        Nenhum aparelho em reparo no momento.
                     </div>
-                    <div className="font-bold">{metrics?.funnel.total || 0}</div>
-                </div>
-
-                <div className="flex justify-center -my-2">
-                    <div className="h-4 w-0.5 bg-border"></div>
-                </div>
-
-                {/* Etapa 2: Agendados */}
-                <div className="flex items-center">
-                    <div className="w-2 h-2 bg-yellow-500 rounded-full mr-2"></div>
-                    <div className="flex-1 space-y-1">
-                        <p className="text-sm font-medium leading-none">Agendamentos</p>
-                        <p className="text-xs text-muted-foreground">Conversão: {
-                             metrics?.totalLeadsMonth > 0 
-                             ? Math.round((metrics.funnel.scheduled / metrics.totalLeadsMonth) * 100) 
-                             : 0
-                        }%</p>
-                    </div>
-                    <div className="font-bold">{metrics?.funnel.scheduled || 0}</div>
-                </div>
-
-                <div className="flex justify-center -my-2">
-                    <div className="h-4 w-0.5 bg-border"></div>
-                </div>
-
-                {/* Etapa 3: Vendas */}
-                <div className="flex items-center">
-                    <div className="w-2 h-2 bg-green-500 rounded-full mr-2"></div>
-                    <div className="flex-1 space-y-1">
-                        <p className="text-sm font-medium leading-none">Vendas Realizadas</p>
-                        <p className="text-xs text-muted-foreground">Fechamento: {
-                            metrics?.funnel.scheduled > 0 
-                            ? Math.round((metrics.funnel.purchased / metrics.funnel.scheduled) * 100) 
-                            : 0
-                        }%</p>
-                    </div>
-                    <div className="font-bold">{metrics?.funnel.purchased || 0}</div>
-                </div>
-
-            </div>
+                )}
+             </div>
           </CardContent>
         </Card>
       </div>

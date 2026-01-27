@@ -411,22 +411,22 @@ export const getConversations = async (f={}) => {
 
 export const getRepairs = async () => {
     const cid = await getClinicId();
-    const { data } = await supabase.from('repairs').select('*').eq('clinic_id', cid).order('created_at', {ascending: false});
+    const { data } = await supabase.from('repair_tickets').select('*').eq('clinic_id', cid).order('created_at', {ascending: false});
     return data || [];
 };
 export const addRepair = async (d) => {
     const cid = await getClinicId();
-    const { data, error } = await supabase.from('repairs').insert([{...d, clinic_id: cid}]).select().single();
+    const { data, error } = await supabase.from('repair_tickets').insert([{...d, clinic_id: cid}]).select().single();
     if(error) throw error; return data;
 };
 export const updateRepair = async (id, u) => {
     const cid = await getClinicId();
-    const { data, error } = await supabase.from('repairs').update(u).eq('id', id).eq('clinic_id', cid).select().single();
+    const { data, error } = await supabase.from('repair_tickets').update(u).eq('id', id).eq('clinic_id', cid).select().single();
     if(error) throw error; return data;
 };
 export const deleteRepair = async (id) => {
     const cid = await getClinicId();
-    const { error } = await supabase.from('repairs').delete().eq('id', id).eq('clinic_id', cid);
+    const { error } = await supabase.from('repair_tickets').delete().eq('id', id).eq('clinic_id', cid);
     if(error) throw error;
 };
 
@@ -469,4 +469,79 @@ export const updateNotificationSettings = async (settings) => {
   return true;
 };
 
+// ... (código anterior)
+
+// ======================================================================
+// DASHBOARD (NOVA FUNÇÃO AGREGADORA)
+// ======================================================================
+
+export const getDashboardStats = async () => {
+  const clinicId = await getClinicId();
+  if (!clinicId) return null;
+
+  const today = new Date().toISOString().split('T')[0];
+  const firstDayOfMonth = new Date(new Date().getFullYear(), new Date().getMonth(), 1).toISOString();
+
+  // 1. Agendamentos de HOJE
+  const { count: appointmentsToday } = await supabase
+    .from('appointments')
+    .select('*', { count: 'exact', head: true })
+    .eq('clinic_id', clinicId)
+    .eq('appointment_date', today);
+
+  // 2. Reparos ATIVOS (Não entregues)
+  // Consideramos ativos tudo que não está 'ready' (Pronto) ou 'delivered' (Entregue - se tiver esse status)
+  // No seu Kanban atual, o final é 'ready'.
+  const { count: activeRepairs } = await supabase
+    .from('repair_ticketss') // Atenção: Verifique se o nome da tabela no banco é 'repairs' ou 'repair_tickets'
+    .select('*', { count: 'exact', head: true })
+    .eq('clinic_id', clinicId)
+    .neq('status', 'ready');
+
+  // 3. Vendas no Mês (Leads com status 'purchased' ou 'won')
+  // Ajuste o status conforme você usa no CRM ('ganho', 'vendido', 'purchased')
+  const { count: salesMonth } = await supabase
+    .from('leads')
+    .select('*', { count: 'exact', head: true })
+    .eq('clinic_id', clinicId)
+    .eq('status', 'purchased') // <--- Confirme se é esse o status de venda no seu banco
+    .gte('created_at', firstDayOfMonth);
+
+  // 4. Total de Pacientes
+  const { count: totalPatients } = await supabase
+    .from('patients')
+    .select('*', { count: 'exact', head: true })
+    .eq('clinic_id', clinicId);
+
+  // 5. Dados para Gráfico: Agendamentos da Semana (Próximos 7 dias)
+  const { data: weekAppointments } = await supabase
+    .from('appointments')
+    .select('appointment_date')
+    .eq('clinic_id', clinicId)
+    .gte('appointment_date', today)
+    .order('appointment_date', { ascending: true })
+    .limit(50);
+
+  // 6. Dados para Gráfico: Reparos por Status
+  // Se o nome da tabela for 'repair_tickets', mude aqui
+  const { data: repairsData } = await supabase
+    .from('repair_tickets') 
+    .select('status')
+    .eq('clinic_id', clinicId);
+
+  return {
+    metrics: {
+      appointmentsToday: appointmentsToday || 0,
+      activeRepairs: activeRepairs || 0,
+      salesMonth: salesMonth || 0,
+      totalPatients: totalPatients || 0
+    },
+    charts: {
+      weekAppointments: weekAppointments || [],
+      repairsStatus: repairsData || []
+    }
+  };
+};
+
+// ... export { supabase, getClinicId, getDashboardStats ... };
 export { supabase, getClinicId };
