@@ -3,14 +3,13 @@ import { supabase } from '@/lib/customSupabaseClient';
 import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import { Plus, Wrench, Calendar, Smartphone, Hash, ArrowRight, ArrowLeft } from 'lucide-react';
+import { Plus, Wrench, Calendar, Smartphone, Hash, ArrowRight, ArrowLeft, Pencil, Trash2, X } from 'lucide-react';
 import { useToast } from '@/components/ui/use-toast';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 
-// Definição das colunas com cores semânticas e bordas de destaque
 const COLUMNS = [
   { id: 'received', title: '📥 Na Clínica (Gaveta)', color: 'border-t-4 border-slate-500 bg-slate-50/50 dark:bg-slate-900/20' },
   { id: 'batching', title: '📦 Juntando Lote', color: 'border-t-4 border-orange-500 bg-orange-50/50 dark:bg-orange-900/20' },
@@ -26,8 +25,13 @@ const RepairKanban = () => {
   const [isModalOpen, setIsModalOpen] = useState(false);
   const { toast } = useToast();
 
-  const [newTicket, setNewTicket] = useState({
-    patient_name: '', patient_phone: '', device_brand: '', problem_description: ''
+  // Estado do formulário
+  const [formData, setFormData] = useState({
+    id: null, // Se tiver ID, é edição. Se null, é criação.
+    patient_name: '', 
+    patient_phone: '', 
+    device_brand: '', 
+    problem_description: ''
   });
 
   useEffect(() => {
@@ -45,18 +49,73 @@ const RepairKanban = () => {
     setLoading(false);
   };
 
-  const createTicket = async () => {
-    if (!newTicket.patient_name) return;
+  // Abre modal vazio para criar
+  const handleOpenNew = () => {
+    setFormData({ id: null, patient_name: '', patient_phone: '', device_brand: '', problem_description: '' });
+    setIsModalOpen(true);
+  };
+
+  // Abre modal preenchido para editar
+  const handleOpenEdit = (ticket) => {
+    setFormData({
+        id: ticket.id,
+        patient_name: ticket.patient_name,
+        patient_phone: ticket.patient_phone,
+        device_brand: ticket.device_brand,
+        problem_description: ticket.problem_description
+    });
+    setIsModalOpen(true);
+  };
+
+  // Função Unificada: Cria ou Atualiza
+  const handleSave = async () => {
+    if (!formData.patient_name) return;
     
-    const { error } = await supabase.from('repair_tickets').insert([newTicket]);
+    let error = null;
+
+    if (formData.id) {
+        // --- MODO EDIÇÃO (UPDATE) ---
+        const { error: updateError } = await supabase
+            .from('repair_tickets')
+            .update({
+                patient_name: formData.patient_name,
+                patient_phone: formData.patient_phone,
+                device_brand: formData.device_brand,
+                problem_description: formData.problem_description
+            })
+            .eq('id', formData.id);
+        error = updateError;
+    } else {
+        // --- MODO CRIAÇÃO (INSERT) ---
+        // Removemos o ID null antes de enviar para não dar erro
+        const { id, ...newTicket } = formData;
+        const { error: insertError } = await supabase
+            .from('repair_tickets')
+            .insert([newTicket]);
+        error = insertError;
+    }
     
     if (error) {
-        toast({ title: "Erro", description: "Falha ao criar OS", variant: "destructive" });
+        toast({ title: "Erro", description: "Falha ao salvar OS", variant: "destructive" });
     } else {
-        toast({ title: "Sucesso", description: "OS Criada com sucesso!" });
+        toast({ title: "Sucesso", description: formData.id ? "OS Atualizada!" : "OS Criada!" });
         setIsModalOpen(false);
-        setNewTicket({ patient_name: '', patient_phone: '', device_brand: '', problem_description: '' });
         fetchTickets();
+    }
+  };
+
+  // Função Excluir
+  const handleDelete = async (id) => {
+    if(!confirm("Tem certeza que deseja excluir esta Ordem de Serviço permanentemente?")) return;
+
+    const { error } = await supabase.from('repair_tickets').delete().eq('id', id);
+
+    if (error) {
+        toast({ title: "Erro", description: "Não foi possível excluir.", variant: "destructive" });
+    } else {
+        toast({ title: "Excluído", description: "OS removida com sucesso." });
+        // Atualização otimista local para ser instantâneo
+        setTickets(prev => prev.filter(t => t.id !== id));
     }
   };
 
@@ -93,30 +152,29 @@ const RepairKanban = () => {
         </div>
         
         <Dialog open={isModalOpen} onOpenChange={setIsModalOpen}>
-            <DialogTrigger asChild>
-                <Button size="lg" className="shadow-md">
-                    <Plus className="mr-2 h-5 w-5"/> Nova Ordem de Serviço
-                </Button>
-            </DialogTrigger>
+            <Button size="lg" className="shadow-md" onClick={handleOpenNew}>
+                <Plus className="mr-2 h-5 w-5"/> Nova Ordem de Serviço
+            </Button>
+            
             <DialogContent className="sm:max-w-[500px]">
                 <DialogHeader>
-                    <DialogTitle>Abrir Nova OS</DialogTitle>
+                    <DialogTitle>{formData.id ? 'Editar OS' : 'Abrir Nova OS'}</DialogTitle>
                 </DialogHeader>
                 <div className="space-y-4 py-4">
                     <div className="grid grid-cols-2 gap-4">
                         <div className="space-y-2">
                             <Label>Nome do Paciente</Label>
                             <Input 
-                                value={newTicket.patient_name} 
-                                onChange={e => setNewTicket({...newTicket, patient_name: e.target.value})} 
+                                value={formData.patient_name} 
+                                onChange={e => setFormData({...formData, patient_name: e.target.value})} 
                                 placeholder="Ex: Maria Silva"
                             />
                         </div>
                         <div className="space-y-2">
                             <Label>Telefone</Label>
                             <Input 
-                                value={newTicket.patient_phone} 
-                                onChange={e => setNewTicket({...newTicket, patient_phone: e.target.value})} 
+                                value={formData.patient_phone} 
+                                onChange={e => setFormData({...formData, patient_phone: e.target.value})} 
                                 placeholder="(61) 99999-9999"
                             />
                         </div>
@@ -125,20 +183,22 @@ const RepairKanban = () => {
                         <Label>Marca / Modelo</Label>
                         <Input 
                             placeholder="Ex: Phonak Marvel M90" 
-                            value={newTicket.device_brand} 
-                            onChange={e => setNewTicket({...newTicket, device_brand: e.target.value})} 
+                            value={formData.device_brand} 
+                            onChange={e => setFormData({...formData, device_brand: e.target.value})} 
                         />
                     </div>
                     <div className="space-y-2">
                         <Label>Descrição do Problema</Label>
                         <Textarea 
                             placeholder="Ex: Aparelho mudo, troca de cápsula..." 
-                            value={newTicket.problem_description} 
-                            onChange={e => setNewTicket({...newTicket, problem_description: e.target.value})} 
+                            value={formData.problem_description} 
+                            onChange={e => setFormData({...formData, problem_description: e.target.value})} 
                             className="min-h-[100px]"
                         />
                     </div>
-                    <Button onClick={createTicket} className="w-full mt-2">Confirmar e Gerar OS</Button>
+                    <Button onClick={handleSave} className="w-full mt-2">
+                        {formData.id ? 'Salvar Alterações' : 'Gerar OS'}
+                    </Button>
                 </div>
             </DialogContent>
         </Dialog>
@@ -164,15 +224,30 @@ const RepairKanban = () => {
                             <Card key={ticket.id} className="bg-card hover:bg-accent/50 transition-colors border-border shadow-sm group relative">
                                 <CardContent className="p-4 space-y-3">
                                     
-                                    {/* Topo do Card */}
+                                    {/* Topo do Card (Ações de Edição) */}
                                     <div className="flex justify-between items-start gap-2">
-                                        <h3 className="font-bold text-foreground line-clamp-1" title={ticket.patient_name}>
-                                            {ticket.patient_name}
-                                        </h3>
-                                        <Badge variant="outline" className="text-[10px] shrink-0 text-muted-foreground flex gap-1 items-center">
-                                            <Hash className="w-3 h-3" />
-                                            {ticket.id.slice(0,4)}
-                                        </Badge>
+                                        <div className="flex-1 min-w-0">
+                                            <h3 className="font-bold text-foreground line-clamp-1 cursor-pointer hover:underline" 
+                                                onClick={() => handleOpenEdit(ticket)}
+                                                title="Clique para editar"
+                                            >
+                                                {ticket.patient_name}
+                                            </h3>
+                                            <Badge variant="outline" className="text-[10px] mt-1 text-muted-foreground flex gap-1 items-center w-fit">
+                                                <Hash className="w-3 h-3" />
+                                                {ticket.id.slice(0,4)}
+                                            </Badge>
+                                        </div>
+                                        
+                                        {/* Botões Edit/Delete (Visíveis no Hover ou fixos) */}
+                                        <div className="flex gap-1 opacity-100 sm:opacity-0 sm:group-hover:opacity-100 transition-opacity">
+                                            <Button variant="ghost" size="icon" className="h-6 w-6 text-muted-foreground hover:text-blue-500" onClick={() => handleOpenEdit(ticket)}>
+                                                <Pencil className="w-3 h-3" />
+                                            </Button>
+                                            <Button variant="ghost" size="icon" className="h-6 w-6 text-muted-foreground hover:text-red-500" onClick={() => handleDelete(ticket.id)}>
+                                                <Trash2 className="w-3 h-3" />
+                                            </Button>
+                                        </div>
                                     </div>
 
                                     {/* Detalhes */}
@@ -192,7 +267,7 @@ const RepairKanban = () => {
                                         "{ticket.problem_description}"
                                     </div>
 
-                                    {/* Botões de Ação (Aparecem no Hover ou fixos em mobile) */}
+                                    {/* Botões de Movimento */}
                                     <div className="flex justify-between items-center pt-2 mt-1 border-t border-border/50">
                                         <Button 
                                             variant="ghost" size="sm" 
