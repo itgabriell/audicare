@@ -88,7 +88,6 @@ export function PatientCombobox({ patients = [], value, onChange, onPatientsUpda
                 phone: newPatientData.phone,
                 email: newPatientData.email,
                 clinic_id: clinicId, // VINCULA O PACIENTE À CLÍNICA
-                status: 'active'     // Garante que não nasça como rascunho/inativo se tiver essa coluna
             }]) 
             .select()
             .single();
