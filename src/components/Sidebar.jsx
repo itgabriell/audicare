@@ -8,13 +8,14 @@ import {
   Briefcase,
   Settings,
   User,
-  Wrench, // O ícone da chave de fenda
+  Wrench,
   Bot,
   Bell,
   Share2,
   UploadCloud,
   BarChart3,
-  Receipt
+  Receipt,
+  BookOpen // NOVO ÍCONE
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import {
@@ -42,7 +43,9 @@ const mainNavItems = [
   { href: '/invoices', icon: Receipt, label: 'Notas Fiscais' },
 ];
 
+// --- NOVO ITEM AQUI ---
 const secondaryNavItems = [
+  { href: '/knowledge-base', icon: BookOpen, label: 'Base de Conhecimento' }, // ADICIONADO
   { href: '/social-media', icon: Share2, label: 'Social Media' },
   { href: '/automations', icon: Bot, label: 'Automações' },
   { href: '/notifications', icon: Bell, label: 'Notificações' },
@@ -129,13 +132,13 @@ const Sidebar = () => {
           .map(item => <NavItem key={item.href} item={item} isCollapsed={isCollapsed} />)}
       </nav>
 
-      {/* Secondary Navigation - Canais */}
+      {/* Secondary Navigation - Canais & Ferramentas */}
       {secondaryNavItems.some(item => canAccessRoute(item.href)) && (
         <>
           {!isCollapsed && (
             <div className="px-3 py-2 mt-2">
               <p className="text-[10px] font-bold text-muted-foreground/60 uppercase tracking-[0.1em]">
-                Canais
+                Ferramentas
               </p>
             </div>
           )}

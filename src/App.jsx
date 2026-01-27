@@ -37,6 +37,9 @@ const ImportData = lazy(() => import('@/pages/ImportData'));
 const Tasks = lazy(() => import('@/pages/Tasks'));
 const ChatIntegration = lazy(() => import('@/pages/ChatIntegration'));
 
+// NOVA PÁGINA: Knowledge Base
+const KnowledgeBase = lazy(() => import('@/pages/KnowledgeBase'));
+
 // --- ALTERAÇÃO AQUI: Apontando para o novo Kanban de Reparos ---
 const Repairs = lazy(() => import('@/components/crm/RepairKanban')); 
 
@@ -114,6 +117,9 @@ function App() {
             
             {/* Rota de Reparos (Carrega o Kanban) */}
             <Route path="repairs" element={<Repairs />} />
+            
+            {/* Rota da Base de Conhecimento */}
+            <Route path="knowledge-base" element={<KnowledgeBase />} />
             
             <Route path="inbox" element={<ChatIntegration />} />
             <Route path="social-media" element={<SocialMedia />} />
