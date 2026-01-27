@@ -6,12 +6,10 @@ const corsHeaders = {
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 }
 
-// Helper: Normalizar Telefone
 function normalizePhone(phone: string) {
   return phone.replace(/\D/g, ''); 
 }
 
-// Helper: Converter Buffer para Base64
 function arrayBufferToBase64(buffer: ArrayBuffer) {
   let binary = '';
   const bytes = new Uint8Array(buffer);
@@ -30,7 +28,7 @@ serve(async (req) => {
 
     // 1. FILTRO BÁSICO
     if (payload.message_type !== 'incoming' || payload.private) {
-      return new Response('Ignored', { status: 200 });
+      return new Response('Ignored (Outgoing/Private)', { status: 200 });
     }
 
     const supabaseUrl = Deno.env.get('SUPABASE_URL');
@@ -43,8 +41,9 @@ serve(async (req) => {
 
     const supabase = createClient(supabaseUrl, supabaseKey);
 
-    // 2. DISJUNTOR GERAL (Botão ON/OFF)
+    // --- DISJUNTOR ---
     const { data: config } = await supabase.from('app_settings').select('value').eq('key', 'clara_active').single();
+    console.log(`🤖 Clara ON/OFF: ${config?.value}`); 
     if (config && config.value === false) return new Response('Clara is OFF', { status: 200 });
 
     // DADOS DO CLIENTE
@@ -53,7 +52,6 @@ serve(async (req) => {
     const sender = payload.sender || {};
     let clientName = sender.name || "Cliente";
     
-    // Tratamento de nome
     if (clientName.match(/^\+?[0-9\s-]+$/) || clientName.toLowerCase() === 'cliente') {
         clientName = ""; 
     } else {
@@ -64,7 +62,7 @@ serve(async (req) => {
     const clientPhone = normalizePhone(sender.phone_number || "");
     let userMessage = payload.content || "";
 
-    // 3. DETECÇÃO MULTIMODAL (ÁUDIO/IMAGEM)
+    // 2. DETECÇÃO MULTIMODAL
     const attachments = payload.attachments || [];
     const mediaAttachment = attachments.find((att: any) => 
         att.file_type === 'audio' || att.file_type === 'image' || 
@@ -73,6 +71,7 @@ serve(async (req) => {
 
     if (mediaAttachment) {
         try {
+            console.log("📁 Mídia detectada, analisando...");
             const mediaResp = await fetch(mediaAttachment.data_url);
             const mediaBuffer = await mediaResp.arrayBuffer();
             const base64Media = arrayBufferToBase64(mediaBuffer);
@@ -85,8 +84,9 @@ serve(async (req) => {
                 mediaPrompt = "Analise esta imagem. Se for um exame, descreva a perda. Se for outra coisa, descreva.";
             }
 
+            // MODELO: Gemini 2.0 Flash (Mais estável que o 2.5)
             const multimodalResp = await fetch(
-                `https://generativelanguage.googleapis.com/v1beta/models/gemini-flash-latest:generateContent?key=${geminiKey}`,
+                `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${geminiKey}`,
                 {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
@@ -103,6 +103,7 @@ serve(async (req) => {
             const mmData = await multimodalResp.json();
             const analysis = mmData.candidates?.[0]?.content?.parts?.[0]?.text;
             if (analysis) userMessage = `[MÍDIA ENVIADA PELO CLIENTE: ${analysis}] \n ${userMessage}`;
+            console.log("✅ Análise de mídia concluída.");
         } catch (err) {
             console.error("❌ Erro Multimodal:", err);
         }
@@ -110,21 +111,19 @@ serve(async (req) => {
 
     if (!userMessage || userMessage.trim().length === 0) return new Response('Empty', { status: 200 });
 
-    // 4. BUSCAR HISTÓRICO RECENTE DA CONVERSA (CONTEXTO)
-    // Busca as mensagens anteriores para a IA saber o que já foi dito
+    // 3. HISTÓRICO
     const historyResp = await fetch(`${chatwootUrl}/api/v1/accounts/${accountId}/conversations/${conversationId}/messages`, {
         headers: { 'api_access_token': chatwootToken }
     });
     const historyData = await historyResp.json();
     const messages = historyData.payload || [];
     
-    // Formata histórico (do antigo para o novo)
     const recentHistory = messages.slice().reverse().slice(-6).map((m: any) => {
-        const role = m.message_type === 'incoming' ? 'CLIENTE' : 'CLARA (Assistente Virtual)';
+        const role = m.message_type === 'incoming' ? 'CLIENTE' : 'CLARA (Assistente)';
         return `${role}: ${m.content}`;
     }).join("\n");
 
-    // 5. MEMÓRIA RAG (Base de Conhecimento TÉCNICO)
+    // 4. MEMÓRIA TÉCNICA (RAG)
     const embedResp = await fetch(
       `https://generativelanguage.googleapis.com/v1beta/models/text-embedding-004:embedContent?key=${geminiKey}`,
       { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ model: "models/text-embedding-004", content: { parts: [{ text: userMessage }] } }) }
@@ -138,80 +137,99 @@ serve(async (req) => {
         contextText = docs?.map(d => `REF TÉCNICA:\nP: ${d.content}\nR: ${d.response}`).join("\n---\n") || "";
     }
 
-    // 6. PROMPT DEFINITIVO (CLARA 7.1 - A ASSISTENTE VIRTUAL)
+    // 5. CÉREBRO DA CLARA
     const SYSTEM_PROMPT = `
     Você é a Clara, a **Assistente Virtual** da Audicare Aparelhos Auditivos.
-    Na saudação, deixe claro que você é uma inteligência artificial, isso é importante para transparência. Após informar na saudação, não se justifique mais como inteligência artificial.
-    Seu tom é sempre **educado, profissional, empático e prestativo**. Use linguagem simples e clara.
-    Seu objetivo principal é **ajudar o cliente rapidamente**, fornecendo informações úteis e triando o atendimento para a equipe humana quando necessário. Também não precisa usar o termo triagem, você simplesmente atende esse cliente.
-    Seja breve e direto ao ponto, evite respostas longas.
     
     CLIENTE: ${clientName || "Desconhecido"}.
 
-    HISTÓRICO RECENTE DA CONVERSA (O QUE JÁ FOI DITO):
+    HISTÓRICO RECENTE:
     ${recentHistory}
     
-    MEMÓRIA TÉCNICA (SEUS TREINAMENTOS):
+    MEMÓRIA TÉCNICA:
     ${contextText}
 
-    MENSAGEM ATUAL DO CLIENTE: "${userMessage}"
+    MENSAGEM ATUAL: "${userMessage}"
 
     ---
-    TAREFA: Retornar JSON.
+    TAREFA: Retornar EXCLUSIVAMENTE um JSON.
     {
       "sentiment": "NEUTRO" | "POSITIVO" | "IRRITADO" | "CONFUSO",
       "intent": "SAUDACAO" | "TRIAGEM" | "AGENDAMENTO" | "DUVIDA" | "COMPRA" | "URGENTE_HUMANO",
-      "reply": "Sua resposta..."
+      "reply": "Sua resposta aqui. Seja breve, empática e use emojis."
     }
 
     REGRAS DE OURO:
-    1. **ANTI-REPETIÇÃO:** Olhe o HISTÓRICO. Se você já se apresentou recentemente, NÃO se apresente de novo. Apenas responda.
-    2. **ANTI-OFERTA:** NUNCA ofereça "Teste Grátis". Ofereça "Avaliação com a Dra. Karine".
-    3. **ÁLIBI:** Se não souber responder ou se o cliente pedir algo complexo (como agendar horário específico), diga: "Já registrei seu pedido e a equipe humana entrará em contato em instantes para confirmar."
+    1. ANTI-REPETIÇÃO: Olhe o HISTÓRICO. Se já se apresentou, NÃO repita "Sou a Clara".
+    2. ANTI-OFERTA: NUNCA ofereça "Teste Grátis".
+    3. ÁLIBI: Se não souber, diga: "Vou registrar sua dúvida e pedir para a equipe humana te responder em breve."
     
-    ROTEIRO DE RESPOSTA:
-    - **Início (Sem histórico):** "Olá ${clientName}, tudo bem? Sou a Clara, assistente virtual da Audicare. Como posso te ajudar?" (Curto e direto).
-    - **Triagem (Se o cliente pedir info):** Responda a dúvida e quando possível e se for um cliente novo para a compra de aparelhos auditivos pergunte: "Para adiantar seu atendimento, você já possui audiometria atualizada?"
-    - **Agendamento:** "Entendido. Vou encaminhar sua preferência de horário para a secretaria verificar a agenda da Dra. Karine e seguir com seu agendamento."
+    ROTEIRO:
+    - Início: "Olá ${clientName}, tudo bem? Sou a Clara, assistente virtual da Audicare. Como posso ajudar?"
+    - Triagem: Responda a dúvida e pergunte se já tem audiometria.
     `;
 
+    // MODELO ESTÁVEL: Gemini 2.0 Flash
     const aiResp = await fetch(
-      `https://generativelanguage.googleapis.com/v1beta/models/gemini-flash-latest:generateContent?key=${geminiKey}`,
+      `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${geminiKey}`,
       {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ contents: [{ parts: [{ text: SYSTEM_PROMPT }] }] })
+        body: JSON.stringify({ 
+            contents: [{ parts: [{ text: SYSTEM_PROMPT }] }],
+            safetySettings: [
+                { category: "HARM_CATEGORY_HARASSMENT", threshold: "BLOCK_NONE" },
+                { category: "HARM_CATEGORY_HATE_SPEECH", threshold: "BLOCK_NONE" },
+                { category: "HARM_CATEGORY_SEXUALLY_EXPLICIT", threshold: "BLOCK_NONE" },
+                { category: "HARM_CATEGORY_DANGEROUS_CONTENT", threshold: "BLOCK_NONE" }
+            ]
+        })
       }
     );
+    
     const aiData = await aiResp.json();
+
+    if (aiData.error) {
+        console.error("❌ ERRO DA IA:", JSON.stringify(aiData.error));
+        
+        // Se der erro de cota de novo, avise no log
+        if (aiData.error.code === 429) {
+             throw new Error("COTA EXCEDIDA: O plano gratuito atingiu o limite.");
+        }
+        throw new Error(`Gemini Error: ${aiData.error.message}`);
+    }
+
     let rawJson = aiData.candidates?.[0]?.content?.parts?.[0]?.text;
     
-    if (!rawJson) throw new Error("IA falhou.");
+    if (!rawJson) {
+        console.error("❌ Resposta Vazia:", JSON.stringify(aiData));
+        throw new Error("IA retornou vazio.");
+    }
 
     rawJson = rawJson.replace(/```json/g, '').replace(/```/g, '').trim();
-    const result = JSON.parse(rawJson);
+    
+    let result;
+    try {
+        result = JSON.parse(rawJson);
+    } catch (e) {
+        console.warn("⚠️ Falha no Parse JSON, usando texto cru.");
+        result = { intent: "DUVIDA", sentiment: "NEUTRO", reply: rawJson };
+    }
 
-    // TRATAMENTO DE PÂNICO
     if (result.intent === 'URGENTE_HUMANO' || result.sentiment === 'IRRITADO') {
         await fetch(`${chatwootUrl}/api/v1/accounts/${accountId}/conversations/${conversationId}/labels`, {
             method: 'POST',
             headers: { 'api_access_token': chatwootToken, 'Content-Type': 'application/json' },
             body: JSON.stringify({ labels: ['urgente', 'ia_handover'] })
         });
-        if (clientPhone) {
-             const searchPhone = clientPhone.slice(-8); 
-             const { data: leads } = await supabase.from('leads').select('id').ilike('phone', `%${searchPhone}%`);
-             if (leads && leads.length > 0) await supabase.from('leads').update({ status: 'stopped_responding' }).eq('id', leads[0].id);
-        }
         return new Response(JSON.stringify({ action: 'handoff' }), { headers: corsHeaders });
     }
 
-    // ENVIO COM DELAY NATURAL
     if (result.reply) {
         const messages = result.reply.split('\n').map(m => m.trim()).filter(m => m.length > 0);
         
         for (const [index, msg] of messages.entries()) {
-            const delay = index === 0 ? 3500 : 2000; 
+            const delay = index === 0 ? 3000 : 2000; 
             await new Promise(r => setTimeout(r, delay));
 
             await fetch(`${chatwootUrl}/api/v1/accounts/${accountId}/conversations/${conversationId}/messages`, {
@@ -225,7 +243,7 @@ serve(async (req) => {
     return new Response(JSON.stringify({ success: true }), { headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
 
   } catch (error) {
-    console.error("🚨 Erro:", error.message);
+    console.error("🚨 CRASH:", error.message);
     return new Response(JSON.stringify({ error: error.message }), { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 500 });
   }
 })
