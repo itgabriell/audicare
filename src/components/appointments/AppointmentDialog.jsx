@@ -6,7 +6,7 @@ import {
   DialogHeader,
   DialogTitle,
   DialogFooter,
-  DialogDescription, // <--- ADICIONADO AQUI
+  DialogDescription,
 } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -20,7 +20,12 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 import { Trash2, Calendar, MapPin, User, FileText } from 'lucide-react';
-import PatientCombobox from '@/components/patients/PatientCombobox';
+
+// --- CORREÇÃO DO IMPORT AQUI ---
+// Se você salvou em components/appointments/PatientCombobox.jsx:
+import { PatientCombobox } from './PatientCombobox'; 
+// Se você salvou em components/patients/PatientCombobox.jsx, ajuste o caminho.
+
 import { useToast } from '@/components/ui/use-toast';
 import { format } from 'date-fns'; 
 
@@ -145,7 +150,6 @@ const AppointmentDialog = ({
           <DialogTitle className="text-xl font-semibold">
             {appointment ? 'Editar Agendamento' : 'Novo Agendamento'}
           </DialogTitle>
-          {/* --- CORREÇÃO DO WARNING AQUI --- */}
           <DialogDescription>
             Preencha os dados abaixo para {appointment ? 'editar o' : 'criar um novo'} agendamento.
           </DialogDescription>
@@ -153,7 +157,7 @@ const AppointmentDialog = ({
 
         <form onSubmit={handleSubmit(onSubmit)} className="space-y-5">
           
-          {/* PACIENTE */}
+          {/* PACIENTE COM COMBOBOX */}
           <div className="space-y-1.5">
             <Label className="flex items-center gap-2 text-primary font-medium">
                 <User className="w-4 h-4" /> 
@@ -168,7 +172,6 @@ const AppointmentDialog = ({
                   patients={patients} 
                   value={field.value} 
                   onChange={field.onChange} 
-                  onPatientsUpdate={onPatientsUpdate}
                 />
               )}
             />
@@ -182,9 +185,9 @@ const AppointmentDialog = ({
                     Data e Hora
                 </Label>
                 <Input 
-                    type="datetime-local" 
-                    {...register('start_time', { required: true })} 
-                    className="font-medium"
+                  type="datetime-local" 
+                  {...register('start_time', { required: true })} 
+                  className="font-medium"
                 />
             </div>
 

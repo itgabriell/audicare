@@ -1,257 +1,98 @@
-import React, { useState, useEffect } from "react";
-import { Check, ChevronsUpDown, Plus, User } from "lucide-react";
-import { cn } from "@/lib/utils";
-import { Button } from "@/components/ui/button";
+import React, { useState } from "react"
+import { Check, ChevronsUpDown, Search } from "lucide-react"
+import { cn } from "@/lib/utils"
+import { Button } from "@/components/ui/button"
 import {
   Command,
   CommandEmpty,
   CommandGroup,
   CommandInput,
   CommandItem,
-  CommandList,
-  CommandSeparator,
-} from "@/components/ui/command";
+  CommandList
+} from "@/components/ui/command"
 import {
   Popover,
   PopoverContent,
   PopoverTrigger,
-} from "@/components/ui/popover";
-import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-} from "@/components/ui/dialog";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
-import { useToast } from "@/components/ui/use-toast";
-import { addPatient } from "@/database";
+} from "@/components/ui/popover"
 
-const PatientCombobox = ({ patients = [], value, onChange, onPatientAdded, onSearchChange }) => {
-  const [open, setOpen] = useState(false);
-  const [newPatientDialog, setNewPatientDialog] = useState(false);
-  const [newPatientName, setNewPatientName] = useState("");
-  const [newPatientPhone, setNewPatientPhone] = useState("");
-  const [loading, setLoading] = useState(false);
-  const [localSearch, setLocalSearch] = useState("");
-  const { toast } = useToast();
+export function PatientCombobox({ patients = [], value, onChange }) {
+  const [open, setOpen] = useState(false)
+  const [searchTerm, setSearchTerm] = useState("")
 
-  const selectedPatient = Array.isArray(patients)
-    ? patients.find((patient) => patient.id === value)
-    : null;
+  // Filtra a lista localmente (nome ou telefone)
+  const filteredPatients = patients.filter((patient) => {
+    if (!patient) return false;
+    const name = patient.name || patient.full_name || "";
+    const phone = patient.phone || "";
+    const search = searchTerm.toLowerCase();
+    return name.toLowerCase().includes(search) || phone.includes(search);
+  });
 
-  // Efeito de Debounce: Só avisa o pai para buscar no banco após 300ms de pausa na digitação
-  useEffect(() => {
-    if (onSearchChange) {
-      const timeoutId = setTimeout(() => {
-        onSearchChange(localSearch);
-      }, 300);
-      return () => clearTimeout(timeoutId);
-    }
-  }, [localSearch, onSearchChange]);
-
-  const handleCreatePatient = async () => {
-    if (!newPatientName.trim()) {
-      toast({
-        title: "Erro",
-        description: "Nome do paciente é obrigatório.",
-        variant: "destructive"
-      });
-      return;
-    }
-
-    setLoading(true);
-    try {
-      const newPatient = await addPatient({
-        name: newPatientName.trim(),
-        phone: newPatientPhone.trim() || null,
-      });
-
-      // Atualizar lista de pacientes (se callback fornecido)
-      if (onPatientAdded) {
-        onPatientAdded(newPatient);
-      }
-
-      // Selecionar o novo paciente
-      onChange(newPatient.id);
-
-      toast({
-        title: "Sucesso",
-        description: "Paciente criado com sucesso!"
-      });
-
-      setNewPatientDialog(false);
-      setNewPatientName("");
-      setNewPatientPhone("");
-      setOpen(false);
-    } catch (error) {
-      console.error("Erro ao criar paciente:", error);
-      toast({
-        title: "Erro",
-        description: "Falha ao criar paciente. Tente novamente.",
-        variant: "destructive"
-      });
-    } finally {
-      setLoading(false);
-    }
-  };
+  // Encontra o paciente selecionado para mostrar no botão
+  const selectedPatient = patients.find((p) => p.id === value);
+  const displayName = selectedPatient 
+    ? (selectedPatient.name || selectedPatient.full_name) 
+    : "Selecione o paciente...";
 
   return (
-    <>
-      <Popover open={open} onOpenChange={setOpen}>
-        <PopoverTrigger asChild>
-          <Button
-            variant="outline"
-            role="combobox"
-            aria-expanded={open}
-            className="w-full justify-between"
-          >
-            {/* Tenta mostrar o nome da lista ou busca um fallback se o paciente não estiver na lista atual */}
-            {value
-              ? (selectedPatient?.name || "Paciente selecionado")
-              : "Selecione um paciente..."}
-            <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
-          </Button>
-        </PopoverTrigger>
-        <PopoverContent className="w-[--radix-popover-trigger-width] p-0">
-          {/* shouldFilter={false} é CRUCIAL: Deixa o banco filtrar, não o componente */}
-          <Command shouldFilter={false}>
-            <CommandInput
-              placeholder="Buscar paciente..."
-              value={localSearch}
-              onValueChange={setLocalSearch}
-            />
-            <CommandList>
-              <CommandEmpty className="p-2">
-                <div className="flex flex-col gap-2">
-                  <p className="text-sm text-muted-foreground">Nenhum paciente encontrado.</p>
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={() => {
-                      setNewPatientName(localSearch);
-                      setNewPatientDialog(true);
-                      setOpen(false);
-                    }}
-                    className="w-full justify-start"
-                  >
-                    <Plus className="mr-2 h-4 w-4" />
-                    Criar novo paciente
-                  </Button>
+    <Popover open={open} onOpenChange={setOpen}>
+      <PopoverTrigger asChild>
+        <Button
+          variant="outline"
+          role="combobox"
+          aria-expanded={open}
+          className="w-full justify-between font-normal"
+        >
+          <span className="truncate">{displayName}</span>
+          <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+        </Button>
+      </PopoverTrigger>
+      <PopoverContent className="w-[400px] p-0" align="start">
+        <Command shouldFilter={false}> 
+          <CommandInput 
+            placeholder="Buscar por nome ou telefone..." 
+            value={searchTerm}
+            onValueChange={setSearchTerm}
+          />
+          <CommandList className="max-h-[300px] overflow-y-auto">
+             {filteredPatients.length === 0 && (
+                <div className="py-6 text-center text-sm text-muted-foreground">
+                    Nenhum paciente encontrado.
+                    <br/>
+                    <span className="text-xs opacity-70">Verifique a ortografia ou cadastre um novo.</span>
                 </div>
-              </CommandEmpty>
-
-              {/* Opção de criar paciente aparece no topo quando há searchTerm */}
-              {localSearch.trim() && (
-                <CommandGroup>
-                  <CommandItem
-                    value="CREATE_NEW_PATIENT_TRIGGER"
-                    onSelect={() => {
-                      setNewPatientName(localSearch.trim());
-                      setNewPatientDialog(true);
-                      setOpen(false);
-                    }}
-                    className="border-b cursor-pointer font-medium text-primary"
-                  >
-                    <Plus className="mr-2 h-4 w-4" />
-                    <span>Criar "{localSearch.trim()}"</span>
-                  </CommandItem>
-                </CommandGroup>
-              )}
-
-              {/* Lista de pacientes existentes vindos do Banco */}
-              <CommandGroup heading="Pacientes Encontrados">
-                {Array.isArray(patients) && patients.map((patient) => (
-                  <CommandItem
-                    key={patient.id}
-                    value={patient.id} // ID é único e seguro
-                    keywords={[patient.name]} // Ajuda na acessibilidade
-                    onSelect={() => {
-                      onChange(patient.id);
-                      setOpen(false);
-                    }}
-                  >
-                    <Check
-                      className={cn(
-                        "mr-2 h-4 w-4",
-                        value === patient.id ? "opacity-100" : "opacity-0"
-                      )}
-                    />
-                    <div className="flex flex-col">
-                      <span>{patient.name}</span>
+             )}
+             <CommandGroup>
+              {filteredPatients.slice(0, 50).map((patient) => (
+                <CommandItem
+                  key={patient.id}
+                  value={patient.id}
+                  onSelect={() => {
+                    onChange(patient.id)
+                    setOpen(false)
+                    setSearchTerm("") // Limpa busca ao selecionar
+                  }}
+                  className="cursor-pointer"
+                >
+                  <Check
+                    className={cn(
+                      "mr-2 h-4 w-4",
+                      value === patient.id ? "opacity-100" : "opacity-0"
+                    )}
+                  />
+                  <div className="flex flex-col">
+                      <span className="font-medium">{patient.name || patient.full_name}</span>
                       {patient.phone && (
-                        <span className="text-xs text-muted-foreground">{patient.phone}</span>
+                          <span className="text-xs text-muted-foreground">{patient.phone}</span>
                       )}
-                    </div>
-                  </CommandItem>
-                ))}
-              </CommandGroup>
-            </CommandList>
-          </Command>
-        </PopoverContent>
-      </Popover>
-
-      {/* Dialog para criar novo paciente */}
-      <Dialog open={newPatientDialog} onOpenChange={setNewPatientDialog}>
-        <DialogContent className="sm:max-w-[400px]">
-          <DialogHeader>
-            <DialogTitle className="flex items-center gap-2">
-              <User className="h-5 w-5" />
-              Criar Novo Paciente
-            </DialogTitle>
-          </DialogHeader>
-
-          <div className="space-y-4 py-4">
-            <div className="space-y-2">
-              <Label htmlFor="patient-name">Nome *</Label>
-              <Input
-                id="patient-name"
-                placeholder="Nome completo do paciente"
-                value={newPatientName}
-                onChange={(e) => setNewPatientName(e.target.value)}
-                onKeyDown={(e) => {
-                  if (e.key === 'Enter' && !loading) {
-                    handleCreatePatient();
-                  }
-                }}
-              />
-            </div>
-
-            <div className="space-y-2">
-              <Label htmlFor="patient-phone">Telefone</Label>
-              <Input
-                id="patient-phone"
-                placeholder="(11) 99999-9999"
-                value={newPatientPhone}
-                onChange={(e) => setNewPatientPhone(e.target.value)}
-                onKeyDown={(e) => {
-                  if (e.key === 'Enter' && !loading) {
-                    handleCreatePatient();
-                  }
-                }}
-              />
-            </div>
-          </div>
-
-          <div className="flex justify-end gap-2">
-            <Button
-              variant="outline"
-              onClick={() => setNewPatientDialog(false)}
-              disabled={loading}
-            >
-              Cancelar
-            </Button>
-            <Button
-              onClick={handleCreatePatient}
-              disabled={loading || !newPatientName.trim()}
-            >
-              {loading ? "Criando..." : "Criar Paciente"}
-            </Button>
-          </div>
-        </DialogContent>
-      </Dialog>
-    </>
-  );
-};
-
-export default PatientCombobox;
+                  </div>
+                </CommandItem>
+              ))}
+            </CommandGroup>
+          </CommandList>
+        </Command>
+      </PopoverContent>
+    </Popover>
+  )
+}
