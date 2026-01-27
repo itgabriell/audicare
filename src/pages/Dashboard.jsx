@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { 
   Users, Calendar, Wrench, TrendingUp, 
-  Activity, ArrowUpRight, DollarSign 
+  Activity, Clock, Bot, UserPlus 
 } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { getDashboardStats } from '@/database';
@@ -23,8 +23,6 @@ const Dashboard = () => {
         setStats(data);
       } catch (error) {
         console.error(error);
-        // Não mostramos toast de erro no dashboard para não assustar no login, 
-        // apenas logamos, a menos que seja crítico.
       } finally {
         setLoading(false);
       }
@@ -32,17 +30,13 @@ const Dashboard = () => {
     loadStats();
   }, []);
 
-  // Processamento dos dados para os gráficos
   const processWeekData = () => {
     if (!stats?.charts?.weekAppointments) return [];
-    
-    // Agrupa por dia
     const counts = {};
     stats.charts.weekAppointments.forEach(app => {
         const date = new Date(app.appointment_date).toLocaleDateString('pt-BR', { weekday: 'short' });
         counts[date] = (counts[date] || 0) + 1;
     });
-
     return Object.keys(counts).map(key => ({
         name: key.toUpperCase(),
         consultas: counts[key]
@@ -51,15 +45,15 @@ const Dashboard = () => {
 
   const processRepairData = () => {
       if (!stats?.charts?.repairsStatus) return [];
-      
       const counts = {};
+      
       stats.charts.repairsStatus.forEach(r => {
-          // Traduz status para nome amigável
-          let name = r.status;
-          if(name === 'received') name = 'Na Clínica';
-          if(name === 'sent_to_lab') name = 'No Lab';
-          if(name === 'ready') name = 'Pronto';
-          if(name === 'returning') name = 'Voltando';
+          let name = r.status || 'Indefinido';
+          // Normaliza status (Português/Inglês)
+          if(name === 'received' || name === 'Pendente') name = 'Pendente';
+          if(name === 'sent_to_lab' || name === 'Em andamento') name = 'Em andamento';
+          if(name === 'ready' || name === 'Concluído') name = 'Pronto';
+          if(name === 'returning') name = 'Retornando';
           
           counts[name] = (counts[name] || 0) + 1;
       });
@@ -70,34 +64,31 @@ const Dashboard = () => {
       }));
   };
 
-  const COLORS = ['#0088FE', '#00C49F', '#FFBB28', '#FF8042', '#8884d8'];
+  const COLORS = ['#3b82f6', '#f97316', '#22c55e', '#a855f7', '#eab308'];
 
   if (loading) {
-      return <div className="p-8 flex items-center justify-center h-screen text-muted-foreground">Carregando painel...</div>;
+      return <div className="p-8 flex items-center justify-center h-screen text-muted-foreground animate-pulse">Carregando painel Audicare...</div>;
   }
 
   return (
     <div className="p-6 space-y-6 bg-slate-50/50 dark:bg-slate-900/50 min-h-screen">
       
-      {/* Cabelhado */}
-      <div className="flex justify-between items-center">
+      <div className="flex flex-col md:flex-row justify-between md:items-center gap-4">
         <div>
             <h1 className="text-3xl font-bold tracking-tight text-slate-900 dark:text-slate-100">Dashboard</h1>
-            <p className="text-muted-foreground">Visão geral da Audicare hoje.</p>
+            <p className="text-muted-foreground">Visão geral e métricas de desempenho.</p>
         </div>
-        <div className="text-sm text-muted-foreground bg-white dark:bg-slate-800 px-3 py-1 rounded-full border shadow-sm">
+        <div className="text-sm font-medium text-slate-600 dark:text-slate-300 bg-white dark:bg-slate-800 px-4 py-2 rounded-lg border shadow-sm">
             📅 {new Date().toLocaleDateString('pt-BR', { dateStyle: 'full' })}
         </div>
       </div>
 
-      {/* Cards de Métricas (KPIs) */}
+      {/* --- LINHA 1: OPERACIONAL (Agenda, Pacientes, Reparos) --- */}
       <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
-        
-        {/* Card 1: Agenda Hoje */}
         <Card className="shadow-sm border-l-4 border-l-blue-500">
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Agenda Hoje</CardTitle>
-            <Calendar className="h-4 w-4 text-muted-foreground" />
+            <CardTitle className="text-sm font-medium text-slate-600">Agenda Hoje</CardTitle>
+            <Calendar className="h-4 w-4 text-blue-500" />
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold">{stats?.metrics?.appointmentsToday || 0}</div>
@@ -105,90 +96,112 @@ const Dashboard = () => {
           </CardContent>
         </Card>
 
-        {/* Card 2: Reparos Ativos */}
-        <Card className="shadow-sm border-l-4 border-l-orange-500">
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Reparos na Oficina</CardTitle>
-            <Wrench className="h-4 w-4 text-muted-foreground" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">{stats?.metrics?.activeRepairs || 0}</div>
-            <p className="text-xs text-muted-foreground">aparelhos em processo</p>
-          </CardContent>
-        </Card>
-
-        {/* Card 3: Vendas Mês */}
-        <Card className="shadow-sm border-l-4 border-l-green-500">
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Vendas (Mês)</CardTitle>
-            <TrendingUp className="h-4 w-4 text-muted-foreground" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">{stats?.metrics?.salesMonth || 0}</div>
-            <p className="text-xs text-muted-foreground">leads convertidos</p>
-          </CardContent>
-        </Card>
-
-        {/* Card 4: Total Pacientes */}
         <Card className="shadow-sm border-l-4 border-l-purple-500">
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Total Pacientes</CardTitle>
-            <Users className="h-4 w-4 text-muted-foreground" />
+            <CardTitle className="text-sm font-medium text-slate-600">Total Pacientes</CardTitle>
+            <Users className="h-4 w-4 text-purple-500" />
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold">{stats?.metrics?.totalPatients || 0}</div>
             <p className="text-xs text-muted-foreground">base ativa cadastrada</p>
           </CardContent>
         </Card>
+
+        <Card className="shadow-sm border-l-4 border-l-orange-500">
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+            <CardTitle className="text-sm font-medium text-slate-600">Reparos Ativos</CardTitle>
+            <Wrench className="h-4 w-4 text-orange-500" />
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold">{stats?.metrics?.activeRepairs || 0}</div>
+            <p className="text-xs text-muted-foreground">na oficina ou laboratório</p>
+          </CardContent>
+        </Card>
+
+        <Card className="shadow-sm border-l-4 border-l-indigo-500">
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+            <CardTitle className="text-sm font-medium text-slate-600">Atendimentos Clara</CardTitle>
+            <Bot className="h-4 w-4 text-indigo-500" />
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold">{stats?.metrics?.claraInteractions || 0}</div>
+            <p className="text-xs text-muted-foreground">interações de IA este mês</p>
+          </CardContent>
+        </Card>
       </div>
 
-      {/* Área de Gráficos */}
+      {/* --- LINHA 2: COMERCIAL (Leads 24h, Mês, Vendas) --- */}
+      <div className="grid gap-4 md:grid-cols-3">
+        <Card className="shadow-sm bg-white dark:bg-slate-800">
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+            <CardTitle className="text-sm font-medium text-slate-600">Leads (24h)</CardTitle>
+            <Clock className="h-4 w-4 text-green-600" />
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold text-slate-800 dark:text-slate-100">{stats?.metrics?.leads24h || 0}</div>
+            <p className="text-xs text-muted-foreground">novos contatos nas últimas 24h</p>
+          </CardContent>
+        </Card>
+
+        <Card className="shadow-sm bg-white dark:bg-slate-800">
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+            <CardTitle className="text-sm font-medium text-slate-600">Leads (Mês)</CardTitle>
+            <UserPlus className="h-4 w-4 text-green-600" />
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold text-slate-800 dark:text-slate-100">{stats?.metrics?.leadsMonth || 0}</div>
+            <p className="text-xs text-muted-foreground">acumulado este mês</p>
+          </CardContent>
+        </Card>
+
+        <Card className="shadow-sm bg-white dark:bg-slate-800">
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+            <CardTitle className="text-sm font-medium text-slate-600">Vendas (Mês)</CardTitle>
+            <DollarSignIcon className="h-4 w-4 text-green-600" />
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold text-green-600">{stats?.metrics?.salesMonth || 0}</div>
+            <p className="text-xs text-muted-foreground">conversões realizadas</p>
+          </CardContent>
+        </Card>
+      </div>
+
+      {/* --- LINHA 3: GRÁFICOS --- */}
       <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-7">
         
-        {/* Gráfico Principal: Agendamentos */}
+        {/* Gráfico Agendamentos */}
         <Card className="col-span-4 shadow-sm">
           <CardHeader>
             <CardTitle className="text-base font-semibold flex items-center gap-2">
-                <Activity className="w-4 h-4 text-blue-500"/> Fluxo da Agenda (Próx. Dias)
+                <Activity className="w-4 h-4 text-blue-500"/> Fluxo da Agenda (Próx. 7 Dias)
             </CardTitle>
           </CardHeader>
-          <CardContent className="pl-2">
+          <CardContent className="pl-0">
             <div className="h-[300px] w-full">
                 {processWeekData().length > 0 ? (
                      <ResponsiveContainer width="100%" height="100%">
-                     <BarChart data={processWeekData()}>
-                       <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#e5e7eb" />
-                       <XAxis 
-                            dataKey="name" 
-                            stroke="#888888" 
-                            fontSize={12} 
-                            tickLine={false} 
-                            axisLine={false} 
-                        />
-                       <YAxis 
-                            stroke="#888888" 
-                            fontSize={12} 
-                            tickLine={false} 
-                            axisLine={false} 
-                            tickFormatter={(value) => `${value}`} 
-                        />
+                     <BarChart data={processWeekData()} margin={{top: 10, right: 30, left: 0, bottom: 0}}>
+                       <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#e2e8f0" />
+                       <XAxis dataKey="name" stroke="#64748b" fontSize={12} tickLine={false} axisLine={false} />
+                       <YAxis stroke="#64748b" fontSize={12} tickLine={false} axisLine={false} />
                        <Tooltip 
-                            cursor={{fill: 'transparent'}}
+                            cursor={{fill: '#f1f5f9'}}
                             contentStyle={{ borderRadius: '8px', border: 'none', boxShadow: '0 4px 6px -1px rgb(0 0 0 / 0.1)' }}
                        />
-                       <Bar dataKey="consultas" fill="#3b82f6" radius={[4, 4, 0, 0]} barSize={40} />
+                       <Bar dataKey="consultas" fill="#3b82f6" radius={[4, 4, 0, 0]} barSize={50} />
                      </BarChart>
                    </ResponsiveContainer>
                 ) : (
-                    <div className="h-full flex items-center justify-center text-muted-foreground text-sm">
-                        Sem agendamentos previstos para esta semana.
+                    <div className="h-full flex flex-col items-center justify-center text-muted-foreground text-sm">
+                        <Calendar className="h-8 w-8 mb-2 opacity-20" />
+                        Sem agendamentos próximos.
                     </div>
                 )}
             </div>
           </CardContent>
         </Card>
 
-        {/* Gráfico Secundário: Reparos */}
+        {/* Gráfico Reparos */}
         <Card className="col-span-3 shadow-sm">
           <CardHeader>
             <CardTitle className="text-base font-semibold flex items-center gap-2">
@@ -218,8 +231,9 @@ const Dashboard = () => {
                     </PieChart>
                   </ResponsiveContainer>
                 ) : (
-                    <div className="h-full flex items-center justify-center text-muted-foreground text-sm">
-                        Nenhum aparelho em reparo no momento.
+                    <div className="h-full flex flex-col items-center justify-center text-muted-foreground text-sm">
+                        <Wrench className="h-8 w-8 mb-2 opacity-20" />
+                        Oficina vazia no momento.
                     </div>
                 )}
              </div>
@@ -229,5 +243,24 @@ const Dashboard = () => {
     </div>
   );
 };
+
+// Ícone auxiliar se não importado
+const DollarSignIcon = (props) => (
+  <svg
+    {...props}
+    xmlns="http://www.w3.org/2000/svg"
+    width="24"
+    height="24"
+    viewBox="0 0 24 24"
+    fill="none"
+    stroke="currentColor"
+    strokeWidth="2"
+    strokeLinecap="round"
+    strokeLinejoin="round"
+  >
+    <line x1="12" x2="12" y1="2" y2="22" />
+    <path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6" />
+  </svg>
+)
 
 export default Dashboard;

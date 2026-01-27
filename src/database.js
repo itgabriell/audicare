@@ -475,36 +475,67 @@ export const updateNotificationSettings = async (settings) => {
 // DASHBOARD (NOVA FUNÇÃO AGREGADORA)
 // ======================================================================
 
+// ... (mantenha o código anterior igual)
+
+// ======================================================================
+// DASHBOARD (CORRIGIDO E MELHORADO)
+// ======================================================================
+
 export const getDashboardStats = async () => {
   const clinicId = await getClinicId();
   if (!clinicId) return null;
 
-  const today = new Date().toISOString().split('T')[0];
-  const firstDayOfMonth = new Date(new Date().getFullYear(), new Date().getMonth(), 1).toISOString();
+  const now = new Date();
+  
+  // Datas para Agenda (Dia inteiro de hoje)
+  const todayStart = new Date(now.getFullYear(), now.getMonth(), now.getDate()).toISOString();
+  const todayEnd = new Date(now.getFullYear(), now.getMonth(), now.getDate(), 23, 59, 59, 999).toISOString();
+  
+  // Data para Leads 24h
+  const yesterday = new Date(now);
+  yesterday.setHours(yesterday.getHours() - 24);
+  const last24h = yesterday.toISOString();
 
-  // 1. Agendamentos de HOJE
+  // Data para Mês Atual
+  const firstDayOfMonth = new Date(now.getFullYear(), now.getMonth(), 1).toISOString();
+
+  // 1. Agendamentos de HOJE (Intervalo corrigido)
   const { count: appointmentsToday } = await supabase
     .from('appointments')
     .select('*', { count: 'exact', head: true })
     .eq('clinic_id', clinicId)
-    .eq('appointment_date', today);
+    .gte('appointment_date', todayStart)
+    .lte('appointment_date', todayEnd);
 
-  // 2. Reparos ATIVOS (Não entregues)
-  // Consideramos ativos tudo que não está 'ready' (Pronto) ou 'delivered' (Entregue - se tiver esse status)
-  // No seu Kanban atual, o final é 'ready'.
+  // 2. Reparos ATIVOS (Nome da tabela corrigido: 'repair_tickets')
+  // Filtra o que NÃO está concluído/entregue
   const { count: activeRepairs } = await supabase
-    .from('repair_ticketss') // Atenção: Verifique se o nome da tabela no banco é 'repairs' ou 'repair_tickets'
+    .from('repair_tickets') 
     .select('*', { count: 'exact', head: true })
     .eq('clinic_id', clinicId)
-    .neq('status', 'ready');
+    .not('status', 'in', '("Concluído", "Entregue", "ready", "delivered")');
 
-  // 3. Vendas no Mês (Leads com status 'purchased' ou 'won')
-  // Ajuste o status conforme você usa no CRM ('ganho', 'vendido', 'purchased')
+  // 3. Leads (Novas Métricas)
+  // Leads últimas 24h
+  const { count: leads24h } = await supabase
+    .from('leads')
+    .select('*', { count: 'exact', head: true })
+    .eq('clinic_id', clinicId)
+    .gte('created_at', last24h);
+
+  // Leads Mês (Total criados)
+  const { count: leadsMonth } = await supabase
+    .from('leads')
+    .select('*', { count: 'exact', head: true })
+    .eq('clinic_id', clinicId)
+    .gte('created_at', firstDayOfMonth);
+
+  // Vendas (Leads com status de compra)
   const { count: salesMonth } = await supabase
     .from('leads')
     .select('*', { count: 'exact', head: true })
     .eq('clinic_id', clinicId)
-    .eq('status', 'purchased') // <--- Confirme se é esse o status de venda no seu banco
+    .in('status', ['purchased', 'won', 'venda_realizada', 'Venda Realizada']) // Adicione seus status de venda aqui
     .gte('created_at', firstDayOfMonth);
 
   // 4. Total de Pacientes
@@ -513,17 +544,30 @@ export const getDashboardStats = async () => {
     .select('*', { count: 'exact', head: true })
     .eq('clinic_id', clinicId);
 
-  // 5. Dados para Gráfico: Agendamentos da Semana (Próximos 7 dias)
+  // 5. Clara / IA (Contagem de interações no mês)
+  // Tenta contar mensagens da IA. Se a tabela messages não tiver sender_type, retornará 0 sem quebrar.
+  let claraInteractions = 0;
+  try {
+      const { count } = await supabase
+        .from('messages')
+        .select('*', { count: 'exact', head: true })
+        .eq('clinic_id', clinicId)
+        .eq('sender_type', 'ai') // Ajuste se usar 'bot'
+        .gte('created_at', firstDayOfMonth);
+      claraInteractions = count || 0;
+  } catch (e) {
+      console.log('Tabela messages ou coluna sender_type pode não existir ainda', e);
+  }
+
+  // 6. Dados para Gráficos
   const { data: weekAppointments } = await supabase
     .from('appointments')
     .select('appointment_date')
     .eq('clinic_id', clinicId)
-    .gte('appointment_date', today)
+    .gte('appointment_date', todayStart)
     .order('appointment_date', { ascending: true })
     .limit(50);
 
-  // 6. Dados para Gráfico: Reparos por Status
-  // Se o nome da tabela for 'repair_tickets', mude aqui
   const { data: repairsData } = await supabase
     .from('repair_tickets') 
     .select('status')
@@ -533,8 +577,11 @@ export const getDashboardStats = async () => {
     metrics: {
       appointmentsToday: appointmentsToday || 0,
       activeRepairs: activeRepairs || 0,
+      leads24h: leads24h || 0,
+      leadsMonth: leadsMonth || 0,
       salesMonth: salesMonth || 0,
-      totalPatients: totalPatients || 0
+      totalPatients: totalPatients || 0,
+      claraInteractions: claraInteractions || 0
     },
     charts: {
       weekAppointments: weekAppointments || [],
