@@ -5,20 +5,36 @@ import { Input } from '@/components/ui/input';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { useToast } from '@/components/ui/use-toast';
 import { supabase } from '@/lib/customSupabaseClient';
-import { Wand2, Save, PlusCircle, CheckCircle } from 'lucide-react';
+import { Wand2, Database, PlusCircle, CheckCircle } from 'lucide-react';
 
 const AITrainer = () => {
-  const [mode, setMode] = useState('manual'); // 'manual' | 'extract'
+  const [mode, setMode] = useState('manual'); // 'manual' | 'extract' | 'bulk'
   const [question, setQuestion] = useState('');
   const [answer, setAnswer] = useState('');
   
   const [transcript, setTranscript] = useState('');
   const [extractedPairs, setExtractedPairs] = useState([]);
   
+  const [bulkJson, setBulkJson] = useState(''); // Para o JSON massivo
+
   const [loading, setLoading] = useState(false);
   const { toast } = useToast();
 
-  // --- MODO MANUAL ---
+  // --- 1. SALVAR ÚNICO (MANUAL OU EXTRAÍDO) ---
+  const saveToMemory = async (q, a) => {
+    const { data: embedData, error: embedError } = await supabase.functions.invoke('generate-embedding', {
+      body: { input: q }
+    });
+    if (embedError) throw embedError;
+
+    const { error } = await supabase.from('ai_knowledge_base').insert({
+      content: q,
+      response: a,
+      embedding: embedData.embedding
+    });
+    if (error) throw error;
+  };
+
   const handleSaveManual = async () => {
     if (!question || !answer) return;
     setLoading(true);
@@ -34,7 +50,7 @@ const AITrainer = () => {
     }
   };
 
-  // --- MODO EXTRAÇÃO ---
+  // --- 2. EXTRAÇÃO DE TEXTO ---
   const handleAnalyze = async () => {
     if (!transcript) return;
     setLoading(true);
@@ -54,19 +70,15 @@ const AITrainer = () => {
   };
 
   const handleSavePair = async (pair, index) => {
-    // Marca visualmente como salvando...
     const newPairs = [...extractedPairs];
     newPairs[index].saving = true;
     setExtractedPairs(newPairs);
 
     try {
       await saveToMemory(pair.question, pair.answer);
-      
-      // Marca como salvo
       newPairs[index].saving = false;
       newPairs[index].saved = true;
       setExtractedPairs(newPairs);
-      toast({ title: "Salvo!", description: "Par adicionado à base." });
     } catch (error) {
       toast({ title: "Erro", description: "Falha ao salvar par.", variant: "destructive" });
       newPairs[index].saving = false;
@@ -74,126 +86,119 @@ const AITrainer = () => {
     }
   };
 
-  // --- FUNÇÃO CENTRAL DE SALVAR ---
-  const saveToMemory = async (q, a) => {
-    // 1. Gera Embedding
-    const { data: embedData, error: embedError } = await supabase.functions.invoke('generate-embedding', {
-      body: { input: q }
-    });
-    if (embedError) throw embedError;
+  // --- 3. IMPORTAÇÃO EM MASSA (JSON) ---
+  const handleBulkImport = async () => {
+    if (!bulkJson) return;
+    setLoading(true);
+    let successCount = 0;
+    let failCount = 0;
 
-    // 2. Salva no Banco
-    const { error } = await supabase.from('ai_knowledge_base').insert({
-      content: q,
-      response: a,
-      embedding: embedData.embedding
-    });
-    if (error) throw error;
+    try {
+        const pairs = JSON.parse(bulkJson);
+        if (!Array.isArray(pairs)) throw new Error("O formato deve ser uma Lista []");
+
+        toast({ title: "Iniciando Importação", description: `Processando ${pairs.length} itens. Isso pode demorar...` });
+
+        for (const pair of pairs) {
+            try {
+                if(!pair.question || !pair.answer) continue;
+                await saveToMemory(pair.question, pair.answer);
+                successCount++;
+            } catch (e) {
+                console.error("Falha no item:", pair, e);
+                failCount++;
+            }
+        }
+
+        toast({ 
+            title: "Importação Finalizada", 
+            description: `✅ ${successCount} salvos. ❌ ${failCount} falhas.` 
+        });
+        setBulkJson('');
+
+    } catch (error) {
+        toast({ title: "Erro no JSON", description: "Verifique a formatação do JSON.", variant: "destructive" });
+    } finally {
+        setLoading(false);
+    }
   };
 
   return (
     <Card className="mb-6 border-blue-200 bg-blue-50/30">
       <CardHeader className="pb-3">
-        <div className="flex justify-between items-center">
+        <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
             <CardTitle className="flex items-center gap-2 text-lg">
-            🎓 Treinador da IA
+            🎓 Cérebro da Clara
             </CardTitle>
             <div className="flex bg-white rounded-lg border p-1">
-                <Button 
-                    variant={mode === 'manual' ? 'secondary' : 'ghost'} 
-                    size="sm" 
-                    onClick={() => setMode('manual')}
-                >
+                <Button variant={mode === 'manual' ? 'secondary' : 'ghost'} size="sm" onClick={() => setMode('manual')}>
                     <PlusCircle className="h-4 w-4 mr-2" /> Manual
                 </Button>
-                <Button 
-                    variant={mode === 'extract' ? 'secondary' : 'ghost'} 
-                    size="sm" 
-                    onClick={() => setMode('extract')}
-                >
-                    <Wand2 className="h-4 w-4 mr-2" /> Extrair de Conversa
+                <Button variant={mode === 'extract' ? 'secondary' : 'ghost'} size="sm" onClick={() => setMode('extract')}>
+                    <Wand2 className="h-4 w-4 mr-2" /> Extrair
+                </Button>
+                <Button variant={mode === 'bulk' ? 'secondary' : 'ghost'} size="sm" onClick={() => setMode('bulk')}>
+                    <Database className="h-4 w-4 mr-2" /> Em Massa
                 </Button>
             </div>
         </div>
       </CardHeader>
       
       <CardContent className="space-y-4">
-        {mode === 'manual' ? (
-            // MODO MANUAL
+        {mode === 'manual' && (
             <div className="space-y-4 animate-in fade-in">
-                <div>
-                <label className="text-sm font-medium">Pergunta/Situação:</label>
-                <Input 
-                    value={question} 
-                    onChange={e => setQuestion(e.target.value)} 
-                    placeholder="Ex: Qual o valor da consulta?" 
-                />
-                </div>
-                <div>
-                <label className="text-sm font-medium">Resposta Ideal:</label>
-                <Textarea 
-                    value={answer} 
-                    onChange={e => setAnswer(e.target.value)} 
-                    placeholder="Sua melhor resposta..." 
-                    rows={3}
-                />
-                </div>
+                <Input value={question} onChange={e => setQuestion(e.target.value)} placeholder="Ex: Qual o valor da consulta?" />
+                <Textarea value={answer} onChange={e => setAnswer(e.target.value)} placeholder="Sua resposta..." rows={3} />
                 <Button onClick={handleSaveManual} disabled={loading} className="w-full">
                     {loading ? 'Salvando...' : 'Salvar na Memória'}
                 </Button>
             </div>
-        ) : (
-            // MODO EXTRAÇÃO
+        )}
+
+        {mode === 'extract' && (
             <div className="space-y-4 animate-in fade-in">
                 {!extractedPairs.length ? (
                     <>
-                        <div>
-                            <label className="text-sm font-medium">Cole aqui o histórico de uma conversa (WhatsApp/Chatwoot):</label>
-                            <Textarea 
-                                value={transcript} 
-                                onChange={e => setTranscript(e.target.value)} 
-                                placeholder="[10:00] Cliente: Olá, gostaria de saber sobre aparelho... Atendente: Olá! Claro..." 
-                                rows={6}
-                                className="font-mono text-xs"
-                            />
-                        </div>
+                        <Textarea value={transcript} onChange={e => setTranscript(e.target.value)} placeholder="Cole o histórico da conversa aqui..." rows={6} className="font-mono text-xs" />
                         <Button onClick={handleAnalyze} disabled={loading || !transcript} className="w-full">
-                            {loading ? 'Analisando Conversa...' : '✨ Analisar e Extrair Pares'}
+                            {loading ? 'Analisando...' : 'Analisar Conversa'}
                         </Button>
                     </>
                 ) : (
-                    <div className="space-y-4">
-                        <div className="flex justify-between items-center">
-                            <h4 className="font-semibold text-sm">Pares Identificados:</h4>
-                            <Button variant="outline" size="sm" onClick={() => { setExtractedPairs([]); setTranscript(''); }}>
-                                Analisar Outra
-                            </Button>
-                        </div>
-                        <div className="grid gap-3 max-h-[400px] overflow-y-auto pr-2">
-                            {extractedPairs.map((pair, idx) => (
-                                <div key={idx} className={`p-3 rounded border bg-white text-sm ${pair.saved ? 'border-green-500 bg-green-50' : ''}`}>
-                                    <div className="font-semibold text-blue-800 mb-1">P: {pair.question}</div>
-                                    <div className="text-gray-700 mb-2">R: {pair.answer}</div>
-                                    {!pair.saved ? (
-                                        <Button 
-                                            size="sm" 
-                                            variant="secondary" 
-                                            className="w-full h-8"
-                                            onClick={() => handleSavePair(pair, idx)}
-                                            disabled={pair.saving}
-                                        >
-                                            {pair.saving ? 'Salvando...' : 'Confirmar e Salvar'}
-                                        </Button>
-                                    ) : (
-                                        <div className="flex items-center justify-center text-green-600 gap-1 text-xs font-bold">
-                                            <CheckCircle className="h-4 w-4" /> Salvo
-                                        </div>
-                                    )}
-                                </div>
-                            ))}
-                        </div>
+                    <div className="grid gap-3 max-h-[400px] overflow-y-auto pr-2">
+                        <Button variant="outline" size="sm" onClick={() => { setExtractedPairs([]); setTranscript(''); }} className="mb-2">Analisar Outra</Button>
+                        {extractedPairs.map((pair, idx) => (
+                            <div key={idx} className={`p-3 rounded border bg-white text-sm ${pair.saved ? 'border-green-500 bg-green-50' : ''}`}>
+                                <div className="font-semibold text-blue-800">P: {pair.question}</div>
+                                <div className="text-gray-700">R: {pair.answer}</div>
+                                {!pair.saved ? (
+                                    <Button size="sm" variant="secondary" className="w-full mt-2" onClick={() => handleSavePair(pair, idx)} disabled={pair.saving}>
+                                        {pair.saving ? 'Salvando...' : 'Salvar'}
+                                    </Button>
+                                ) : <div className="text-green-600 text-xs font-bold mt-2">✅ Salvo</div>}
+                            </div>
+                        ))}
                     </div>
                 )}
+            </div>
+        )}
+
+        {mode === 'bulk' && (
+            <div className="space-y-4 animate-in fade-in">
+                <div className="bg-yellow-50 p-3 rounded text-xs text-yellow-800 border border-yellow-200">
+                    <strong>Como usar:</strong> Prepare um arquivo JSON com suas conversas antigas. Cole o conteúdo abaixo.<br/>
+                    Formato esperado: <code>[{`{"question": "...", "answer": "..."}`}, ...]</code>
+                </div>
+                <Textarea 
+                    value={bulkJson} 
+                    onChange={e => setBulkJson(e.target.value)} 
+                    placeholder='[ {"question": "Onde fica?", "answer": "Rua X..."}, {"question": "Preço?", "answer": "Depende..."} ]' 
+                    rows={10} 
+                    className="font-mono text-xs"
+                />
+                <Button onClick={handleBulkImport} disabled={loading || !bulkJson} className="w-full">
+                    {loading ? 'Processando Lote (Pode demorar)...' : 'Importar Todos'}
+                </Button>
             </div>
         )}
       </CardContent>
