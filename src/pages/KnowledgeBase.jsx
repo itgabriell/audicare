@@ -3,8 +3,12 @@ import { Card, CardHeader, CardTitle, CardDescription, CardContent, CardFooter }
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
-import { Search, Plus, FileText, Image as ImageIcon, Trash2, ExternalLink } from 'lucide-react';
+// CORREÇÃO 1: Adicionado Loader2 e Download (caso precise) nos imports
+import { Search, Plus, FileText, Image as ImageIcon, Trash2, ExternalLink, Loader2, Download } from 'lucide-react';
+
+// CORREÇÃO 2: Caminho atualizado para a pasta UI (onde você moveu o arquivo)
 import UploadDocDialog from '@/components/ui/UploadDocDialog.jsx';
+
 import { knowledgeBaseService } from '@/services/knowledgeBaseService';
 import { useToast } from '@/components/ui/use-toast';
 import { format } from 'date-fns';
@@ -47,7 +51,9 @@ export default function KnowledgeBase() {
   };
 
   const getIcon = (type) => {
-    if (['jpg', 'jpeg', 'png', 'gif'].includes(type?.toLowerCase())) return <ImageIcon className="h-8 w-8 text-blue-500" />;
+    if (['jpg', 'jpeg', 'png', 'gif', 'webp'].includes(type?.toLowerCase())) {
+      return <ImageIcon className="h-8 w-8 text-blue-500" />;
+    }
     return <FileText className="h-8 w-8 text-red-500" />;
   };
 
@@ -98,7 +104,10 @@ export default function KnowledgeBase() {
 
         <TabsContent value={activeTab}>
           {loading ? (
-            <div className="text-center py-10 text-gray-500"><Loader2 className="h-8 w-8 animate-spin mx-auto mb-2"/>Carregando documentos...</div>
+            <div className="text-center py-10 text-gray-500">
+              <Loader2 className="h-8 w-8 animate-spin mx-auto mb-2 text-primary"/>
+              Carregando documentos...
+            </div>
           ) : filteredDocs.length === 0 ? (
             <div className="text-center py-10 text-gray-500 border-2 border-dashed border-gray-200 dark:border-gray-700 rounded-lg">
               Nenhum documento encontrado.
