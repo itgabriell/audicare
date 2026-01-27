@@ -6,6 +6,11 @@ const corsHeaders = {
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 }
 
+// Helper: Normalizar Telefone
+function normalizePhone(phone: string) {
+  return phone.replace(/\D/g, ''); 
+}
+
 // Helper: Converter Buffer para Base64
 function arrayBufferToBase64(buffer: ArrayBuffer) {
   let binary = '';
@@ -17,11 +22,6 @@ function arrayBufferToBase64(buffer: ArrayBuffer) {
   return btoa(binary);
 }
 
-// Helper: Normalizar Telefone
-function normalizePhone(phone: string) {
-  return phone.replace(/\D/g, ''); 
-}
-
 serve(async (req) => {
   if (req.method === 'OPTIONS') return new Response('ok', { headers: corsHeaders })
 
@@ -30,7 +30,7 @@ serve(async (req) => {
 
     // 1. FILTRO BÁSICO
     if (payload.message_type !== 'incoming' || payload.private) {
-      return new Response('Ignored (Not incoming)', { status: 200 });
+      return new Response('Ignored', { status: 200 });
     }
 
     const supabaseUrl = Deno.env.get('SUPABASE_URL');
@@ -43,29 +43,17 @@ serve(async (req) => {
 
     const supabase = createClient(supabaseUrl, supabaseKey);
 
-    // =================================================================================
-    // 🛡️ O DISJUNTOR GERAL (BOTÃO ON/OFF)
-    // =================================================================================
-    
-    // Consulta no banco se a Clara deve trabalhar
-    const { data: config } = await supabase
-        .from('app_settings')
-        .select('value')
-        .eq('key', 'clara_active')
-        .single();
-    
-    // SE ESTIVER FALSE (DESLIGADA), A GENTE PARA AQUI.
-    if (config && config.value === false) {
-        console.log("🛑 Clara está desligada no painel (app_settings).");
-        return new Response('Clara is OFF', { status: 200 });
-    }
+    // 2. DISJUNTOR GERAL (Botão ON/OFF)
+    const { data: config } = await supabase.from('app_settings').select('value').eq('key', 'clara_active').single();
+    if (config && config.value === false) return new Response('Clara is OFF', { status: 200 });
 
-    // =================================================================================
     // DADOS DO CLIENTE
-    // =================================================================================
+    const conversationId = payload.conversation.id;
+    const accountId = payload.account.id;
     const sender = payload.sender || {};
     let clientName = sender.name || "Cliente";
     
+    // Tratamento de nome
     if (clientName.match(/^\+?[0-9\s-]+$/) || clientName.toLowerCase() === 'cliente') {
         clientName = ""; 
     } else {
@@ -74,13 +62,9 @@ serve(async (req) => {
     }
     
     const clientPhone = normalizePhone(sender.phone_number || "");
-    const conversationId = payload.conversation.id;
-    const accountId = payload.account.id;
     let userMessage = payload.content || "";
 
-    // =================================================================================
-    // 👁️ & 👂 DETECÇÃO MULTIMODAL
-    // =================================================================================
+    // 3. DETECÇÃO MULTIMODAL (ÁUDIO/IMAGEM)
     const attachments = payload.attachments || [];
     const mediaAttachment = attachments.find((att: any) => 
         att.file_type === 'audio' || att.file_type === 'image' || 
@@ -88,7 +72,6 @@ serve(async (req) => {
     );
 
     if (mediaAttachment) {
-        console.log(`📎 Mídia detectada: ${mediaAttachment.file_type}`);
         try {
             const mediaResp = await fetch(mediaAttachment.data_url);
             const mediaBuffer = await mediaResp.arrayBuffer();
@@ -99,7 +82,7 @@ serve(async (req) => {
             if (mimeType.startsWith('audio')) {
                 mediaPrompt = "Transcreva este áudio fielmente. Se for ruído, diga [RUÍDO].";
             } else if (mimeType.startsWith('image')) {
-                mediaPrompt = "Analise esta imagem. Se for um exame, descreva a perda auditiva. Se for outra coisa, descreva.";
+                mediaPrompt = "Analise esta imagem. Se for um exame, descreva a perda. Se for outra coisa, descreva.";
             }
 
             const multimodalResp = await fetch(
@@ -117,11 +100,9 @@ serve(async (req) => {
                     })
                 }
             );
-
             const mmData = await multimodalResp.json();
             const analysis = mmData.candidates?.[0]?.content?.parts?.[0]?.text;
-            if (analysis) userMessage = `[MÍDIA ENVIADA: ${analysis}] \n ${userMessage}`;
-            
+            if (analysis) userMessage = `[MÍDIA ENVIADA PELO CLIENTE: ${analysis}] \n ${userMessage}`;
         } catch (err) {
             console.error("❌ Erro Multimodal:", err);
         }
@@ -129,11 +110,21 @@ serve(async (req) => {
 
     if (!userMessage || userMessage.trim().length === 0) return new Response('Empty', { status: 200 });
 
-    console.log(`📩 Processando: "${userMessage}"`);
+    // 4. BUSCAR HISTÓRICO RECENTE DA CONVERSA (CONTEXTO)
+    // Busca as mensagens anteriores para a IA saber o que já foi dito
+    const historyResp = await fetch(`${chatwootUrl}/api/v1/accounts/${accountId}/conversations/${conversationId}/messages`, {
+        headers: { 'api_access_token': chatwootToken }
+    });
+    const historyData = await historyResp.json();
+    const messages = historyData.payload || [];
+    
+    // Formata histórico (do antigo para o novo)
+    const recentHistory = messages.slice().reverse().slice(-6).map((m: any) => {
+        const role = m.message_type === 'incoming' ? 'CLIENTE' : 'CLARA (Assistente Virtual)';
+        return `${role}: ${m.content}`;
+    }).join("\n");
 
-    // =================================================================================
-    // 🧠 RAG (MEMÓRIA)
-    // =================================================================================
+    // 5. MEMÓRIA RAG (Base de Conhecimento TÉCNICO)
     const embedResp = await fetch(
       `https://generativelanguage.googleapis.com/v1beta/models/text-embedding-004:embedContent?key=${geminiKey}`,
       { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ model: "models/text-embedding-004", content: { parts: [{ text: userMessage }] } }) }
@@ -144,21 +135,26 @@ serve(async (req) => {
         const { data: docs } = await supabase.rpc('match_knowledge', {
             query_embedding: embedData.embedding.values, match_threshold: 0.5, match_count: 2
         });
-        contextText = docs?.map(d => `REF:\nP: ${d.content}\nR: ${d.response}`).join("\n---\n") || "";
+        contextText = docs?.map(d => `REF TÉCNICA:\nP: ${d.content}\nR: ${d.response}`).join("\n---\n") || "";
     }
 
-    // =================================================================================
-    // 🤖 INTELIGÊNCIA SOCIAL (CLARA)
-    // =================================================================================
-    
+    // 6. PROMPT DEFINITIVO (CLARA 7.1 - A ASSISTENTE VIRTUAL)
     const SYSTEM_PROMPT = `
-    Você é a Clara, da Audicare Aparelhos Auditivos.
+    Você é a Clara, a **Assistente Virtual** da Audicare Aparelhos Auditivos.
+    Na saudação, deixe claro que você é uma inteligência artificial, isso é importante para transparência. Após informar na saudação, não se justifique mais como inteligência artificial.
+    Seu tom é sempre **educado, profissional, empático e prestativo**. Use linguagem simples e clara.
+    Seu objetivo principal é **ajudar o cliente rapidamente**, fornecendo informações úteis e triando o atendimento para a equipe humana quando necessário. Também não precisa usar o termo triagem, você simplesmente atende esse cliente.
+    Seja breve e direto ao ponto, evite respostas longas.
+    
     CLIENTE: ${clientName || "Desconhecido"}.
+
+    HISTÓRICO RECENTE DA CONVERSA (O QUE JÁ FOI DITO):
+    ${recentHistory}
     
-    CONTEXTO DE MEMÓRIA:
+    MEMÓRIA TÉCNICA (SEUS TREINAMENTOS):
     ${contextText}
-    
-    MENSAGEM DO CLIENTE: "${userMessage}"
+
+    MENSAGEM ATUAL DO CLIENTE: "${userMessage}"
 
     ---
     TAREFA: Retornar JSON.
@@ -168,22 +164,15 @@ serve(async (req) => {
       "reply": "Sua resposta..."
     }
 
-    ROTEIRO:
+    REGRAS DE OURO:
+    1. **ANTI-REPETIÇÃO:** Olhe o HISTÓRICO. Se você já se apresentou recentemente, NÃO se apresente de novo. Apenas responda.
+    2. **ANTI-OFERTA:** NUNCA ofereça "Teste Grátis". Ofereça "Avaliação com a Dra. Karine".
+    3. **ÁLIBI:** Se não souber responder ou se o cliente pedir algo complexo (como agendar horário específico), diga: "Já registrei seu pedido e a equipe humana entrará em contato em instantes para confirmar."
     
-    1. SAUDACAO ("Oi", "Bom dia"):
-       - Responda: "Olá ${clientName ? clientName : ""}, tudo bem? Eu sou a Clara, da Audicare. Como posso te ajudar hoje?"
-       - NÃO pergunte de audiometria ainda.
-    
-    2. TRIAGEM/DUVIDA (Cliente falou o que quer):
-       - Responda a dúvida usando a Memória.
-       - SÓ DEPOIS pergunte: "Para começarmos, você já tem o exame de Audiometria atualizado?"
-
-    3. URGENTE_HUMANO:
-       - Deixe "reply" vazio ("").
-
-    REGRAS:
-    - Use "Sem Custo" (não Grátis).
-    - Quebre linhas.
+    ROTEIRO DE RESPOSTA:
+    - **Início (Sem histórico):** "Olá ${clientName}, tudo bem? Sou a Clara, assistente virtual da Audicare. Como posso te ajudar?" (Curto e direto).
+    - **Triagem (Se o cliente pedir info):** Responda a dúvida e quando possível e se for um cliente novo para a compra de aparelhos auditivos pergunte: "Para adiantar seu atendimento, você já possui audiometria atualizada?"
+    - **Agendamento:** "Entendido. Vou encaminhar sua preferência de horário para a secretaria verificar a agenda da Dra. Karine e seguir com seu agendamento."
     `;
 
     const aiResp = await fetch(
@@ -202,7 +191,7 @@ serve(async (req) => {
     rawJson = rawJson.replace(/```json/g, '').replace(/```/g, '').trim();
     const result = JSON.parse(rawJson);
 
-    // 1. PÂNICO / HANDOFF
+    // TRATAMENTO DE PÂNICO
     if (result.intent === 'URGENTE_HUMANO' || result.sentiment === 'IRRITADO') {
         await fetch(`${chatwootUrl}/api/v1/accounts/${accountId}/conversations/${conversationId}/labels`, {
             method: 'POST',
@@ -217,24 +206,12 @@ serve(async (req) => {
         return new Response(JSON.stringify({ action: 'handoff' }), { headers: corsHeaders });
     }
 
-    // 2. KANBAN
-    if (['AGENDAMENTO', 'COMPRA'].includes(result.intent) && clientPhone) {
-         const searchPhone = clientPhone.slice(-8);
-         const { data: leads } = await supabase.from('leads').select('id').ilike('phone', `%${searchPhone}%`);
-         
-         let newStatus = 'in_conversation';
-         if (result.intent === 'AGENDAMENTO') newStatus = 'scheduled';
-         if (result.intent === 'COMPRA') newStatus = 'likely_purchase';
-
-         if (leads && leads.length > 0) await supabase.from('leads').update({ status: newStatus }).eq('id', leads[0].id);
-    }
-
-    // 3. ENVIO RESPOSTA
+    // ENVIO COM DELAY NATURAL
     if (result.reply) {
         const messages = result.reply.split('\n').map(m => m.trim()).filter(m => m.length > 0);
         
         for (const [index, msg] of messages.entries()) {
-            const delay = index === 0 ? 5000 : 3000;
+            const delay = index === 0 ? 3500 : 2000; 
             await new Promise(r => setTimeout(r, delay));
 
             await fetch(`${chatwootUrl}/api/v1/accounts/${accountId}/conversations/${conversationId}/messages`, {

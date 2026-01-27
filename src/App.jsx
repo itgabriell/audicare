@@ -5,10 +5,9 @@ import { useTheme } from '@/contexts/ThemeContext';
 import DashboardLayout from '@/layouts/DashboardLayout';
 import ErrorBoundary from '@/components/ErrorBoundary';
 import { cacheManager } from '@/utils/cacheManager';
-import { Loader2 } from 'lucide-react'; // Using Lucide for consistent icon style
+import { Loader2 } from 'lucide-react'; 
 
 // --- Critical Pages (Eagerly Loaded for speed) ---
-// Login and Dashboard skeleton should load instantly
 import LoginPage from '@/pages/LoginPage';
 
 // --- Global Loading Spinner with Branding ---
@@ -37,7 +36,10 @@ const Users = lazy(() => import('@/pages/Users'));
 const ImportData = lazy(() => import('@/pages/ImportData'));
 const Tasks = lazy(() => import('@/pages/Tasks'));
 const ChatIntegration = lazy(() => import('@/pages/ChatIntegration'));
-const Repairs = lazy(() => import('@/pages/Repairs'));
+
+// --- ALTERAÇÃO AQUI: Apontando para o novo Kanban de Reparos ---
+const Repairs = lazy(() => import('@/components/crm/RepairKanban')); 
+
 const SocialMedia = lazy(() => import('@/pages/SocialMedia'));
 const Automations = lazy(() => import('@/pages/Automations'));
 const EmailCampaigns = lazy(() => import('@/pages/EmailCampaigns'));
@@ -79,7 +81,7 @@ function App() {
   }, [theme]);
 
   useEffect(() => {
-     cacheManager.openDB().catch(e => console.warn("[App] Cache Init Failed", e));
+      cacheManager.openDB().catch(e => console.warn("[App] Cache Init Failed", e));
   }, []);
 
   // Show spinner only on initial cold start check
@@ -109,7 +111,10 @@ function App() {
             <Route path="appointments" element={<Appointments />} />
             <Route path="crm" element={<CRM />} />
             <Route path="tasks" element={<Tasks />} />
+            
+            {/* Rota de Reparos (Carrega o Kanban) */}
             <Route path="repairs" element={<Repairs />} />
+            
             <Route path="inbox" element={<ChatIntegration />} />
             <Route path="social-media" element={<SocialMedia />} />
             <Route path="email-campaigns" element={<EmailCampaigns />} />

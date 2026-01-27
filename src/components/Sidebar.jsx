@@ -7,17 +7,14 @@ import {
   MessageSquare,
   Briefcase,
   Settings,
-  LifeBuoy,
   User,
-  FileText,
-  Wrench,
+  Wrench, // O ícone da chave de fenda
   Bot,
   Bell,
   Share2,
   UploadCloud,
   BarChart3,
-  Receipt,
-  Cog
+  Receipt
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import {
@@ -30,6 +27,7 @@ import logoWhite from '@/assets/logo-white.svg';
 import logoGreen from '@/assets/logo-green.svg';
 import usePermissions from '@/hooks/usePermissions';
 
+// --- AQUI ESTÁ A LISTA PRINCIPAL ---
 const mainNavItems = [
   { href: '/dashboard', icon: LayoutDashboard, label: 'Dashboard' },
   { href: '/patients', icon: Users, label: 'Pacientes' },
@@ -37,7 +35,10 @@ const mainNavItems = [
   { href: '/inbox', icon: MessageSquare, label: 'Inbox' },
   { href: '/crm', icon: BarChart3, label: 'CRM' },
   { href: '/tasks', icon: Briefcase, label: 'Tarefas' },
+  
+  // ✅ O botão de Reparos está aqui
   { href: '/repairs', icon: Wrench, label: 'Reparos' },
+  
   { href: '/invoices', icon: Receipt, label: 'Notas Fiscais' },
 ];
 
