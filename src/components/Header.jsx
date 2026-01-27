@@ -1,7 +1,6 @@
 import React from 'react';
 import { useNavigate } from 'react-router-dom';
 import { ThemeToggle } from '@/components/ThemeToggle';
-// CORREÇÃO: Apontando para o componente correto na pasta layout
 import NotificationBell from '@/components/layout/NotificationBell';
 import { useAuth } from '@/contexts/SupabaseAuthContext';
 import { Button } from '@/components/ui/button';
@@ -17,8 +16,15 @@ import { User, LogOut, Settings, Search, Menu } from 'lucide-react';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
 import SocialLinks from '@/components/SocialLinks';
 
+// --- NOVO IMPORT ---
+import ClaraHeaderSwitch from '@/components/crm/ClaraHeaderSwitch';
+
 const Header = ({ children, onMenuClick, showMenuButton, onCommandPaletteOpen }) => {
-  const [title, ...rest] = React.Children.toArray(children);
+  // Convertendo children em array para extrair título e resto
+  const childrenArray = React.Children.toArray(children);
+  const title = childrenArray.length > 0 ? childrenArray[0] : null;
+  const rest = childrenArray.length > 1 ? childrenArray.slice(1) : [];
+  
   const { user, signOut } = useAuth();
   const navigate = useNavigate();
 
@@ -66,17 +72,21 @@ const Header = ({ children, onMenuClick, showMenuButton, onCommandPaletteOpen })
             <Menu className="h-5 w-5" />
           </Button>
         )}
-        <h1 className="text-lg font-semibold text-foreground">{title}</h1>
+        <div className="text-lg font-semibold text-foreground">{title}</div>
       </div>
 
-      {/* Centro - Redes Sociais */}
-      <div className="flex-1 flex justify-center">
+      {/* Centro - Redes Sociais (Esconde em telas muito pequenas se necessário) */}
+      <div className="flex-1 flex justify-center hidden sm:flex">
         <SocialLinks />
       </div>
 
       {/* Lado direito - Controles */}
       <div className="flex items-center gap-3">
         {rest}
+
+        {/* --- AQUI ESTÁ A CLARA --- */}
+        {/* Só mostra se o usuário estiver logado */}
+        {user && <ClaraHeaderSwitch />}
 
         {/* Search Button */}
         <Button

@@ -28,10 +28,22 @@ serve(async (req) => {
   try {
     const payload = await req.json();
 
-    // 1. FILTRO BÁSICO
     if (payload.message_type !== 'incoming' || payload.private) {
-      return new Response('Ignored (Not incoming)', { status: 200 });
+      return new Response('Ignored', { status: 200 });
     }
+
+    // --- CONFIGURAÇÃO DE HORÁRIO ---
+    // Ative removendo os comentários /* */ se quiser que ela durma durante o dia
+    /*
+    const now = new Date();
+    const utcHour = now.getUTCHours(); 
+    const utcMinutes = now.getUTCMinutes();
+    let brHour = utcHour - 3;
+    if (brHour < 0) brHour += 24;
+    const isBusinessHour = (brHour > 8 || (brHour === 8 && utcMinutes >= 30)) && brHour < 17;
+    const isWeekend = now.getDay() === 0 || now.getDay() === 6;
+    if (isBusinessHour && !isWeekend) return new Response('Business Hours', { status: 200 });
+    */
 
     const supabaseUrl = Deno.env.get('SUPABASE_URL');
     const supabaseKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY');
@@ -42,44 +54,22 @@ serve(async (req) => {
     if (!supabaseUrl || !supabaseKey || !geminiKey || !chatwootToken) throw new Error("Configs ausentes.");
 
     const supabase = createClient(supabaseUrl, supabaseKey);
-
-    // =================================================================================
-    // 🛡️ O DISJUNTOR GERAL (BOTÃO ON/OFF)
-    // =================================================================================
     
-    // Consulta no banco se a Clara deve trabalhar
-    const { data: config } = await supabase
-        .from('app_settings')
-        .select('value')
-        .eq('key', 'clara_active')
-        .single();
-    
-    // SE ESTIVER FALSE (DESLIGADA), A GENTE PARA AQUI.
-    if (config && config.value === false) {
-        console.log("🛑 Clara está desligada no painel (app_settings).");
-        return new Response('Clara is OFF', { status: 200 });
-    }
-
-    // =================================================================================
-    // DADOS DO CLIENTE
-    // =================================================================================
+    // Dados do Cliente
     const sender = payload.sender || {};
     let clientName = sender.name || "Cliente";
-    
-    if (clientName.match(/^\+?[0-9\s-]+$/) || clientName.toLowerCase() === 'cliente') {
-        clientName = ""; 
-    } else {
-        clientName = clientName.split(' ')[0]; 
-        clientName = clientName.charAt(0).toUpperCase() + clientName.slice(1).toLowerCase();
-    }
+    if (clientName.match(/^\+?[0-9\s-]+$/)) clientName = ""; 
+    else clientName = clientName.split(' ')[0]; // Primeiro nome capitalizado
+    if(clientName) clientName = clientName.charAt(0).toUpperCase() + clientName.slice(1).toLowerCase();
     
     const clientPhone = normalizePhone(sender.phone_number || "");
     const conversationId = payload.conversation.id;
     const accountId = payload.account.id;
+    
     let userMessage = payload.content || "";
 
     // =================================================================================
-    // 👁️ & 👂 DETECÇÃO MULTIMODAL
+    // 👁️ & 👂 DETECÇÃO MULTIMODAL (ÁUDIO E IMAGEM)
     // =================================================================================
     const attachments = payload.attachments || [];
     const mediaAttachment = attachments.find((att: any) => 
@@ -99,7 +89,7 @@ serve(async (req) => {
             if (mimeType.startsWith('audio')) {
                 mediaPrompt = "Transcreva este áudio fielmente. Se for ruído, diga [RUÍDO].";
             } else if (mimeType.startsWith('image')) {
-                mediaPrompt = "Analise esta imagem. Se for um exame, descreva a perda auditiva. Se for outra coisa, descreva.";
+                mediaPrompt = "Analise esta imagem. Se for um exame de audiometria, descreva a perda auditiva. Se for um aparelho, descreva o modelo. Se for outra coisa, descreva o que vê.";
             }
 
             const multimodalResp = await fetch(
@@ -120,16 +110,16 @@ serve(async (req) => {
 
             const mmData = await multimodalResp.json();
             const analysis = mmData.candidates?.[0]?.content?.parts?.[0]?.text;
-            if (analysis) userMessage = `[MÍDIA ENVIADA: ${analysis}] \n ${userMessage}`;
-            
+
+            if (analysis) {
+                userMessage = `[O CLIENTE ENVIOU UM ARQUIVO DE MÍDIA. CONTEÚDO: ${analysis}] \n ${userMessage}`;
+            }
         } catch (err) {
             console.error("❌ Erro Multimodal:", err);
         }
     }
 
     if (!userMessage || userMessage.trim().length === 0) return new Response('Empty', { status: 200 });
-
-    console.log(`📩 Processando: "${userMessage}"`);
 
     // =================================================================================
     // 🧠 RAG (MEMÓRIA)
@@ -148,42 +138,43 @@ serve(async (req) => {
     }
 
     // =================================================================================
-    // 🤖 INTELIGÊNCIA SOCIAL (CLARA)
+    // 🤖 CLARA 6.0 (COM INTELIGÊNCIA SOCIAL)
     // =================================================================================
     
     const SYSTEM_PROMPT = `
-    Você é a Clara, da Audicare Aparelhos Auditivos.
+    Você é a Clara, da Audicare.
     CLIENTE: ${clientName || "Desconhecido"}.
     
-    CONTEXTO DE MEMÓRIA:
+    CONTEXTO DE MEMÓRIA (Use apenas se relevante):
     ${contextText}
     
     MENSAGEM DO CLIENTE: "${userMessage}"
 
     ---
-    TAREFA: Retornar JSON.
+    SUA TAREFA: RETORNAR UM JSON ESTRUTURADO.
     {
       "sentiment": "NEUTRO" | "POSITIVO" | "IRRITADO" | "CONFUSO",
       "intent": "SAUDACAO" | "TRIAGEM" | "AGENDAMENTO" | "DUVIDA" | "COMPRA" | "URGENTE_HUMANO",
       "reply": "Sua resposta..."
     }
 
-    ROTEIRO:
+    ROTEIRO DE RESPOSTA (IMPORTANTE):
     
-    1. SAUDACAO ("Oi", "Bom dia"):
-       - Responda: "Olá ${clientName ? clientName : ""}, tudo bem? Eu sou a Clara, da Audicare. Como posso te ajudar hoje?"
-       - NÃO pergunte de audiometria ainda.
-    
-    2. TRIAGEM/DUVIDA (Cliente falou o que quer):
-       - Responda a dúvida usando a Memória.
-       - SÓ DEPOIS pergunte: "Para começarmos, você já tem o exame de Audiometria atualizado?"
+    1. CENÁRIO "SAUDACAO" (Cliente disse apenas "Oi", "Boa noite", "Tudo bem?"):
+       - NÃO fale de audiometria ainda.
+       - Responda: "Olá ${clientName ? clientName : ""}, [saudação de acordo com horário]! Tudo ótimo por aqui. Eu sou a Clara, da Audicare. Como posso te ajudar hoje?"
 
-    3. URGENTE_HUMANO:
+    2. CENÁRIO "TRIAGEM/DUVIDA" (Cliente pediu informação, preço ou disse o que quer):
+       - Acolha a dúvida.
+       - Apresente brevemente a tecnologia (alemã/suíça/bluetooth).
+       - Só ENTÃO pergunte: "Para começarmos a entender seu caso: você já tem o exame de Audiometria atualizado?"
+
+    3. CENÁRIO "URGENTE_HUMANO":
        - Deixe "reply" vazio ("").
 
-    REGRAS:
-    - Use "Sem Custo" (não Grátis).
-    - Quebre linhas.
+    REGRAS GERAIS:
+    - Não use "Grátis", use "Sem Custo".
+    - Quebre linhas para simular pausas no WhatsApp.
     `;
 
     const aiResp = await fetch(
@@ -202,7 +193,9 @@ serve(async (req) => {
     rawJson = rawJson.replace(/```json/g, '').replace(/```/g, '').trim();
     const result = JSON.parse(rawJson);
 
-    // 1. PÂNICO / HANDOFF
+    console.log("🤖 DECISÃO:", result);
+
+    // 1. PÂNICO
     if (result.intent === 'URGENTE_HUMANO' || result.sentiment === 'IRRITADO') {
         await fetch(`${chatwootUrl}/api/v1/accounts/${accountId}/conversations/${conversationId}/labels`, {
             method: 'POST',
@@ -217,7 +210,7 @@ serve(async (req) => {
         return new Response(JSON.stringify({ action: 'handoff' }), { headers: corsHeaders });
     }
 
-    // 2. KANBAN
+    // 2. KANBAN (Automação)
     if (['AGENDAMENTO', 'COMPRA'].includes(result.intent) && clientPhone) {
          const searchPhone = clientPhone.slice(-8);
          const { data: leads } = await supabase.from('leads').select('id').ilike('phone', `%${searchPhone}%`);
@@ -229,7 +222,7 @@ serve(async (req) => {
          if (leads && leads.length > 0) await supabase.from('leads').update({ status: newStatus }).eq('id', leads[0].id);
     }
 
-    // 3. ENVIO RESPOSTA
+    // 3. ENVIO DA RESPOSTA
     if (result.reply) {
         const messages = result.reply.split('\n').map(m => m.trim()).filter(m => m.length > 0);
         
