@@ -33,13 +33,20 @@ const PatientDetails = () => {
       const data = await getPatientById(id);
       if (data) {
         setPatient(data);
-        const associatedContact = await getContactByPatientId(data.id);
-        setContact(associatedContact);
+        
+        // Tenta buscar contato associado (CRM)
+        try {
+            const associatedContact = await getContactByPatientId(data.id);
+            setContact(associatedContact);
+        } catch (e) {
+            console.log("Sem contato CRM vinculado");
+        }
 
-        // Buscar tags do paciente
+        // Buscar tags do paciente (Separado para não quebrar a query principal)
         try {
           const tags = await getPatientTags(data.id);
-          const formattedTags = tags.map(item => item.tags).filter(Boolean);
+          // Ajuste para suportar diferentes formatos de retorno de tags
+          const formattedTags = tags.map(item => item.tags || item).filter(Boolean);
           setPatientTags(formattedTags);
         } catch (tagError) {
           console.warn('Não foi possível carregar tags do paciente:', tagError);
@@ -83,21 +90,17 @@ const PatientDetails = () => {
   };
   
   const handleMessage = () => {
-      if (contact) {
-          navigate(`/inbox?phone=${contact.phone}`);
+      if (contact && contact.phone) {
+          navigate(`/inbox?phone=${contact.phone.replace(/\D/g, '')}`);
       } else {
-          // Usar telefone principal ou primeiro disponível com WhatsApp
-          const primaryPhone = patient.phones?.find(p => p.is_primary && p.is_whatsapp) 
-            || patient.phones?.find(p => p.is_whatsapp)
-            || patient.phones?.find(p => p.is_primary)
-            || patient.phones?.[0];
-          
-          const phoneToUse = primaryPhone?.phone || patient.phone;
+          // Lógica simplificada: No seu banco atual, 'phone' é uma coluna direta, não uma lista.
+          // Removemos a busca por 'phones.find' pois a tabela patient_phones não existe no seu schema.
+          const phoneToUse = patient.phone;
           
           if (phoneToUse) {
               navigate(`/inbox?phone=${phoneToUse.replace(/\D/g, '')}`);
-      } else {
-          toast({ variant: "destructive", title: "Indisponível", description: "Paciente sem telefone ou contato vinculado." });
+          } else {
+              toast({ variant: "destructive", title: "Indisponível", description: "Paciente sem telefone cadastrado." });
           }
       }
   };
@@ -143,7 +146,7 @@ const PatientDetails = () => {
       <div className="bg-card rounded-xl border p-6 flex flex-col md:flex-row gap-6 items-center md:items-start">
         <Avatar className="h-24 w-24 text-2xl">
           <AvatarImage src={patient.avatar_url} />
-          <AvatarFallback>{patient.name[0]}</AvatarFallback>
+          <AvatarFallback>{patient.name ? patient.name[0] : 'P'}</AvatarFallback>
         </Avatar>
         <div className="flex-1 text-center md:text-left space-y-2">
           <h1 className="text-3xl font-bold text-foreground">{patient.name}</h1>
@@ -155,22 +158,25 @@ const PatientDetails = () => {
                </Badge>
             )}
             {contact && <Badge variant="outline" className="bg-green-50 text-green-700 border-green-200">WhatsApp Vinculado</Badge>}
+            
             {/* Tags do Paciente */}
-            {patientTags.length > 0 && patientTags.map(tag => (
+            {patientTags.length > 0 && patientTags.map((tag, idx) => (
               <Badge
-                key={tag.id}
+                key={tag.id || idx}
                 variant="outline"
                 className="text-xs"
                 style={{
-                  backgroundColor: `${tag.color}20`,
-                  borderColor: tag.color,
-                  color: tag.color
+                  backgroundColor: tag.color ? `${tag.color}20` : '#e2e8f0',
+                  borderColor: tag.color || '#cbd5e1',
+                  color: tag.color || '#475569'
                 }}
               >
-                <div
-                  className="w-2 h-2 rounded-full mr-1"
-                  style={{ backgroundColor: tag.color }}
-                />
+                {tag.color && (
+                    <div
+                    className="w-2 h-2 rounded-full mr-1"
+                    style={{ backgroundColor: tag.color }}
+                    />
+                )}
                 {tag.name}
               </Badge>
             ))}

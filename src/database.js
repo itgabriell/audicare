@@ -59,9 +59,12 @@ export const getPatientById = async (id) => {
   const clinicId = await getClinicId();
   if (!clinicId) return null;
 
+  // CORREÇÃO: Removido 'tags:...' e 'phones:...'
+  // Buscamos apenas os dados da tabela patients.
+  // Tags são buscadas separadamente pelo frontend usando getPatientTags
   const { data, error } = await supabase
     .from('patients')
-    .select(`*, tags:patient_tags(tag:tags(*)), phones:patient_phones(*)`) 
+    .select('*') 
     .eq('id', id)
     .eq('clinic_id', clinicId)
     .single();
