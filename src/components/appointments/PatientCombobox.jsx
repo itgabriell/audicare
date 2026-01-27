@@ -1,5 +1,5 @@
 import React, { useState } from "react"
-import { Check, ChevronsUpDown, Search } from "lucide-react"
+import { Check, ChevronsUpDown, Plus } from "lucide-react"
 import { cn } from "@/lib/utils"
 import { Button } from "@/components/ui/button"
 import {
@@ -15,12 +15,15 @@ import {
   PopoverContent,
   PopoverTrigger,
 } from "@/components/ui/popover"
+import { supabase } from '@/lib/customSupabaseClient';
+import { useToast } from '@/components/ui/use-toast';
 
-export function PatientCombobox({ patients = [], value, onChange }) {
+export function PatientCombobox({ patients = [], value, onChange, onPatientsUpdate }) {
   const [open, setOpen] = useState(false)
   const [searchTerm, setSearchTerm] = useState("")
+  const [loading, setLoading] = useState(false);
+  const { toast } = useToast();
 
-  // Filtra a lista localmente (nome ou telefone)
   const filteredPatients = patients.filter((patient) => {
     if (!patient) return false;
     const name = patient.name || patient.full_name || "";
@@ -29,11 +32,42 @@ export function PatientCombobox({ patients = [], value, onChange }) {
     return name.toLowerCase().includes(search) || phone.includes(search);
   });
 
-  // Encontra o paciente selecionado para mostrar no botão
   const selectedPatient = patients.find((p) => p.id === value);
   const displayName = selectedPatient 
     ? (selectedPatient.name || selectedPatient.full_name) 
     : "Selecione o paciente...";
+
+  // Função para criar paciente rápido
+  const handleQuickCreate = async () => {
+    if (!searchTerm) return;
+    setLoading(true);
+
+    try {
+        // Cria apenas com o nome (e um telefone vazio/placeholder se necessário)
+        const { data, error } = await supabase
+            .from('patients') // ou 'leads', dependendo da sua estrutura principal
+            .insert([{ full_name: searchTerm, phone: '', status: 'new' }]) // Ajuste os campos conforme seu banco
+            .select()
+            .single();
+
+        if (error) throw error;
+
+        toast({ title: "Paciente Cadastrado", description: `${searchTerm} adicionado com sucesso.` });
+        
+        // Atualiza a lista pai se a função foi passada
+        if (onPatientsUpdate) onPatientsUpdate();
+        
+        // Seleciona o novo paciente
+        onChange(data.id);
+        setOpen(false);
+        setSearchTerm("");
+    } catch (error) {
+        console.error(error);
+        toast({ title: "Erro", description: "Não foi possível cadastrar rápido.", variant: "destructive" });
+    } finally {
+        setLoading(false);
+    }
+  };
 
   return (
     <Popover open={open} onOpenChange={setOpen}>
@@ -56,40 +90,52 @@ export function PatientCombobox({ patients = [], value, onChange }) {
             onValueChange={setSearchTerm}
           />
           <CommandList className="max-h-[300px] overflow-y-auto">
-             {filteredPatients.length === 0 && (
-                <div className="py-6 text-center text-sm text-muted-foreground">
-                    Nenhum paciente encontrado.
-                    <br/>
-                    <span className="text-xs opacity-70">Verifique a ortografia ou cadastre um novo.</span>
+             {filteredPatients.length === 0 && searchTerm.length > 0 && (
+                <div className="p-2">
+                    <div className="text-sm text-muted-foreground text-center py-2">
+                        Nenhum paciente encontrado.
+                    </div>
+                    <Button 
+                        variant="secondary" 
+                        className="w-full justify-start text-blue-600 hover:text-blue-700"
+                        onClick={handleQuickCreate}
+                        disabled={loading}
+                    >
+                        <Plus className="mr-2 h-4 w-4" />
+                        Cadastrar "{searchTerm}"
+                    </Button>
                 </div>
              )}
-             <CommandGroup>
-              {filteredPatients.slice(0, 50).map((patient) => (
-                <CommandItem
-                  key={patient.id}
-                  value={patient.id}
-                  onSelect={() => {
-                    onChange(patient.id)
-                    setOpen(false)
-                    setSearchTerm("") // Limpa busca ao selecionar
-                  }}
-                  className="cursor-pointer"
-                >
-                  <Check
-                    className={cn(
-                      "mr-2 h-4 w-4",
-                      value === patient.id ? "opacity-100" : "opacity-0"
-                    )}
-                  />
-                  <div className="flex flex-col">
-                      <span className="font-medium">{patient.name || patient.full_name}</span>
-                      {patient.phone && (
-                          <span className="text-xs text-muted-foreground">{patient.phone}</span>
-                      )}
-                  </div>
-                </CommandItem>
-              ))}
-            </CommandGroup>
+             
+             {filteredPatients.length > 0 && (
+                <CommandGroup>
+                {filteredPatients.slice(0, 50).map((patient) => (
+                    <CommandItem
+                    key={patient.id}
+                    value={patient.id}
+                    onSelect={() => {
+                        onChange(patient.id)
+                        setOpen(false)
+                        setSearchTerm("") 
+                    }}
+                    className="cursor-pointer"
+                    >
+                    <Check
+                        className={cn(
+                        "mr-2 h-4 w-4",
+                        value === patient.id ? "opacity-100" : "opacity-0"
+                        )}
+                    />
+                    <div className="flex flex-col">
+                        <span className="font-medium">{patient.name || patient.full_name}</span>
+                        {patient.phone && (
+                            <span className="text-xs text-muted-foreground">{patient.phone}</span>
+                        )}
+                    </div>
+                    </CommandItem>
+                ))}
+                </CommandGroup>
+             )}
           </CommandList>
         </Command>
       </PopoverContent>

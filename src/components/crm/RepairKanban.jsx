@@ -12,7 +12,6 @@ import { Textarea } from "@/components/ui/textarea";
 
 const COLUMNS = [
   { id: 'received', title: '📥 Na Clínica (Gaveta)', color: 'border-t-4 border-slate-500 bg-slate-50/50 dark:bg-slate-900/20' },
-  { id: 'batching', title: '📦 Juntando Lote', color: 'border-t-4 border-orange-500 bg-orange-50/50 dark:bg-orange-900/20' },
   { id: 'sent_to_lab', title: '🚚 Enviado (SP)', color: 'border-t-4 border-blue-500 bg-blue-50/50 dark:bg-blue-900/20' },
   { id: 'in_lab', title: '🛠️ Em Reparo', color: 'border-t-4 border-purple-500 bg-purple-50/50 dark:bg-purple-900/20' },
   { id: 'returning', title: '🔙 Voltando', color: 'border-t-4 border-indigo-500 bg-indigo-50/50 dark:bg-indigo-900/20' },
