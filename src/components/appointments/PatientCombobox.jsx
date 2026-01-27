@@ -26,7 +26,7 @@ export function PatientCombobox({ patients = [], value, onChange, onPatientsUpda
 
   const filteredPatients = patients.filter((patient) => {
     if (!patient) return false;
-    const name = patient.name || patient.full_name || "";
+    const name = patient.name || patient.full_name || ""; // Suporta ambos caso mude no futuro
     const phone = patient.phone || "";
     const search = searchTerm.toLowerCase();
     return name.toLowerCase().includes(search) || phone.includes(search);
@@ -43,10 +43,11 @@ export function PatientCombobox({ patients = [], value, onChange, onPatientsUpda
     setLoading(true);
 
     try {
-        // Cria apenas com o nome (e um telefone vazio/placeholder se necessário)
+        // --- CORREÇÃO AQUI ---
+        // Ajustado para o esquema da tabela: usa 'name' e remove 'status'
         const { data, error } = await supabase
-            .from('patients') // ou 'leads', dependendo da sua estrutura principal
-            .insert([{ full_name: searchTerm, phone: '', status: 'new' }]) // Ajuste os campos conforme seu banco
+            .from('patients') 
+            .insert([{ name: searchTerm }]) 
             .select()
             .single();
 
@@ -62,8 +63,8 @@ export function PatientCombobox({ patients = [], value, onChange, onPatientsUpda
         setOpen(false);
         setSearchTerm("");
     } catch (error) {
-        console.error(error);
-        toast({ title: "Erro", description: "Não foi possível cadastrar rápido.", variant: "destructive" });
+        console.error("Erro ao criar paciente:", error);
+        toast({ title: "Erro", description: "Não foi possível cadastrar rápido. Verifique os dados.", variant: "destructive" });
     } finally {
         setLoading(false);
     }
@@ -102,7 +103,7 @@ export function PatientCombobox({ patients = [], value, onChange, onPatientsUpda
                         disabled={loading}
                     >
                         <Plus className="mr-2 h-4 w-4" />
-                        Cadastrar "{searchTerm}"
+                        {loading ? "Salvando..." : `Cadastrar "${searchTerm}"`}
                     </Button>
                 </div>
              )}
