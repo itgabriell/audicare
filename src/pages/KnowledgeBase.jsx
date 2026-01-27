@@ -4,7 +4,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
 import { Search, Plus, FileText, Image as ImageIcon, Trash2, ExternalLink } from 'lucide-react';
-import UploadDocDialog from '@/components/knowledge/UploadDocDialog';
+import UploadDocDialog from '@/components/knowledge/UploadDocDialog.jsx';
 import { knowledgeBaseService } from '@/services/knowledgeBaseService';
 import { useToast } from '@/components/ui/use-toast';
 import { format } from 'date-fns';
