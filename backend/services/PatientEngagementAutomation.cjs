@@ -1,6 +1,6 @@
 const cron = require('node-cron');
-const { supabase } = require('../lib/customSupabaseClient');
-const chatwootBackendService = require('./ChatwootBackendService');
+const { supabase } = require('../lib/customSupabaseClient.cjs');
+const chatwootBackendService = require('./ChatwootBackendService.cjs');
 
 /**
  * Sistema de Automação de Engajamento do Paciente

@@ -13,17 +13,21 @@ let chatwootSyncService;
 
 // Manter compatibilidade com automação antiga
 try {
-    patientEngagementAutomation = require('./services/PatientEngagementAutomation.js');
+    patientEngagementAutomation = require('./services/PatientEngagementAutomation.cjs');
 } catch (e) {
     console.warn("⚠️ Automação antiga não carregada:", e.message);
 }
 
 // Novo sistema de automação
 try {
-    automationManager = require('./services/AutomationManager.js');
+    console.log('🔄 Tentando carregar AutomationManager...');
+    automationManager = require('./services/AutomationManager.cjs');
+    console.log('✅ Carregado. Tipo:', typeof automationManager);
 } catch (e) {
-    console.warn("⚠️ AutomationManager não carregado:", e.message);
+    console.warn("⚠️ AutomationManager não carregado. Erro:", e);
+    console.warn("⚠️ Stack:", e.stack);
 }
+
 
 // Serviço de sincronização Chatwoot
 try {
@@ -69,7 +73,19 @@ app.post('/webhooks/chatwoot-events', async (req, res) => {
 // ========================================================
 // 🤖 ROTAS DE AUTOMAÇÃO (NOVO SISTEMA COM BANCO)
 // ========================================================
+// --- IMPORTAÇÕES EXTENDIDAS ---
+const authMiddleware = require('./middleware/authMiddleware.cjs');
+
+// ... (código existente)
+
+// ========================================================
+// 🤖 ROTAS DE AUTOMAÇÃO (NOVO SISTEMA COM BANCO)
+// ========================================================
 if (automationManager) {
+    console.log('✅ Registrando rotas de automação...');
+    // Aplicar Middleware de Autenticação em automações
+    app.use('/api/automations', authMiddleware);
+
     // Listar automações
     app.get('/api/automations', async (req, res) => {
         try {

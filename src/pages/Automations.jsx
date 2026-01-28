@@ -5,12 +5,12 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Button } from '@/components/ui/button';
 import { useToast } from '@/components/ui/use-toast';
 import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
+    Table,
+    TableBody,
+    TableCell,
+    TableHead,
+    TableHeader,
+    TableRow,
 } from "@/components/ui/table";
 import { Badge } from '@/components/ui/badge';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/components/ui/dialog';
@@ -136,7 +136,10 @@ const Automations = () => {
             const apiUrl = import.meta.env.VITE_API_BASE_URL || 'https://api.audicarefono.com.br';
             const response = await fetch(`${apiUrl}/api/automations/${automation.id}/test`, {
                 method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
+                headers: {
+                    'Content-Type': 'application/json',
+                    'x-api-key': import.meta.env.VITE_INTERNAL_API_KEY
+                },
                 body: JSON.stringify({ phone: '11999999999' }) // Número de teste
             });
 
@@ -248,9 +251,9 @@ const Automations = () => {
                         Criar Automação
                     </Button>
                 </div>
-                
+
                 <Card>
-                        <CardHeader>
+                    <CardHeader>
                         <CardTitle>Fluxos de Trabalho Ativos</CardTitle>
                         <CardDescription>
                             Abaixo estão as automações configuradas. Cada automação pode ser executada manualmente ou disparada automaticamente por gatilhos.
@@ -269,65 +272,65 @@ const Automations = () => {
                             </div>
                         ) : (
                             <Table>
-                              <TableHeader>
-                                <TableRow>
-                                  <TableHead>Nome da Automação</TableHead>
-                                  <TableHead>Gatilho</TableHead>
-                                  <TableHead>Ação</TableHead>
-                                  <TableHead>Status</TableHead>
-                                  <TableHead className="text-right">Ações</TableHead>
-                                </TableRow>
-                              </TableHeader>
-                              <TableBody>
-                                {automations.map((automation) => (
-                                  <TableRow key={automation.id}>
-                                    <TableCell className="font-medium">{automation.name}</TableCell>
-                                    <TableCell>
-                                        <div className="flex items-center gap-2">
-                                            <Clock className="h-4 w-4 text-muted-foreground" />
-                                            <span>{getTriggerDisplay(automation)}</span>
-                                        </div>
-                                    </TableCell>
-                                    <TableCell>
-                                        <div className="flex items-center gap-2">
-                                            <Send className="h-4 w-4 text-green-500" />
-                                            <span>{getActionDisplay(automation)}</span>
-                                        </div>
-                                    </TableCell>
-                                    <TableCell>
-                                        <Badge variant={automation.status === 'active' ? 'default' : 'outline'}>
-                                            {automation.status === 'active' ? 'Ativa' : 'Pausada'}
-                                        </Badge>
-                                    </TableCell>
-                                    <TableCell className="text-right">
-                                      <Button
-                                        variant="ghost"
-                                        size="icon"
-                                        onClick={() => handleExecuteAutomation(automation)}
-                                        title="Executar automação"
-                                      >
-                                        <Play className="h-4 w-4" />
-                                      </Button>
-                                      <Button
-                                        variant="ghost"
-                                        size="icon"
-                                        onClick={() => handleEditAutomation(automation)}
-                                        title="Editar automação"
-                                      >
-                                        <Edit className="h-4 w-4" />
-                                      </Button>
-                                      <Button
-                                        variant="ghost"
-                                        size="icon"
-                                        onClick={() => handleDeleteAutomation(automation.id)}
-                                        title="Excluir automação"
-                                      >
-                                        <Trash2 className="h-4 w-4 text-red-500" />
-                                      </Button>
-                                    </TableCell>
-                                  </TableRow>
-                                ))}
-                              </TableBody>
+                                <TableHeader>
+                                    <TableRow>
+                                        <TableHead>Nome da Automação</TableHead>
+                                        <TableHead>Gatilho</TableHead>
+                                        <TableHead>Ação</TableHead>
+                                        <TableHead>Status</TableHead>
+                                        <TableHead className="text-right">Ações</TableHead>
+                                    </TableRow>
+                                </TableHeader>
+                                <TableBody>
+                                    {automations.map((automation) => (
+                                        <TableRow key={automation.id}>
+                                            <TableCell className="font-medium">{automation.name}</TableCell>
+                                            <TableCell>
+                                                <div className="flex items-center gap-2">
+                                                    <Clock className="h-4 w-4 text-muted-foreground" />
+                                                    <span>{getTriggerDisplay(automation)}</span>
+                                                </div>
+                                            </TableCell>
+                                            <TableCell>
+                                                <div className="flex items-center gap-2">
+                                                    <Send className="h-4 w-4 text-green-500" />
+                                                    <span>{getActionDisplay(automation)}</span>
+                                                </div>
+                                            </TableCell>
+                                            <TableCell>
+                                                <Badge variant={automation.status === 'active' ? 'default' : 'outline'}>
+                                                    {automation.status === 'active' ? 'Ativa' : 'Pausada'}
+                                                </Badge>
+                                            </TableCell>
+                                            <TableCell className="text-right">
+                                                <Button
+                                                    variant="ghost"
+                                                    size="icon"
+                                                    onClick={() => handleExecuteAutomation(automation)}
+                                                    title="Executar automação"
+                                                >
+                                                    <Play className="h-4 w-4" />
+                                                </Button>
+                                                <Button
+                                                    variant="ghost"
+                                                    size="icon"
+                                                    onClick={() => handleEditAutomation(automation)}
+                                                    title="Editar automação"
+                                                >
+                                                    <Edit className="h-4 w-4" />
+                                                </Button>
+                                                <Button
+                                                    variant="ghost"
+                                                    size="icon"
+                                                    onClick={() => handleDeleteAutomation(automation.id)}
+                                                    title="Excluir automação"
+                                                >
+                                                    <Trash2 className="h-4 w-4 text-red-500" />
+                                                </Button>
+                                            </TableCell>
+                                        </TableRow>
+                                    ))}
+                                </TableBody>
                             </Table>
                         )}
                     </CardContent>

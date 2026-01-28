@@ -1,4 +1,4 @@
-import { supabase } from './lib/customSupabaseClient';
+import { supabase } from './lib/customSupabaseClient.js';
 
 // --- Funções Auxiliares ---
 
@@ -7,7 +7,7 @@ const getClinicId = async () => {
     const { data: { session } } = await supabase.auth.getSession();
     if (!session) return null;
     if (session.user?.user_metadata?.clinic_id) {
-        return session.user.user_metadata.clinic_id;
+      return session.user.user_metadata.clinic_id;
     }
     const { data: profile } = await supabase
       .from('profiles')
@@ -16,14 +16,14 @@ const getClinicId = async () => {
       .single();
     return profile?.clinic_id;
   } catch (error) {
-      console.error("Error getting clinic ID:", error);
-      return null;
+    console.error("Error getting clinic ID:", error);
+    return null;
   }
 };
 
 const getUserId = async () => {
-    const { data: { session } } = await supabase.auth.getSession();
-    return session?.user?.id || null;
+  const { data: { session } } = await supabase.auth.getSession();
+  return session?.user?.id || null;
 }
 
 // ======================================================================
@@ -36,7 +36,7 @@ export const getPatients = async (page = 1, pageSize = 10, searchTerm = '', sort
 
   let query = supabase
     .from('patients')
-    .select('*, tags:patient_tags(tag:tags(*))', { count: 'exact' }) 
+    .select('*, tags:patient_tags(tag:tags(*))', { count: 'exact' })
     .eq('clinic_id', clinicId);
 
   if (searchTerm) {
@@ -44,14 +44,14 @@ export const getPatients = async (page = 1, pageSize = 10, searchTerm = '', sort
   }
 
   if (sortBy) query = query.order(sortBy, { ascending: sortOrder === 'asc' });
-  
+
   const from = (page - 1) * pageSize;
   const to = from + pageSize - 1;
   query = query.range(from, to);
 
   const { data, error, count } = await query;
   if (error) throw error;
-  
+
   return { data, count };
 };
 
@@ -64,11 +64,11 @@ export const getPatientById = async (id) => {
   // Tags são buscadas separadamente pelo frontend usando getPatientTags
   const { data, error } = await supabase
     .from('patients')
-    .select('*') 
+    .select('*')
     .eq('id', id)
     .eq('clinic_id', clinicId)
     .single();
-    
+
   if (error) return null;
   return data;
 };
@@ -84,7 +84,7 @@ export const addPatient = async (patientData) => {
     .from('patients')
     .insert([{ ...cleanData, clinic_id: clinicId, created_by: userId, created_at: new Date().toISOString() }])
     .select().single();
-    
+
   if (error) throw error;
   return data;
 };
@@ -97,7 +97,7 @@ export const updatePatient = async (patientId, updates) => {
     .from('patients')
     .update({ ...cleanUpdates, updated_at: new Date().toISOString() })
     .eq('id', patientId).eq('clinic_id', clinicId).select().single();
-    
+
   if (error) throw error;
   return data;
 };
@@ -110,24 +110,24 @@ export const deletePatient = async (patientId) => {
 
 // --- FUNÇÃO QUE FALTAVA (Correção do Build) ---
 export const checkDuplicatePatient = async (name, cpf) => {
-    const clinicId = await getClinicId();
-    if (!clinicId) return false;
-    
-    const conditions = [];
-    // Escapa aspas duplas para evitar erro na query
-    if (name) conditions.push(`name.eq."${name.replace(/"/g, '""')}"`);
-    if (cpf) conditions.push(`cpf.eq."${cpf.replace(/"/g, '""')}"`);
-    
-    if (conditions.length === 0) return false;
+  const clinicId = await getClinicId();
+  if (!clinicId) return false;
 
-    const { data, error } = await supabase
-        .from('patients')
-        .select('id')
-        .eq('clinic_id', clinicId)
-        .or(conditions.join(','));
+  const conditions = [];
+  // Escapa aspas duplas para evitar erro na query
+  if (name) conditions.push(`name.eq."${name.replace(/"/g, '""')}"`);
+  if (cpf) conditions.push(`cpf.eq."${cpf.replace(/"/g, '""')}"`);
 
-    if (error) return false;
-    return data && data.length > 0;
+  if (conditions.length === 0) return false;
+
+  const { data, error } = await supabase
+    .from('patients')
+    .select('id')
+    .eq('clinic_id', clinicId)
+    .or(conditions.join(','));
+
+  if (error) return false;
+  return data && data.length > 0;
 };
 
 // ======================================================================
@@ -137,10 +137,10 @@ export const checkDuplicatePatient = async (name, cpf) => {
 export const getTags = async (page = 1, pageSize = 10, searchTerm = '') => {
   const clinicId = await getClinicId();
   if (!clinicId) return { data: [], count: 0 };
-  
+
   let query = supabase.from('tags').select('*', { count: 'exact' }).eq('clinic_id', clinicId);
   if (searchTerm) query = query.ilike('name', `%${searchTerm}%`);
-  
+
   const { data, count } = await query.range((page - 1) * pageSize, page * pageSize - 1);
   return { data: data || [], count: count || 0 };
 };
@@ -158,19 +158,19 @@ export const deleteTag = async (id) => {
 };
 
 export const addPatientTag = async (patientId, tagId) => {
-   const { data, error } = await supabase.from('patient_tags').insert([{ patient_id: patientId, tag_id: tagId }]).select().single();
-   if (error && error.code !== '23505') throw error; 
-   return data;
+  const { data, error } = await supabase.from('patient_tags').insert([{ patient_id: patientId, tag_id: tagId }]).select().single();
+  if (error && error.code !== '23505') throw error;
+  return data;
 };
 
 export const removePatientTag = async (patientId, tagId) => {
-   const { error } = await supabase.from('patient_tags').delete().eq('patient_id', patientId).eq('tag_id', tagId);
-   if (error) throw error;
+  const { error } = await supabase.from('patient_tags').delete().eq('patient_id', patientId).eq('tag_id', tagId);
+  if (error) throw error;
 };
 
 export const getPatientTags = async (patientId) => {
-    const { data } = await supabase.from('patient_tags').select('*, tag:tags(*)').eq('patient_id', patientId);
-    return data || [];
+  const { data } = await supabase.from('patient_tags').select('*, tag:tags(*)').eq('patient_id', patientId);
+  return data || [];
 };
 
 // ======================================================================
@@ -180,7 +180,7 @@ export const getPatientTags = async (patientId) => {
 export const getAppointments = async (filters = {}) => {
   const clinicId = await getClinicId();
   if (!clinicId) return [];
-  
+
   let query = supabase
     .from('appointments')
     .select('*, patient:patients(id, name, phone, cpf)')
@@ -188,81 +188,81 @@ export const getAppointments = async (filters = {}) => {
 
   if (filters.startDate) query = query.gte('appointment_date', filters.startDate);
   if (filters.endDate) query = query.lte('appointment_date', filters.endDate);
-  
+
   const { data, error } = await query.order('appointment_date', { ascending: true });
   if (error) throw error;
-  
+
   return data.map(apt => ({
-      ...apt,
-      contact: apt.patient ? { id: apt.patient.id, name: apt.patient.name } : { name: 'Paciente' }
+    ...apt,
+    contact: apt.patient ? { id: apt.patient.id, name: apt.patient.name } : { name: 'Paciente' }
   }));
 };
 
 // Remove ID antes de inserir (evita erro 23505)
 export const addAppointment = async (d) => {
-    const cid = await getClinicId();
-    const { id, ...dataToInsert } = d; 
-    
-    const { data, error } = await supabase
-        .from('appointments')
-        .insert([{ ...dataToInsert, clinic_id: cid }])
-        .select().single();
-    
-    if(error) throw error; 
-    return data;
+  const cid = await getClinicId();
+  const { id, ...dataToInsert } = d;
+
+  const { data, error } = await supabase
+    .from('appointments')
+    .insert([{ ...dataToInsert, clinic_id: cid }])
+    .select().single();
+
+  if (error) throw error;
+  return data;
 };
 
 // Aceita (objeto) OU (id, updates) para evitar TypeError
 export const updateAppointment = async (arg1, arg2) => {
-    const cid = await getClinicId();
-    
-    let id, updates;
+  const cid = await getClinicId();
 
-    // Detecta se foi chamado com 1 argumento (objeto) ou 2 (id, updates)
-    if (typeof arg1 === 'object' && arg1 !== null) {
-        id = arg1.id;
-        updates = { ...arg1 };
-        delete updates.id; // Remove ID do corpo
-    } else {
-        id = arg1;
-        updates = arg2;
-    }
+  let id, updates;
 
-    if (!id || !updates) throw new Error("Dados inválidos para atualização.");
+  // Detecta se foi chamado com 1 argumento (objeto) ou 2 (id, updates)
+  if (typeof arg1 === 'object' && arg1 !== null) {
+    id = arg1.id;
+    updates = { ...arg1 };
+    delete updates.id; // Remove ID do corpo
+  } else {
+    id = arg1;
+    updates = arg2;
+  }
 
-    // Lista estrita de campos permitidos
-    const allowedColumns = [
-        'clinic_id', 'patient_id', 'professional_id', 'appointment_date', 
-        'status', 'appointment_type', 'duration', 'notes', 'obs',
-        'contact_id', 'title', 'start_time', 'end_time', 
-        'location', 'professional_name' 
-    ];
+  if (!id || !updates) throw new Error("Dados inválidos para atualização.");
 
-    const cleanUpdates = Object.keys(updates)
-        .filter(key => allowedColumns.includes(key))
-        .reduce((obj, key) => { obj[key] = updates[key]; return obj; }, {});
+  // Lista estrita de campos permitidos
+  const allowedColumns = [
+    'clinic_id', 'patient_id', 'professional_id', 'appointment_date',
+    'status', 'appointment_type', 'duration', 'notes', 'obs',
+    'contact_id', 'title', 'start_time', 'end_time',
+    'location', 'professional_name'
+  ];
 
-    const { data, error } = await supabase
-        .from('appointments')
-        .update(cleanUpdates)
-        .eq('id', id).eq('clinic_id', cid).select().single();
-        
-    if(error) throw error; 
-    return data;
+  const cleanUpdates = Object.keys(updates)
+    .filter(key => allowedColumns.includes(key))
+    .reduce((obj, key) => { obj[key] = updates[key]; return obj; }, {});
+
+  const { data, error } = await supabase
+    .from('appointments')
+    .update(cleanUpdates)
+    .eq('id', id).eq('clinic_id', cid).select().single();
+
+  if (error) throw error;
+  return data;
 };
 
 export const deleteAppointment = async (id) => {
-    const cid = await getClinicId();
-    const { error } = await supabase.from('appointments').delete().eq('id', id).eq('clinic_id', cid);
-    if(error) throw error;
-    return { success: true };
+  const cid = await getClinicId();
+  const { error } = await supabase.from('appointments').delete().eq('id', id).eq('clinic_id', cid);
+  if (error) throw error;
+  return { success: true };
 };
 
 export const getPatientAppointments = async (patientId) => {
-    const cid = await getClinicId();
-    if (!cid) return [];
-    const { data } = await supabase.from('appointments').select('*').eq('clinic_id', cid).eq('patient_id', patientId).order('appointment_date', {ascending: false});
-    return data || [];
+  const cid = await getClinicId();
+  if (!cid) return [];
+  const { data } = await supabase.from('appointments').select('*').eq('clinic_id', cid).eq('patient_id', patientId).order('appointment_date', { ascending: false });
+  return data || [];
 }
 
 // ======================================================================
@@ -270,33 +270,33 @@ export const getPatientAppointments = async (patientId) => {
 // ======================================================================
 
 export const getNotificationsForUser = async (uid) => {
-    if (!uid) return []; 
-    const { data } = await supabase.from('notifications').select('*').eq('user_id', uid).order('created_at', { ascending: false });
-    return data || [];
+  if (!uid) return [];
+  const { data } = await supabase.from('notifications').select('*').eq('user_id', uid).order('created_at', { ascending: false });
+  return data || [];
 };
 
 export const getUnreadNotificationCount = async (uid) => {
-    const userId = uid || await getUserId();
-    if (!userId) return 0;
-    const { count, error } = await supabase.from('notifications').select('*', { count: 'exact', head: true }).eq('user_id', userId).eq('is_read', false);
-    if (error) return 0;
-    return count || 0;
+  const userId = uid || await getUserId();
+  if (!userId) return 0;
+  const { count, error } = await supabase.from('notifications').select('*', { count: 'exact', head: true }).eq('user_id', userId).eq('is_read', false);
+  if (error) return 0;
+  return count || 0;
 };
 
 export const markNotificationAsRead = async (id) => {
-    const { data } = await supabase.from('notifications').update({ is_read: true }).eq('id', id).select().single();
-    return data;
+  const { data } = await supabase.from('notifications').update({ is_read: true }).eq('id', id).select().single();
+  return data;
 };
 
 export const markAllNotificationsAsRead = async (uid) => {
-    if (!uid) return;
-    await supabase.from('notifications').update({ is_read: true }).eq('user_id', uid).eq('is_read', false);
-    return true;
+  if (!uid) return;
+  await supabase.from('notifications').update({ is_read: true }).eq('user_id', uid).eq('is_read', false);
+  return true;
 };
 
 export const deleteNotification = async (id) => {
-    await supabase.from('notifications').delete().eq('id', id);
-    return true;
+  await supabase.from('notifications').delete().eq('id', id);
+  return true;
 };
 
 export const createNotification = async (notificationData) => {
@@ -305,16 +305,16 @@ export const createNotification = async (notificationData) => {
   if (!clinicId || !userId) return null;
 
   const { data } = await supabase.from('notifications').insert([{
-      clinic_id: clinicId,
-      user_id: userId,
-      type: notificationData.type || 'system',
-      title: notificationData.title,
-      message: notificationData.message,
-      related_entity_type: notificationData.related_entity_type,
-      related_entity_id: notificationData.related_entity_id,
-      metadata: notificationData.metadata || {},
-      is_read: false,
-      created_at: new Date().toISOString()
+    clinic_id: clinicId,
+    user_id: userId,
+    type: notificationData.type || 'system',
+    title: notificationData.title,
+    message: notificationData.message,
+    related_entity_type: notificationData.related_entity_type,
+    related_entity_id: notificationData.related_entity_id,
+    metadata: notificationData.metadata || {},
+    is_read: false,
+    created_at: new Date().toISOString()
   }]).select().single();
   return data;
 };
@@ -324,85 +324,85 @@ export const createNotification = async (notificationData) => {
 // ======================================================================
 
 export const getTasks = async () => {
-    const cid = await getClinicId();
-    const { data } = await supabase.from('tasks').select('*').eq('clinic_id', cid).order('created_at', {ascending: false});
-    return data || [];
+  const cid = await getClinicId();
+  const { data } = await supabase.from('tasks').select('*').eq('clinic_id', cid).order('created_at', { ascending: false });
+  return data || [];
 };
 export const addTask = async (d) => {
-    const cid = await getClinicId();
-    const uid = await getUserId();
-    const { data, error } = await supabase.from('tasks').insert([{...d, clinic_id: cid, created_by: uid}]).select().single();
-    if(error) throw error; return data;
+  const cid = await getClinicId();
+  const uid = await getUserId();
+  const { data, error } = await supabase.from('tasks').insert([{ ...d, clinic_id: cid, created_by: uid }]).select().single();
+  if (error) throw error; return data;
 };
 export const updateTask = async (id, u) => {
-    const cid = await getClinicId();
-    const { data, error } = await supabase.from('tasks').update(u).eq('id', id).eq('clinic_id', cid).select().single();
-    if(error) throw error; return data;
+  const cid = await getClinicId();
+  const { data, error } = await supabase.from('tasks').update(u).eq('id', id).eq('clinic_id', cid).select().single();
+  if (error) throw error; return data;
 };
 export const deleteTask = async (id) => {
-    const cid = await getClinicId();
-    const { error } = await supabase.from('tasks').delete().eq('id', id).eq('clinic_id', cid);
-    if(error) throw error;
+  const cid = await getClinicId();
+  const { error } = await supabase.from('tasks').delete().eq('id', id).eq('clinic_id', cid);
+  if (error) throw error;
 };
 
 export const getTeamMembers = async () => {
-    const cid = await getClinicId();
-    const { data } = await supabase.from('profiles').select('id, full_name, role, avatar_url').eq('clinic_id', cid);
-    return data || [];
+  const cid = await getClinicId();
+  const { data } = await supabase.from('profiles').select('id, full_name, role, avatar_url').eq('clinic_id', cid);
+  return data || [];
 };
 
 export const getLeads = async () => {
-    const cid = await getClinicId();
-    const { data } = await supabase.from('leads').select('*').eq('clinic_id', cid).order('created_at', {ascending: false});
-    return data || [];
+  const cid = await getClinicId();
+  const { data } = await supabase.from('leads').select('*').eq('clinic_id', cid).order('created_at', { ascending: false });
+  return data || [];
 };
 export const addLead = async (d) => {
-    const cid = await getClinicId();
-    const { data, error } = await supabase.from('leads').insert([{...d, clinic_id: cid}]).select().single();
-    if(error) throw error; return data;
+  const cid = await getClinicId();
+  const { data, error } = await supabase.from('leads').insert([{ ...d, clinic_id: cid }]).select().single();
+  if (error) throw error; return data;
 };
 export const updateLead = async (id, u) => {
-    const cid = await getClinicId();
-    const { data, error } = await supabase.from('leads').update(u).eq('id', id).eq('clinic_id', cid).select().single();
-    if(error) throw error; return data;
+  const cid = await getClinicId();
+  const { data, error } = await supabase.from('leads').update(u).eq('id', id).eq('clinic_id', cid).select().single();
+  if (error) throw error; return data;
 };
 export const getCampaigns = async () => {
-    const cid = await getClinicId();
-    const { data } = await supabase.from('campaigns').select('*').eq('clinic_id', cid);
-    return data || [];
+  const cid = await getClinicId();
+  const { data } = await supabase.from('campaigns').select('*').eq('clinic_id', cid);
+  return data || [];
 }
 export const getSocialPosts = async () => {
-    const cid = await getClinicId();
-    const { data } = await supabase.from('social_posts').select('*').eq('clinic_id', cid);
-    return data || [];
+  const cid = await getClinicId();
+  const { data } = await supabase.from('social_posts').select('*').eq('clinic_id', cid);
+  return data || [];
 }
 export const addSocialPost = async (d) => {
-    const cid = await getClinicId();
-    const { data, error } = await supabase.from('social_posts').insert([{...d, clinic_id: cid}]).select().single();
-    if(error) throw error; return data;
+  const cid = await getClinicId();
+  const { data, error } = await supabase.from('social_posts').insert([{ ...d, clinic_id: cid }]).select().single();
+  if (error) throw error; return data;
 }
 export const updateSocialPost = async (id, u) => {
-    const cid = await getClinicId();
-    const { data, error } = await supabase.from('social_posts').update(u).eq('id', id).eq('clinic_id', cid).select().single();
-    if(error) throw error; return data;
+  const cid = await getClinicId();
+  const { data, error } = await supabase.from('social_posts').update(u).eq('id', id).eq('clinic_id', cid).select().single();
+  if (error) throw error; return data;
 }
 export const deleteSocialPost = async (id) => {
-    const cid = await getClinicId();
-    const { error } = await supabase.from('social_posts').delete().eq('id', id).eq('clinic_id', cid);
-    if(error) throw error;
+  const cid = await getClinicId();
+  const { error } = await supabase.from('social_posts').delete().eq('id', id).eq('clinic_id', cid);
+  if (error) throw error;
 }
 export const getContactByPatientId = async (pid) => {
-    const { data, error } = await supabase.from('contact_relationships').select('contact_id').eq('related_entity_id', pid).eq('related_entity_type', 'patient').maybeSingle();
-    if(error || !data) return null;
-    const { data: c } = await supabase.from('contacts').select('*').eq('id', data.contact_id).single();
-    return c;
+  const { data, error } = await supabase.from('contact_relationships').select('contact_id').eq('related_entity_id', pid).eq('related_entity_type', 'patient').maybeSingle();
+  if (error || !data) return null;
+  const { data: c } = await supabase.from('contacts').select('*').eq('id', data.contact_id).single();
+  return c;
 };
-export const getConversations = async (f={}) => {
-    const cid = await getClinicId();
-    let q = supabase.from('conversations').select('*, contact:contacts(*)').eq('clinic_id', cid);
-    if(f.channel && f.channel !== 'all') q = q.eq('channel_type', f.channel);
-    const { data } = await q.order('last_message_at', {ascending: false});
-    return data || [];
+export const getConversations = async (f = {}) => {
+  const cid = await getClinicId();
+  let q = supabase.from('conversations').select('*, contact:contacts(*)').eq('clinic_id', cid);
+  if (f.channel && f.channel !== 'all') q = q.eq('channel_type', f.channel);
+  const { data } = await q.order('last_message_at', { ascending: false });
+  return data || [];
 };
 
 // ======================================================================
@@ -410,24 +410,24 @@ export const getConversations = async (f={}) => {
 // ======================================================================
 
 export const getRepairs = async () => {
-    const cid = await getClinicId();
-    const { data } = await supabase.from('repair_tickets').select('*').eq('clinic_id', cid).order('created_at', {ascending: false});
-    return data || [];
+  const cid = await getClinicId();
+  const { data } = await supabase.from('repair_tickets').select('*').eq('clinic_id', cid).order('created_at', { ascending: false });
+  return data || [];
 };
 export const addRepair = async (d) => {
-    const cid = await getClinicId();
-    const { data, error } = await supabase.from('repair_tickets').insert([{...d, clinic_id: cid}]).select().single();
-    if(error) throw error; return data;
+  const cid = await getClinicId();
+  const { data, error } = await supabase.from('repair_tickets').insert([{ ...d, clinic_id: cid }]).select().single();
+  if (error) throw error; return data;
 };
 export const updateRepair = async (id, u) => {
-    const cid = await getClinicId();
-    const { data, error } = await supabase.from('repair_tickets').update(u).eq('id', id).eq('clinic_id', cid).select().single();
-    if(error) throw error; return data;
+  const cid = await getClinicId();
+  const { data, error } = await supabase.from('repair_tickets').update(u).eq('id', id).eq('clinic_id', cid).select().single();
+  if (error) throw error; return data;
 };
 export const deleteRepair = async (id) => {
-    const cid = await getClinicId();
-    const { error } = await supabase.from('repair_tickets').delete().eq('id', id).eq('clinic_id', cid);
-    if(error) throw error;
+  const cid = await getClinicId();
+  const { error } = await supabase.from('repair_tickets').delete().eq('id', id).eq('clinic_id', cid);
+  if (error) throw error;
 };
 
 export const getDashboardMetrics = async () => {
@@ -486,11 +486,11 @@ export const getDashboardStats = async () => {
   if (!clinicId) return null;
 
   const now = new Date();
-  
+
   // Datas para Agenda (Dia inteiro de hoje)
   const todayStart = new Date(now.getFullYear(), now.getMonth(), now.getDate()).toISOString();
   const todayEnd = new Date(now.getFullYear(), now.getMonth(), now.getDate(), 23, 59, 59, 999).toISOString();
-  
+
   // Data para Leads 24h
   const yesterday = new Date(now);
   yesterday.setHours(yesterday.getHours() - 24);
@@ -499,93 +499,100 @@ export const getDashboardStats = async () => {
   // Data para Mês Atual
   const firstDayOfMonth = new Date(now.getFullYear(), now.getMonth(), 1).toISOString();
 
-  // 1. Agendamentos de HOJE (Intervalo corrigido)
-  const { count: appointmentsToday } = await supabase
-    .from('appointments')
-    .select('*', { count: 'exact', head: true })
-    .eq('clinic_id', clinicId)
-    .gte('appointment_date', todayStart)
-    .lte('appointment_date', todayEnd);
+  // Executar queries em PARALELO para performance
+  const [
+    appointmentsResult,
+    activeRepairsResult,
+    leads24hResult,
+    leadsMonthResult,
+    salesMonthResult,
+    totalPatientsResult,
+    claraInteractionsResult,
+    weekAppointmentsResult,
+    repairsDataResult
+  ] = await Promise.all([
+    // 1. Agendamentos de HOJE
+    supabase
+      .from('appointments')
+      .select('*', { count: 'exact', head: true })
+      .eq('clinic_id', clinicId)
+      .gte('appointment_date', todayStart)
+      .lte('appointment_date', todayEnd),
 
-  // 2. Reparos ATIVOS (Nome da tabela corrigido: 'repair_tickets')
-  // Filtra o que NÃO está concluído/entregue
-  const { count: activeRepairs } = await supabase
-    .from('repair_tickets') 
-    .select('*', { count: 'exact', head: true })
-    .eq('clinic_id', clinicId)
-    .not('status', 'in', '("Concluído", "Entregue", "ready", "delivered")');
+    // 2. Reparos ATIVOS
+    supabase
+      .from('repair_tickets')
+      .select('*', { count: 'exact', head: true })
+      .eq('clinic_id', clinicId)
+      .not('status', 'in', '("Concluído", "Entregue", "ready", "delivered")'),
 
-  // 3. Leads (Novas Métricas)
-  // Leads últimas 24h
-  const { count: leads24h } = await supabase
-    .from('leads')
-    .select('*', { count: 'exact', head: true })
-    .eq('clinic_id', clinicId)
-    .gte('created_at', last24h);
+    // 3. Leads 24h
+    supabase
+      .from('leads')
+      .select('*', { count: 'exact', head: true })
+      .eq('clinic_id', clinicId)
+      .gte('created_at', last24h),
 
-  // Leads Mês (Total criados)
-  const { count: leadsMonth } = await supabase
-    .from('leads')
-    .select('*', { count: 'exact', head: true })
-    .eq('clinic_id', clinicId)
-    .gte('created_at', firstDayOfMonth);
+    // 4. Leads Mês
+    supabase
+      .from('leads')
+      .select('*', { count: 'exact', head: true })
+      .eq('clinic_id', clinicId)
+      .gte('created_at', firstDayOfMonth),
 
-  // Vendas (Leads com status de compra)
-  const { count: salesMonth } = await supabase
-    .from('leads')
-    .select('*', { count: 'exact', head: true })
-    .eq('clinic_id', clinicId)
-    .in('status', ['purchased', 'won', 'venda_realizada', 'Venda Realizada']) // Adicione seus status de venda aqui
-    .gte('created_at', firstDayOfMonth);
+    // 5. Vendas Mês
+    supabase
+      .from('leads')
+      .select('*', { count: 'exact', head: true })
+      .eq('clinic_id', clinicId)
+      .in('status', ['purchased', 'won', 'venda_realizada', 'Venda Realizada'])
+      .gte('created_at', firstDayOfMonth),
 
-  // 4. Total de Pacientes
-  const { count: totalPatients } = await supabase
-    .from('patients')
-    .select('*', { count: 'exact', head: true })
-    .eq('clinic_id', clinicId);
+    // 6. Total Pacientes
+    supabase
+      .from('patients')
+      .select('*', { count: 'exact', head: true })
+      .eq('clinic_id', clinicId),
 
-  // 5. Clara / IA (Contagem de interações no mês)
-  // Tenta contar mensagens da IA. Se a tabela messages não tiver sender_type, retornará 0 sem quebrar.
-  let claraInteractions = 0;
-  try {
-      const { count } = await supabase
-        .from('messages')
-        .select('*', { count: 'exact', head: true })
-        .eq('clinic_id', clinicId)
-        .eq('sender_type', 'ai') // Ajuste se usar 'bot'
-        .gte('created_at', firstDayOfMonth);
-      claraInteractions = count || 0;
-  } catch (e) {
-      console.log('Tabela messages ou coluna sender_type pode não existir ainda', e);
-  }
+    // 7. Clara / IA (Contagem de interações no mês)
+    supabase
+      .from('messages')
+      .select('*', { count: 'exact', head: true })
+      .eq('clinic_id', clinicId)
+      .eq('sender_type', 'ai')
+      .gte('created_at', firstDayOfMonth)
+      .then(res => res) // Retorna o resultado normal
+      .catch(() => ({ count: 0 })), // Captura erro se tabela não existir
 
-  // 6. Dados para Gráficos
-  const { data: weekAppointments } = await supabase
-    .from('appointments')
-    .select('appointment_date')
-    .eq('clinic_id', clinicId)
-    .gte('appointment_date', todayStart)
-    .order('appointment_date', { ascending: true })
-    .limit(50);
+    // 8. Gráfico: Agenda da Semana
+    supabase
+      .from('appointments')
+      .select('appointment_date')
+      .eq('clinic_id', clinicId)
+      .gte('appointment_date', todayStart)
+      .order('appointment_date', { ascending: true })
+      .limit(500), // AUMENTADO LIMITE PARA 500 (Correção Bug)
 
-  const { data: repairsData } = await supabase
-    .from('repair_tickets') 
-    .select('status')
-    .eq('clinic_id', clinicId);
+    // 9. Gráfico: Status Reparos
+    supabase
+      .from('repair_tickets')
+      .select('status')
+      .eq('clinic_id', clinicId)
+  ]);
 
   return {
     metrics: {
-      appointmentsToday: appointmentsToday || 0,
-      activeRepairs: activeRepairs || 0,
-      leads24h: leads24h || 0,
-      leadsMonth: leadsMonth || 0,
-      salesMonth: salesMonth || 0,
-      totalPatients: totalPatients || 0,
-      claraInteractions: claraInteractions || 0
+      appointmentsToday: appointmentsResult.count || 0,
+      activeRepairs: activeRepairsResult.count || 0,
+      leads24h: leads24hResult.count || 0,
+      leadsMonth: leadsMonthResult.count || 0,
+      salesMonth: salesMonthResult.count || 0,
+      totalPatients: totalPatientsResult.count || 0,
+      claraInteractions: claraInteractionsResult.count || 0
     },
     charts: {
-      weekAppointments: weekAppointments || [],
-      repairsStatus: repairsData || []
+      weekAppointments: weekAppointmentsResult.data || [],
+      repairsStatus: repairsDataResult.data || []
     }
   };
 };

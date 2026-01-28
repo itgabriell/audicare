@@ -12,11 +12,13 @@ if (!supabaseUrl || !supabaseKey) {
 
 const supabase = createClient(supabaseUrl, supabaseKey);
 
+const authMiddleware = require('../middleware/authMiddleware');
+
 /**
  * GET /api/patients/search-by-phone
  * Busca paciente por número de telefone (para integração Chatwoot)
  */
-router.get('/search-by-phone', async (req, res) => {
+router.get('/search-by-phone', authMiddleware, async (req, res) => {
   try {
     const { phone } = req.query;
 
@@ -206,15 +208,15 @@ router.get('/:id/contacts', async (req, res) => {
       email: patient.email,
       birth_date: patient.birthdate,
       phones: patient.patient_phones || [],
-    addresses: [{
-      street: patient.street,
-      number: patient.number,
-      neighborhood: patient.neighborhood,
-      city: patient.city,
-      state: patient.state,
-      zip_code: patient.zip_code,
-      complement: patient.complement
-    }].filter(addr => addr.street || addr.city), // Filtrar endereços vazios
+      addresses: [{
+        street: patient.street,
+        number: patient.number,
+        neighborhood: patient.neighborhood,
+        city: patient.city,
+        state: patient.state,
+        zip_code: patient.zip_code,
+        complement: patient.complement
+      }].filter(addr => addr.street || addr.city), // Filtrar endereços vazios
       whatsapp_phone: getWhatsAppPhone(patient.patient_phones)
     };
 
