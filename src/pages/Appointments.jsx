@@ -92,29 +92,13 @@ const Appointments = () => {
         targetAppointments = await getAppointmentsForReminders({ daysAhead: 1 });
         const tomorrow = new Date();
         tomorrow.setDate(tomorrow.getDate() + 1);
+
+        // Filtra garantindo que é do dia seguinte
         targetAppointments = targetAppointments.filter(apt =>
           new Date(apt.start_time).toDateString() === tomorrow.toDateString()
         );
         successMessage = "Mensagens de confirmação enviadas para amanhã!";
         emptyMessage = "Nenhum agendamento encontrado para amanhã.";
-
-      } else if (actionType === 'confirm_today') {
-        targetAppointments = await getAppointmentsForReminders({ daysAhead: 0 });
-        const today = new Date();
-        targetAppointments = targetAppointments.filter(apt =>
-          new Date(apt.start_time).toDateString() === today.toDateString()
-        );
-        successMessage = "Mensagens de confirmação enviadas para hoje!";
-        emptyMessage = "Nenhum agendamento encontrado para hoje.";
-
-      } else if (actionType === 'reminders_today') {
-        targetAppointments = await getAppointmentsForReminders({ daysAhead: 0 });
-        const today = new Date();
-        targetAppointments = targetAppointments.filter(apt =>
-          new Date(apt.start_time).toDateString() === today.toDateString()
-        );
-        successMessage = "Lembretes enviados com sucesso!";
-        emptyMessage = "Nenhum agendamento para enviar lembretes hoje.";
       }
 
       if (targetAppointments.length === 0) {
@@ -287,14 +271,6 @@ const Appointments = () => {
             <Button variant="outline" onClick={() => handleQuickAction('confirm_tomorrow')} disabled={!!processingAction} className="flex items-center gap-2">
               {processingAction === 'confirm_tomorrow' ? <Loader2 className="h-4 w-4 animate-spin" /> : <Send className="h-4 w-4" />}
               Confirmar Amanhã
-            </Button>
-            <Button variant="outline" onClick={() => handleQuickAction('confirm_today')} disabled={!!processingAction} className="flex items-center gap-2">
-              {processingAction === 'confirm_today' ? <Loader2 className="h-4 w-4 animate-spin" /> : <Send className="h-4 w-4" />}
-              Confirmar Hoje
-            </Button>
-            <Button variant="outline" onClick={() => handleQuickAction('reminders_today')} disabled={!!processingAction} className="flex items-center gap-2">
-              {processingAction === 'reminders_today' ? <Loader2 className="h-4 w-4 animate-spin" /> : <MessageSquare className="h-4 w-4" />}
-              Lembretes Hoje
             </Button>
           </div>
         </div>

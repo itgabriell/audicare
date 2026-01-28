@@ -50,6 +50,24 @@ app.get('/health', (req, res) => res.json({
     legacyAutomation: !!patientEngagementAutomation
 }));
 
+// --- NOVO: ROTA DE ENVIO DIRETO UAZAPI (Backend-Side) ---
+const uazapiClient = require('./lib/uazapiClient.cjs');
+
+app.post('/api/messages/send', async (req, res) => {
+    try {
+        const { phone, message } = req.body;
+        if (!phone || !message) {
+            return res.status(400).json({ error: 'Telefone e mensagem são obrigatórios' });
+        }
+
+        const result = await uazapiClient.sendText(phone, message);
+        res.json({ success: true, data: result });
+    } catch (error) {
+        console.error('Erro rota mensageria:', error.message);
+        res.status(500).json({ error: error.message });
+    }
+});
+
 // ========================================================
 // 🔄 WEBHOOKS DE SINCRONIZAÇÃO (CHATWOOT -> CRM)
 // ========================================================

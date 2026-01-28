@@ -2,6 +2,7 @@ import { useState, useCallback } from 'react';
 import { supabase } from '@/lib/customSupabaseClient';
 import { chatwootService } from '@/services/chatwootService'; // <--- CORRIGIDO: Importação nomeada
 import { notificationService } from '@/services/notificationService';
+import { uazapiService } from '@/services/uazapiService';
 
 /**
  * Hook para gerenciar lembretes automáticos de agendamentos via Chatwoot
@@ -62,8 +63,34 @@ export const useAppointmentReminders = () => {
 
       console.log(`📅 Enviando lembrete para agendamento ${appointmentId} - Paciente: ${patient.name}`);
 
-      // Enviar via Chatwoot
-      const result = await chatwootService.sendAppointmentReminder(appointment, patient, template);
+      // --- TEMPLATE E VARIÁVEIS ---
+      const date = new Date(appointment.start_time).toLocaleDateString('pt-BR');
+      const time = new Date(appointment.start_time).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
+      const professionalName = appointment.contacts?.name || 'Dra Karine'; // Fallback se não tiver contato
+      const firstName = patient.name.split(' ')[0]; // Primeiro nome
+
+      // Saudação baseada no horário ATUAL (do envio)
+      const currentHour = new Date().getHours();
+      let greeting = 'Bom dia';
+      if (currentHour >= 12 && currentHour < 18) greeting = 'Boa tarde';
+      if (currentHour >= 18) greeting = 'Boa noite';
+
+      // Template padrão solicitado
+      // "Olá, boa tarde Janffran! Você tem um compromisso com a Dra Karine amanhã, dia 29/01/26, às 11:00. Podemos confirmar a sua vinda? Aguardamos seu retorno, obrigada!😉"
+      let message = template || `Olá, ${greeting.toLowerCase()} ${firstName}! Você tem um compromisso com a ${professionalName} amanhã, dia ${date}, às ${time}. Podemos confirmar a sua vinda?\n\nAguardamos seu retorno, obrigada!😉`;
+
+      // Substituição de variáveis no template customizado
+      message = message
+        .replace('{patient_name}', patient.name)
+        .replace('{first_name}', firstName)
+        .replace('{professional_name}', professionalName)
+        .replace('{date}', date)
+        .replace('{time}', time)
+        .replace('{greeting}', greeting);
+
+      // --- ENVIO VIA UAZAPI (DIRETO) ---
+      // const result = await chatwootService.sendAppointmentReminder(appointment, patient, template);
+      const result = await uazapiService.sendConfirmationMessage(patient.phone, message);
 
       if (result.success) {
         // Registrar no banco que o lembrete foi enviado
@@ -81,11 +108,11 @@ export const useAppointmentReminders = () => {
 
         // Notificar usuário localmente
         if (notificationService) {
-            notificationService.notify(
+          notificationService.notify(
             'Lembrete Enviado',
             `Lembrete enviado com sucesso para ${patient.name}`,
             { appointmentId, patientName: patient.name }
-            );
+          );
         }
 
         console.log(`✅ Lembrete enviado com sucesso para ${patient.name}`);
@@ -105,11 +132,11 @@ export const useAppointmentReminders = () => {
 
       // Notificar erro
       if (notificationService) {
-          notificationService.notify(
-            'Erro no Lembrete',
-            `Falha ao enviar lembrete: ${err.message}`,
-            { appointmentId, error: err.message }
-          );
+        notificationService.notify(
+          'Erro no Lembrete',
+          `Falha ao enviar lembrete: ${err.message}`,
+          { appointmentId, error: err.message }
+        );
       }
 
       return {
@@ -175,11 +202,11 @@ export const useAppointmentReminders = () => {
       console.log(`📊 Lembretes em lote concluídos: ${successCount} sucesso, ${errorCount} erros`);
 
       if (notificationService) {
-          notificationService.notify(
-            'Lembretes Enviados',
-            `${successCount} lembretes enviados com sucesso${errorCount > 0 ? `, ${errorCount} falharam` : ''}`,
-            summary
-          );
+        notificationService.notify(
+          'Lembretes Enviados',
+          `${successCount} lembretes enviados com sucesso${errorCount > 0 ? `, ${errorCount} falharam` : ''}`,
+          summary
+        );
       }
 
       return summary;
@@ -189,11 +216,11 @@ export const useAppointmentReminders = () => {
       setError(err.message);
 
       if (notificationService) {
-          notificationService.notify(
-            'Erro nos Lembretes',
-            `Falha no envio em lote: ${err.message}`,
-            { error: err.message }
-          );
+        notificationService.notify(
+          'Erro nos Lembretes',
+          `Falha no envio em lote: ${err.message}`,
+          { error: err.message }
+        );
       }
 
       return {
@@ -238,22 +265,22 @@ export const useAppointmentReminders = () => {
           )
         `)
         .eq('status', 'scheduled')
-        .gte('start_time', new Date().toISOString()); 
+        .gte('start_time', new Date().toISOString());
 
       if (filters.daysAhead !== undefined) {
         const futureDate = new Date();
         futureDate.setDate(futureDate.getDate() + filters.daysAhead);
-        
+
         // Define o início do dia alvo (00:00:00)
         const targetStart = new Date(futureDate);
         targetStart.setHours(0, 0, 0, 0);
-        
+
         // Define o fim do dia alvo (23:59:59)
         const targetEnd = new Date(futureDate);
         targetEnd.setHours(23, 59, 59, 999);
 
         query = query.gte('start_time', targetStart.toISOString())
-                     .lte('start_time', targetEnd.toISOString());
+          .lte('start_time', targetEnd.toISOString());
       }
 
       if (filters.withoutReminders) {
