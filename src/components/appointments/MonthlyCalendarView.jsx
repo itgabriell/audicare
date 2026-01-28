@@ -125,7 +125,7 @@ const MonthlyCalendarView = ({
   }));
 
   return (
-    <div className="h-[750px] calendar-monthly-view bg-card rounded-xl border shadow-sm p-4">
+    <div className="min-h-[600px] calendar-monthly-view bg-card rounded-xl border shadow-sm p-4">
       <style>{`
             /* Remove estilos padrão feios do FullCalendar */
             .fc-theme-standard td, .fc-theme-standard th { 
@@ -184,6 +184,26 @@ const MonthlyCalendarView = ({
             .fc-popover-body {
                 padding: 8px;
             }
+            /* Scrollbar Discreta */
+            .fc-scroller::-webkit-scrollbar {
+                width: 6px;
+                height: 6px;
+            }
+            .fc-scroller::-webkit-scrollbar-track {
+                background: transparent;
+            }
+            .fc-scroller::-webkit-scrollbar-thumb {
+                background: hsl(var(--primary)/0.2);
+                border-radius: 10px;
+            }
+            .fc-scroller::-webkit-scrollbar-thumb:hover {
+                background: hsl(var(--primary)/0.4);
+            }
+            /* Firefox */
+            .fc-scroller {
+                scrollbar-width: thin;
+                scrollbar-color: hsl(var(--primary)/0.2) transparent;
+            }
         `}</style>
 
       <FullCalendar
@@ -204,7 +224,8 @@ const MonthlyCalendarView = ({
         dayMaxEvents={3} // Limite de eventos visíveis por dia
         moreLinkContent={(args) => `+${args.num} consultar`}
         moreLinkClassNames="text-xs font-medium text-primary hover:underline block text-center py-1 bg-primary/5 rounded-md mt-1 cursor-pointer"
-        height="100%"
+        contentHeight="auto" // Ajusta altura ao conteúdo (evita scroll interno vazio)
+        height="auto"
         dayHeaderFormat={{ weekday: 'long' }} // Nome completo do dia
         fixedWeekCount={false} // Evita linhas vazias no final do mês
       />
