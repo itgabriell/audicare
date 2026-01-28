@@ -136,7 +136,7 @@ const MonthlyCalendarView = ({
             }
             .fc-col-header-cell {
                 padding: 12px 0;
-                background-color: hsl(var(--muted)/0.3);
+                background-color: transparent;
                 border-bottom: 1px solid hsl(var(--border)) !important;
             }
             .fc-col-header-cell-cushion {
