@@ -27,15 +27,12 @@ export const useAppointmentReminders = () => {
           patients:patient_id (
             id,
             name,
-            phone,
-            avatar_url,
-            email
+            phone
           ),
           contacts:contact_id (
             id,
             name,
-            phone,
-            avatar_url
+            phone
           )
         `)
         .eq('id', appointmentId)
@@ -268,14 +265,12 @@ export const useAppointmentReminders = () => {
           patients:patient_id (
             id,
             name,
-            phone,
-            avatar_url
+            phone
           ),
           contacts:contact_id (
             id,
             name,
-            phone,
-            avatar_url
+            phone
           )
         `)
         .eq('status', 'scheduled')
