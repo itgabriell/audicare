@@ -519,17 +519,8 @@ export const getDashboardStats = async () => {
       .gte('appointment_date', todayStart)
       .lte('appointment_date', todayEnd),
 
-    // 2. Reparos ATIVOS (Wrapper Fail-safe: Silencia erros de RLS/Enum)
-    supabase
-      .from('repair_tickets')
-      .select('id', { count: 'exact', head: true })
-      .eq('clinic_id', clinicId)
-      //.neq('status', 'Concluído')
-      .then(res => res)
-      .catch((err) => {
-        console.warn("Erro ao buscar repair_tickets (possível RLS ou Enum):", err);
-        return { count: 0 };
-      }),
+    // 2. Reparos ATIVOS (Desativado: Tabela repair_tickets sem coluna clinic_id)
+    Promise.resolve({ count: 0 }),
 
     // 3. Leads 24h
     supabase
@@ -564,7 +555,7 @@ export const getDashboardStats = async () => {
       .from('messages')
       .select('id', { count: 'exact', head: true })
       .eq('clinic_id', clinicId)
-      // .eq('sender_type', 'AI') // Removido filtro de Enum problemático
+      // .eq('sender_type', 'AI') 
       .gte('created_at', firstDayOfMonth)
       .then(res => res)
       .catch((err) => {
@@ -580,11 +571,8 @@ export const getDashboardStats = async () => {
       .order('appointment_date', { ascending: true })
       .limit(500),
 
-    // 9. Gráfico: Status Reparos
-    supabase
-      .from('repair_tickets')
-      .select('id, status')
-      .eq('clinic_id', clinicId)
+    // 9. Gráfico: Status Reparos (Desativado)
+    Promise.resolve({ data: [] })
   ]);
 
   return {
