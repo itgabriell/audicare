@@ -164,6 +164,8 @@ const Appointments = () => {
         // Se houver erros, mostra o relatório detalhado
         setReportData(result);
         setReportDialogOpen(true);
+        loadAppointments();
+        loadAppointments();
       } else {
         // Se 100% sucesso, apenas toast
         toast({
@@ -171,6 +173,7 @@ const Appointments = () => {
           description: `${result.success} mensagens enviadas com sucesso.`,
           duration: 5000
         });
+        loadAppointments();
       }
 
     } catch (error) {
@@ -452,10 +455,15 @@ const Appointments = () => {
                               </div>
 
                               {/* TIPO DA CONSULTA */}
-                              <div className="mt-1">
+                              <div className="mt-1 flex flex-wrap gap-1">
                                 <span className="inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-medium bg-primary/10 text-primary uppercase tracking-wide">
                                   {app.appointment_type || 'Consulta'}
                                 </span>
+                                {app.reminder_sent_at && (
+                                  <span className="inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-medium bg-green-100 text-green-700 uppercase tracking-wide gap-1" title={`Enviado em ${new Date(app.reminder_sent_at).toLocaleString('pt-BR')}`}>
+                                    <Send className="h-3 w-3" /> Enviado
+                                  </span>
+                                )}
                               </div>
 
                             </div>
