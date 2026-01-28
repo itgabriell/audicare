@@ -87,6 +87,11 @@ const MonthlyCalendarView = ({
             .fc-event { background: transparent !important; border: none !important; box-shadow: none !important; }
             .fc-daygrid-day-frame { cursor: pointer; }
             .fc-daygrid-day:hover { background-color: hsl(var(--muted)/0.3); }
+            
+            /* Fix Borders for Dark Mode */
+            .fc-theme-standard td, .fc-theme-standard th { border-color: hsl(var(--border)) !important; }
+            .fc-theme-standard .fc-scrollgrid { border-color: hsl(var(--border)) !important; }
+            .fc-col-header-cell { background-color: hsl(var(--muted)/0.5); }
         `}</style>
 
       <FullCalendar
