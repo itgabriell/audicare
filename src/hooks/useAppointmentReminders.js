@@ -163,19 +163,33 @@ export const useAppointmentReminders = () => {
       const results = [];
       let successCount = 0;
       let errorCount = 0;
+      const successes = [];
+      const failures = [];
 
       for (const appointmentId of appointmentIds) {
+        // Obter nome preliminar (será atualizado após sucesso/falha individual)
+        let patientName = `Agendamento ${appointmentId}`;
+
         try {
           const result = await sendAppointmentReminder(appointmentId, template);
+
+          // Tenta extrair o nome do resultado ou mantém o ID
+          if (result.message && result.message.includes('para ')) {
+            patientName = result.message.split('para ')[1];
+          }
+
           results.push({
             appointmentId,
+            patientName,
             ...result
           });
 
           if (result.success) {
             successCount++;
+            successes.push({ appointmentId, patientName });
           } else {
             errorCount++;
+            failures.push({ appointmentId, patientName, error: result.error });
           }
 
           // Pequena pausa entre envios para não sobrecarregar
@@ -183,11 +197,14 @@ export const useAppointmentReminders = () => {
 
         } catch (err) {
           console.error(`❌ Erro no agendamento ${appointmentId}:`, err.message);
-          results.push({
+          const failureData = {
             appointmentId,
+            patientName,
             success: false,
             error: err.message
-          });
+          };
+          results.push(failureData);
+          failures.push(failureData);
           errorCount++;
         }
       }
@@ -196,15 +213,18 @@ export const useAppointmentReminders = () => {
         total: appointmentIds.length,
         success: successCount,
         errors: errorCount,
-        results
+        results,
+        successes,
+        failures
       };
 
       console.log(`📊 Lembretes em lote concluídos: ${successCount} sucesso, ${errorCount} erros`);
 
+      // Notificação interna (serviço global)
       if (notificationService) {
         notificationService.notify(
-          'Lembretes Enviados',
-          `${successCount} lembretes enviados com sucesso${errorCount > 0 ? `, ${errorCount} falharam` : ''}`,
+          'Lembretes Processados',
+          `${successCount} enviados com sucesso. ${errorCount} falhas.`,
           summary
         );
       }
@@ -214,20 +234,14 @@ export const useAppointmentReminders = () => {
     } catch (err) {
       console.error('❌ Erro no envio em lote:', err.message);
       setError(err.message);
-
-      if (notificationService) {
-        notificationService.notify(
-          'Erro nos Lembretes',
-          `Falha no envio em lote: ${err.message}`,
-          { error: err.message }
-        );
-      }
-
       return {
         total: appointmentIds.length,
         success: 0,
         errors: appointmentIds.length,
-        error: err.message
+        error: err.message,
+        results: [],
+        successes: [],
+        failures: appointmentIds.map(id => ({ appointmentId: id, error: err.message }))
       };
 
     } finally {

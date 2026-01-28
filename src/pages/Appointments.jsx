@@ -8,6 +8,14 @@ import MonthlyCalendarView from '@/components/appointments/MonthlyCalendarView';
 import AppointmentDialog from '@/components/appointments/AppointmentDialog';
 import { useToast } from '@/components/ui/use-toast';
 import { getPatients, updateAppointment, addAppointment, createNotification, deleteAppointment } from '@/database';
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 import { format } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 import { useAuth } from '@/contexts/SupabaseAuthContext';
@@ -118,6 +126,56 @@ const Appointments = () => {
     } catch (error) {
       console.error("Erro na ação rápida:", error);
       toast({ variant: "destructive", title: "Erro", description: "Ocorreu um erro ao processar a ação." });
+    } finally {
+      setProcessingAction(null);
+    }
+  };
+
+  // --- DIALOGO DE RELATÓRIO DE ENVIO EM MASSA ---
+  const [reportDialogOpen, setReportDialogOpen] = useState(false);
+  const [reportData, setReportData] = useState(null);
+
+  const handleBulkAction = async (actionType) => {
+    setProcessingAction(actionType);
+    try {
+      let targetAppointments = [];
+
+      if (actionType === 'confirm_tomorrow') {
+        targetAppointments = await getAppointmentsForReminders({ daysAhead: 1 });
+        const tomorrow = new Date();
+        tomorrow.setDate(tomorrow.getDate() + 1);
+
+        // Filtra garantindo que é do dia seguinte e não enviado
+        targetAppointments = targetAppointments.filter(apt =>
+          new Date(apt.start_time).toDateString() === tomorrow.toDateString() &&
+          !apt.reminder_sent_at
+        );
+      }
+
+      if (targetAppointments.length === 0) {
+        toast({ title: "Aviso", description: "Nenhum agendamento pendente encontrado para amanhã." });
+        return;
+      }
+
+      const ids = targetAppointments.map(a => a.id);
+      const result = await sendBulkReminders(ids);
+
+      if (result.errors > 0) {
+        // Se houver erros, mostra o relatório detalhado
+        setReportData(result);
+        setReportDialogOpen(true);
+      } else {
+        // Se 100% sucesso, apenas toast
+        toast({
+          title: "Sucesso Absoluto!",
+          description: `${result.success} mensagens enviadas com sucesso.`,
+          duration: 5000
+        });
+      }
+
+    } catch (error) {
+      console.error("Erro na ação em massa:", error);
+      toast({ variant: "destructive", title: "Erro Crítico", description: "Falha ao processar envios." });
     } finally {
       setProcessingAction(null);
     }
@@ -268,7 +326,7 @@ const Appointments = () => {
             Ações Rápidas
           </h3>
           <div className="flex flex-wrap gap-3">
-            <Button variant="outline" onClick={() => handleQuickAction('confirm_tomorrow')} disabled={!!processingAction} className="flex items-center gap-2">
+            <Button variant="outline" onClick={() => handleBulkAction('confirm_tomorrow')} disabled={!!processingAction} className="flex items-center gap-2">
               {processingAction === 'confirm_tomorrow' ? <Loader2 className="h-4 w-4 animate-spin" /> : <Send className="h-4 w-4" />}
               Confirmar Amanhã
             </Button>
@@ -448,6 +506,71 @@ const Appointments = () => {
           initialData={dialogInitialData}
           patients={patients}
         />
+
+        {/* DIALOG DE RELATÓRIO DE ENVIO */}
+        <Dialog open={reportDialogOpen} onOpenChange={setReportDialogOpen}>
+          <DialogContent className="max-w-md">
+            <DialogHeader>
+              <DialogTitle>Relatório de Envio</DialogTitle>
+              <DialogDescription>
+                Resumo da automação de confirmações.
+              </DialogDescription>
+            </DialogHeader>
+
+            {reportData && (
+              <div className="space-y-4">
+                <div className="flex justify-between items-center bg-muted p-3 rounded-lg">
+                  <div className="text-center w-1/2 border-r border-border">
+                    <p className="text-sm text-muted-foreground">Sucesso</p>
+                    <p className="text-2xl font-bold text-green-600">{reportData.success}</p>
+                  </div>
+                  <div className="text-center w-1/2">
+                    <p className="text-sm text-muted-foreground">Falhas</p>
+                    <p className={`text-2xl font-bold ${reportData.errors > 0 ? 'text-red-600' : 'text-foreground'}`}>
+                      {reportData.errors}
+                    </p>
+                  </div>
+                </div>
+
+                {reportData.failures?.length > 0 && (
+                  <div className="border rounded-md max-h-[200px] overflow-y-auto">
+                    <div className="bg-red-50 p-2 text-xs font-semibold text-red-700 sticky top-0">
+                      Falhas ({reportData.failures.length})
+                    </div>
+                    <ul className="divide-y text-sm">
+                      {reportData.failures.map((fail, idx) => (
+                        <li key={idx} className="p-2 hover:bg-muted/50 flex flex-col">
+                          <span className="font-medium">{fail.patientName}</span>
+                          <span className="text-xs text-red-500 truncate" title={fail.error}>
+                            {fail.error}
+                          </span>
+                        </li>
+                      ))}
+                    </ul>
+                  </div>
+                )}
+                {reportData.successes?.length > 0 && (
+                  <div className="border rounded-md max-h-[150px] overflow-y-auto">
+                    <div className="bg-green-50 p-2 text-xs font-semibold text-green-700 sticky top-0">
+                      Enviados ({reportData.successes.length})
+                    </div>
+                    <ul className="divide-y text-sm">
+                      {reportData.successes.map((item, idx) => (
+                        <li key={idx} className="p-2 text-muted-foreground">
+                          {item.patientName}
+                        </li>
+                      ))}
+                    </ul>
+                  </div>
+                )}
+              </div>
+            )}
+
+            <DialogFooter>
+              <Button onClick={() => setReportDialogOpen(false)}>Fechar</Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
       </div>
     </>
   );

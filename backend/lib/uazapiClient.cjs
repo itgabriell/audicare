@@ -23,21 +23,26 @@ async function sendText(phone, message) {
         const url = `${UAZAPI_URL}/send/text`;
         console.log(`📡 [UAZAPI] Enviando para ${cleanPhone}...`);
 
-        const response = await axios.post(url, {
-            phone: cleanPhone,
-            message: message
-        }, {
-            headers: {
-                'apikey': UAZAPI_API_KEY,
-                'Content-Type': 'application/json'
-            }
-        });
+        // Payload estritamente conforme documentação e teste validado
+        const payload = {
+            "number": cleanPhone,
+            "text": message
+        };
+
+        const headers = {
+            'Accept': 'application/json',
+            'Content-Type': 'application/json',
+            'token': UAZAPI_API_KEY
+        };
+
+        const response = await axios.post(url, payload, { headers });
 
         console.log('✅ [UAZAPI] Sucesso:', response.data);
         return response.data;
     } catch (error) {
-        console.error('❌ [UAZAPI] Erro:', error.response?.data || error.message);
-        throw new Error(error.response?.data?.message || error.message);
+        const errorMsg = error.response?.data?.error || error.message;
+        console.error('❌ [UAZAPI] Erro:', errorMsg);
+        throw new Error(errorMsg);
     }
 }
 
