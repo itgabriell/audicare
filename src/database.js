@@ -519,12 +519,12 @@ export const getDashboardStats = async () => {
       .gte('appointment_date', todayStart)
       .lte('appointment_date', todayEnd),
 
-    // 2. Reparos ATIVOS
+    // 2. Reparos ATIVOS (Corrigido filtro not.in)
     supabase
       .from('repair_tickets')
       .select('*', { count: 'exact', head: true })
       .eq('clinic_id', clinicId)
-      .not('status', 'in', '("Concluído", "Entregue", "ready", "delivered")'),
+      .filter('status', 'not.in', '("Concluído","Entregue","ready","delivered")'),
 
     // 3. Leads 24h
     supabase
@@ -561,8 +561,11 @@ export const getDashboardStats = async () => {
       .eq('clinic_id', clinicId)
       .eq('sender_type', 'ai')
       .gte('created_at', firstDayOfMonth)
-      .then(res => res) // Retorna o resultado normal
-      .catch(() => ({ count: 0 })), // Captura erro se tabela não existir
+      .then(res => res)
+      .catch((err) => {
+        console.warn("Erro ao contar mensagens:", err);
+        return { count: 0 };
+      }),
 
     // 8. Gráfico: Agenda da Semana
     supabase
@@ -571,7 +574,7 @@ export const getDashboardStats = async () => {
       .eq('clinic_id', clinicId)
       .gte('appointment_date', todayStart)
       .order('appointment_date', { ascending: true })
-      .limit(500), // AUMENTADO LIMITE PARA 500 (Correção Bug)
+      .limit(500),
 
     // 9. Gráfico: Status Reparos
     supabase
