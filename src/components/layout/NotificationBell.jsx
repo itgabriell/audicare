@@ -30,7 +30,7 @@ const NotificationBell = () => {
   // Carregar notificações iniciais
   const fetchNotifications = async () => {
     if (!user) return;
-    
+
     // Busca as últimas 20 notificações da clínica
     const { data } = await supabase
       .from('notifications')
@@ -55,7 +55,7 @@ const NotificationBell = () => {
         { event: 'INSERT', schema: 'public', table: 'notifications' },
         (payload) => {
           const newNotif = payload.new;
-          
+
           // Filtra para garantir que é da minha clínica
           // (Assumindo que user.clinic_id ou profile está disponível, ou simplificando para demo)
           // Na produção, validar: if (newNotif.clinic_id !== user.profile.clinic_id) return;
@@ -63,8 +63,8 @@ const NotificationBell = () => {
           setNotifications(prev => [newNotif, ...prev]);
           setUnreadCount(prev => prev + 1);
 
-          // Tocar som
-          audioRef.current.play().catch(e => console.log("Audio play blocked", e));
+          // Tocar som (Desativado por solicitação do user)
+          // audioRef.current.play().catch(e => console.log("Audio play blocked", e));
 
           // Mostrar Toast na tela
           toast({
@@ -133,8 +133,8 @@ const NotificationBell = () => {
           ) : (
             <div className="divide-y">
               {notifications.map((notification) => (
-                <div 
-                  key={notification.id} 
+                <div
+                  key={notification.id}
                   className={`p-4 hover:bg-muted/50 cursor-pointer transition-colors ${!notification.is_read ? 'bg-muted/20' : ''}`}
                   onClick={() => handleNotificationClick(notification)}
                 >
@@ -151,7 +151,7 @@ const NotificationBell = () => {
                       </p>
                     </div>
                     {!notification.is_read && (
-                       <span className="h-2 w-2 rounded-full bg-blue-500 mt-1.5 flex-shrink-0" />
+                      <span className="h-2 w-2 rounded-full bg-blue-500 mt-1.5 flex-shrink-0" />
                     )}
                   </div>
                 </div>

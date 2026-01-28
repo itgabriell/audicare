@@ -19,29 +19,29 @@ const Appointments = () => {
   const [currentDate, setCurrentDate] = useState(new Date());
   const [dialogOpen, setDialogOpen] = useState(false);
   const [patients, setPatients] = useState([]);
-  
+
   // Hook de navegação para redirecionar ao clicar no nome
   const navigate = useNavigate();
 
-  const { 
-      appointments, 
-      loading, 
-      refetch: loadAppointments, 
-      // deleteAppointment já vem importado do database no topo para evitar conflito de nomes, 
-      // mas se estiver usando o hook useAppointments, precisamos garantir que a função delete esteja disponível.
-      // Vou usar a função importada diretamente do database para garantir consistência neste arquivo.
+  const {
+    appointments,
+    loading,
+    refetch: loadAppointments,
+    // deleteAppointment já vem importado do database no topo para evitar conflito de nomes, 
+    // mas se estiver usando o hook useAppointments, precisamos garantir que a função delete esteja disponível.
+    // Vou usar a função importada diretamente do database para garantir consistência neste arquivo.
   } = useAppointments();
 
   const [dialogInitialData, setDialogInitialData] = useState(null);
   const [editingAppointment, setEditingAppointment] = useState(null);
-  const [viewMode, setViewMode] = useState('day'); 
+  const [viewMode, setViewMode] = useState('day');
   const [processingAction, setProcessingAction] = useState(null);
 
   const { toast } = useToast();
-  
-  const { 
-      getAppointmentsForReminders, 
-      sendBulkReminders 
+
+  const {
+    getAppointmentsForReminders,
+    sendBulkReminders
   } = useAppointmentReminders();
 
   const [searchParams, setSearchParams] = useSearchParams();
@@ -49,8 +49,8 @@ const Appointments = () => {
 
   useEffect(() => {
     const fetchPatients = async () => {
-        const patientsData = await getPatients(1, 1000);
-        setPatients(Array.isArray(patientsData?.data) ? patientsData.data : []);
+      const patientsData = await getPatients(1, 1000);
+      setPatients(Array.isArray(patientsData?.data) ? patientsData.data : []);
     };
     fetchPatients();
   }, []);
@@ -75,68 +75,68 @@ const Appointments = () => {
   const handleNavigateToPatient = (e, patientId) => {
     e.stopPropagation(); // Impede que o clique abra o modal de edição
     if (patientId) {
-        navigate(`/patients/${patientId}`);
+      navigate(`/patients/${patientId}`);
     } else {
-        toast({ title: "Erro", description: "Paciente não vinculado.", variant: "destructive" });
+      toast({ title: "Erro", description: "Paciente não vinculado.", variant: "destructive" });
     }
   };
 
   const handleQuickAction = async (actionType) => {
-      setProcessingAction(actionType);
-      try {
-          let targetAppointments = [];
-          let successMessage = "";
-          let emptyMessage = "";
+    setProcessingAction(actionType);
+    try {
+      let targetAppointments = [];
+      let successMessage = "";
+      let emptyMessage = "";
 
-          if (actionType === 'confirm_tomorrow') {
-              targetAppointments = await getAppointmentsForReminders({ daysAhead: 1 });
-              const tomorrow = new Date();
-              tomorrow.setDate(tomorrow.getDate() + 1);
-              targetAppointments = targetAppointments.filter(apt => 
-                  new Date(apt.start_time).toDateString() === tomorrow.toDateString()
-              );
-              successMessage = "Mensagens de confirmação enviadas para amanhã!";
-              emptyMessage = "Nenhum agendamento encontrado para amanhã.";
-          
-          } else if (actionType === 'confirm_today') {
-              targetAppointments = await getAppointmentsForReminders({ daysAhead: 0 });
-              const today = new Date();
-              targetAppointments = targetAppointments.filter(apt => 
-                  new Date(apt.start_time).toDateString() === today.toDateString()
-              );
-              successMessage = "Mensagens de confirmação enviadas para hoje!";
-              emptyMessage = "Nenhum agendamento encontrado para hoje.";
-          
-          } else if (actionType === 'reminders_today') {
-              targetAppointments = await getAppointmentsForReminders({ daysAhead: 0 });
-              const today = new Date();
-              targetAppointments = targetAppointments.filter(apt => 
-                  new Date(apt.start_time).toDateString() === today.toDateString()
-              );
-              successMessage = "Lembretes enviados com sucesso!";
-              emptyMessage = "Nenhum agendamento para enviar lembretes hoje.";
-          }
+      if (actionType === 'confirm_tomorrow') {
+        targetAppointments = await getAppointmentsForReminders({ daysAhead: 1 });
+        const tomorrow = new Date();
+        tomorrow.setDate(tomorrow.getDate() + 1);
+        targetAppointments = targetAppointments.filter(apt =>
+          new Date(apt.start_time).toDateString() === tomorrow.toDateString()
+        );
+        successMessage = "Mensagens de confirmação enviadas para amanhã!";
+        emptyMessage = "Nenhum agendamento encontrado para amanhã.";
 
-          if (targetAppointments.length === 0) {
-              toast({ title: "Aviso", description: emptyMessage });
-              return;
-          }
+      } else if (actionType === 'confirm_today') {
+        targetAppointments = await getAppointmentsForReminders({ daysAhead: 0 });
+        const today = new Date();
+        targetAppointments = targetAppointments.filter(apt =>
+          new Date(apt.start_time).toDateString() === today.toDateString()
+        );
+        successMessage = "Mensagens de confirmação enviadas para hoje!";
+        emptyMessage = "Nenhum agendamento encontrado para hoje.";
 
-          const ids = targetAppointments.map(a => a.id);
-          const result = await sendBulkReminders(ids);
-
-          if (result.success > 0) {
-              toast({ title: "Sucesso", description: `${successMessage} (${result.success} enviados)` });
-          } else {
-              toast({ variant: "destructive", title: "Erro", description: "Falha ao enviar mensagens." });
-          }
-
-      } catch (error) {
-          console.error("Erro na ação rápida:", error);
-          toast({ variant: "destructive", title: "Erro", description: "Ocorreu um erro ao processar a ação." });
-      } finally {
-          setProcessingAction(null);
+      } else if (actionType === 'reminders_today') {
+        targetAppointments = await getAppointmentsForReminders({ daysAhead: 0 });
+        const today = new Date();
+        targetAppointments = targetAppointments.filter(apt =>
+          new Date(apt.start_time).toDateString() === today.toDateString()
+        );
+        successMessage = "Lembretes enviados com sucesso!";
+        emptyMessage = "Nenhum agendamento para enviar lembretes hoje.";
       }
+
+      if (targetAppointments.length === 0) {
+        toast({ title: "Aviso", description: emptyMessage });
+        return;
+      }
+
+      const ids = targetAppointments.map(a => a.id);
+      const result = await sendBulkReminders(ids);
+
+      if (result.success > 0) {
+        toast({ title: "Sucesso", description: `${successMessage} (${result.success} enviados)` });
+      } else {
+        toast({ variant: "destructive", title: "Erro", description: "Falha ao enviar mensagens." });
+      }
+
+    } catch (error) {
+      console.error("Erro na ação rápida:", error);
+      toast({ variant: "destructive", title: "Erro", description: "Ocorreu um erro ao processar a ação." });
+    } finally {
+      setProcessingAction(null);
+    }
   };
 
   const handleSaveAppointment = useCallback(async (appointmentData) => {
@@ -144,24 +144,24 @@ const Appointments = () => {
       let savedAppointment;
 
       if (appointmentData.id) {
-          savedAppointment = await updateAppointment(appointmentData);
+        savedAppointment = await updateAppointment(appointmentData);
       } else {
-          savedAppointment = await addAppointment(appointmentData);
+        savedAppointment = await addAppointment(appointmentData);
       }
-      
-      loadAppointments(); 
+
+      loadAppointments();
 
       try {
         const patientName = patients.find((p) => p.id === savedAppointment.contact_id || p.id === savedAppointment.patient_id)?.name || 'Paciente';
         const appointmentDate = format(new Date(savedAppointment.start_time), "dd/MM/yyyy 'às' HH:mm", { locale: ptBR });
-        
+
         await createNotification({
-            type: 'appointment',
-            title: appointmentData.id ? 'Consulta reagendada' : 'Nova consulta agendada',
-            message: `Consulta de ${patientName} para ${appointmentDate}`,
-            related_entity_type: 'appointment',
-            related_entity_id: savedAppointment.id,
-            metadata: { appointment_id: savedAppointment.id }
+          type: 'appointment',
+          title: appointmentData.id ? 'Consulta reagendada' : 'Nova consulta agendada',
+          message: `Consulta de ${patientName} para ${appointmentDate}`,
+          related_entity_type: 'appointment',
+          related_entity_id: savedAppointment.id,
+          metadata: { appointment_id: savedAppointment.id }
         });
       } catch (e) { console.warn('Erro notificação:', e); }
 
@@ -177,14 +177,14 @@ const Appointments = () => {
   }, [patients, toast, loadAppointments]);
 
   const handleDeleteAppointment = async (id) => {
-      const { success } = await deleteAppointment(id);
-      if (success) {
-          toast({ title: "Agendamento excluído" });
-          setDialogOpen(false);
-          loadAppointments(); // Recarrega a lista após excluir
-      } else {
-          toast({ title: "Erro ao excluir", variant: "destructive" });
-      }
+    const { success } = await deleteAppointment(id);
+    if (success) {
+      toast({ title: "Agendamento excluído" });
+      setDialogOpen(false);
+      loadAppointments(); // Recarrega a lista após excluir
+    } else {
+      toast({ title: "Erro ao excluir", variant: "destructive" });
+    }
   };
 
   const handleSlotClick = useCallback((date, time) => {
@@ -195,7 +195,7 @@ const Appointments = () => {
 
   // Passa a currentDate para o modal
   const handleOpenDialog = useCallback(() => {
-    setDialogInitialData({ date: currentDate }); 
+    setDialogInitialData({ date: currentDate });
     setEditingAppointment(null);
     setDialogOpen(true);
   }, [currentDate]);
@@ -239,10 +239,10 @@ const Appointments = () => {
     try {
       // Usando updateAppointment para garantir consistência
       await updateAppointment(appointment.id, {
-          start_time: newDate.toISOString()
+        start_time: newDate.toISOString()
       });
-      
-      loadAppointments(); 
+
+      loadAppointments();
       toast({ title: 'Consulta reagendada', description: `Movida para ${format(newDate, "dd/MM/yyyy 'às' HH:mm", { locale: ptBR })}` });
     } catch (error) {
       toast({ title: 'Erro ao reagendar', description: 'Não foi possível mover a consulta.', variant: 'destructive' });
@@ -307,7 +307,7 @@ const Appointments = () => {
               </Button>
 
               <h2 className="text-lg font-semibold text-foreground capitalize min-w-[200px] text-center">
-                {viewMode === 'day' 
+                {viewMode === 'day'
                   ? format(currentDate, "EEEE, dd 'de' MMMM", { locale: ptBR })
                   : viewMode === 'week'
                     ? `Semana de ${format(currentDate, "dd/MM", { locale: ptBR })}`
@@ -321,30 +321,30 @@ const Appointments = () => {
             </div>
 
             <div className="flex bg-muted rounded-lg p-1">
-                <Button
-                  variant={viewMode === 'day' ? 'default' : 'ghost'}
-                  size="sm"
-                  onClick={() => setViewMode('day')}
-                  className="flex items-center gap-1 text-xs px-3"
-                >
-                  Dia
-                </Button>
-                <Button
-                  variant={viewMode === 'week' ? 'default' : 'ghost'}
-                  size="sm"
-                  onClick={() => setViewMode('week')}
-                  className="flex items-center gap-1 text-xs px-3"
-                >
-                  Semana
-                </Button>
-                <Button
-                  variant={viewMode === 'month' ? 'default' : 'ghost'}
-                  size="sm"
-                  onClick={() => setViewMode('month')}
-                  className="flex items-center gap-1 text-xs px-3"
-                >
-                  Mês
-                </Button>
+              <Button
+                variant={viewMode === 'day' ? 'default' : 'ghost'}
+                size="sm"
+                onClick={() => setViewMode('day')}
+                className="flex items-center gap-1 text-xs px-3"
+              >
+                Dia
+              </Button>
+              <Button
+                variant={viewMode === 'week' ? 'default' : 'ghost'}
+                size="sm"
+                onClick={() => setViewMode('week')}
+                className="flex items-center gap-1 text-xs px-3"
+              >
+                Semana
+              </Button>
+              <Button
+                variant={viewMode === 'month' ? 'default' : 'ghost'}
+                size="sm"
+                onClick={() => setViewMode('month')}
+                className="flex items-center gap-1 text-xs px-3"
+              >
+                Mês
+              </Button>
             </div>
           </div>
 
@@ -361,82 +361,89 @@ const Appointments = () => {
               onAppointmentMove={handleAppointmentMove}
             />
           ) : viewMode === 'day' ? (
-             <div className="space-y-4 min-h-[400px]">
-                {(() => {
-                  const dayAppointments = appointments.filter(app => {
-                    if (!app.start_time) return false;
-                    const appDate = new Date(app.start_time);
-                    return appDate.toDateString() === currentDate.toDateString();
-                  }).sort((a, b) => new Date(a.start_time) - new Date(b.start_time));
+            <div className="space-y-4 min-h-[400px]">
+              {(() => {
+                const dayAppointments = appointments.filter(app => {
+                  if (!app.start_time) return false;
+                  const appDate = new Date(app.start_time);
+                  return appDate.toDateString() === currentDate.toDateString();
+                }).sort((a, b) => new Date(a.start_time) - new Date(b.start_time));
 
-                  if (dayAppointments.length === 0) {
-                    return (
-                      <div className="text-center py-16 text-muted-foreground flex flex-col items-center gap-3">
-                        <Calendar className="h-12 w-12 opacity-20" />
-                        <p>Nenhum agendamento para este dia.</p>
-                        <Button variant="outline" onClick={handleOpenDialog}>Agendar agora</Button>
-                      </div>
-                    );
-                  }
-
+                if (dayAppointments.length === 0) {
                   return (
-                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                        {dayAppointments.map(app => {
-                            const isDomiciliar = app.appointment_type === 'domiciliar' || app.location?.toLowerCase() === 'domiciliar';
-                            const patientName = app.contact?.name || app.contact_name || 'Paciente sem nome';
-                            
-                            return (
-                                <div 
-                                    key={app.id} 
-                                    onClick={() => handleAppointmentClick(app)} 
-                                    className={`
+                    <div className="text-center py-16 text-muted-foreground flex flex-col items-center gap-3">
+                      <Calendar className="h-12 w-12 opacity-20" />
+                      <p>Nenhum agendamento para este dia.</p>
+                      <Button variant="outline" onClick={handleOpenDialog}>Agendar agora</Button>
+                    </div>
+                  );
+                }
+
+                return (
+                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                    {dayAppointments.map(app => {
+                      const isDomiciliar = app.appointment_type === 'domiciliar' || app.location?.toLowerCase() === 'domiciliar';
+                      const patientName = app.contact?.name || app.contact_name || 'Paciente sem nome';
+
+                      return (
+                        <div
+                          key={app.id}
+                          onClick={() => handleAppointmentClick(app)}
+                          className={`
                                         group relative overflow-hidden rounded-xl border p-4 shadow-sm transition-all hover:shadow-md cursor-pointer
                                         ${isDomiciliar ? 'bg-blue-50/50 border-blue-200 hover:border-blue-300' : 'bg-card hover:border-primary/50'}
                                     `}
-                                >
-                                    <div className={`absolute left-0 top-0 bottom-0 w-1 ${isDomiciliar ? 'bg-blue-500' : 'bg-primary'}`} />
-                                    
-                                    <div className="flex justify-between items-start mb-2 pl-2">
-                                        <div className="flex flex-col">
-                                            <span className="text-lg font-bold text-foreground flex items-center gap-2">
-                                                {new Date(app.start_time).toLocaleTimeString('pt-BR', {hour:'2-digit', minute:'2-digit'})}
-                                                {isDomiciliar && (
-                                                    <span className="bg-blue-100 text-blue-700 text-[10px] px-2 py-0.5 rounded-full font-medium flex items-center gap-1">
-                                                        <Home className="h-3 w-3" /> Domiciliar
-                                                    </span>
-                                                )}
-                                            </span>
-                                            
-                                            {/* NOME CLICÁVEL */}
-                                            <div 
-                                                className="text-sm font-medium text-muted-foreground hover:text-primary hover:underline flex items-center gap-1 mt-1 w-fit z-20"
-                                                onClick={(e) => handleNavigateToPatient(e, app.contact_id || app.patient_id)}
-                                                title="Ir para ficha do paciente"
-                                            >
-                                                {patientName}
-                                                <ExternalLink className="h-3 w-3 opacity-50" />
-                                            </div>
+                        >
+                          <div className={`absolute left-0 top-0 bottom-0 w-1 ${isDomiciliar ? 'bg-blue-500' : 'bg-primary'}`} />
 
-                                        </div>
-                                    </div>
+                          <div className="flex justify-between items-start mb-2 pl-2">
+                            <div className="flex flex-col">
+                              <span className="text-lg font-bold text-foreground flex items-center gap-2">
+                                {new Date(app.start_time).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })}
+                                {isDomiciliar && (
+                                  <span className="bg-blue-100 text-blue-700 text-[10px] px-2 py-0.5 rounded-full font-medium flex items-center gap-1">
+                                    <Home className="h-3 w-3" /> Domiciliar
+                                  </span>
+                                )}
+                              </span>
 
-                                    <div className="flex items-center gap-3 text-xs text-muted-foreground pl-2 mt-3 border-t pt-2 border-border/50">
-                                        <div className="flex items-center gap-1">
-                                            <User className="h-3.5 w-3.5" />
-                                            {app.professional_name || 'Profissional'}
-                                        </div>
-                                        <div className="flex items-center gap-1">
-                                            <MapPin className="h-3.5 w-3.5" />
-                                            {app.location === 'domiciliar' ? 'Casa do Paciente' : 'Consultório'}
-                                        </div>
-                                    </div>
-                                </div>
-                            );
-                        })}
-                    </div>
-                  );
-                })()}
-             </div>
+                              {/* NOME CLICÁVEL */}
+                              <div
+                                className="text-sm font-medium text-muted-foreground hover:text-primary hover:underline flex items-center gap-1 mt-1 w-fit z-20"
+                                onClick={(e) => handleNavigateToPatient(e, app.contact_id || app.patient_id)}
+                                title="Ir para ficha do paciente"
+                              >
+                                {patientName}
+                                <ExternalLink className="h-3 w-3 opacity-50" />
+                              </div>
+
+                              {/* TIPO DA CONSULTA */}
+                              <div className="mt-1">
+                                <span className="inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-medium bg-primary/10 text-primary uppercase tracking-wide">
+                                  {app.appointment_type || 'Consulta'}
+                                </span>
+                              </div>
+
+                            </div>
+                          </div>
+
+                          <div className="flex items-center gap-3 text-xs text-muted-foreground pl-2 mt-3 border-t pt-2 border-border/50">
+                            <div className="flex items-center gap-1">
+                              <User className="h-3.5 w-3.5" />
+                              {app.professional_name || 'Profissional'}
+                            </div>
+                            <div className="flex items-center gap-1">
+                              <MapPin className="h-3.5 w-3.5" />
+                              {app.location === 'domiciliar' ? 'Casa do Paciente' : 'Consultório'}
+                            </div>
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                );
+              })()}
+            </div>
           ) : (
             <MonthlyCalendarView
               currentDate={currentDate}

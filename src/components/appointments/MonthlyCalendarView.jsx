@@ -6,11 +6,11 @@ import ptBrLocale from '@fullcalendar/core/locales/pt-br';
 import { useNavigate } from 'react-router-dom';
 import { Home, ExternalLink } from 'lucide-react';
 
-const MonthlyCalendarView = ({ 
-  currentDate, 
-  appointments, 
-  onDayClick, 
-  onAppointmentClick 
+const MonthlyCalendarView = ({
+  currentDate,
+  appointments,
+  onDayClick,
+  onAppointmentClick
 }) => {
   const calendarRef = React.useRef(null);
   const navigate = useNavigate();
@@ -26,7 +26,7 @@ const MonthlyCalendarView = ({
     e.stopPropagation(); // Evita abrir o modal de edição
     e.preventDefault();
     if (patientId) {
-        navigate(`/patients/${patientId}`);
+      navigate(`/patients/${patientId}`);
     }
   };
 
@@ -43,19 +43,24 @@ const MonthlyCalendarView = ({
         ${isDomiciliar ? 'bg-blue-100 text-blue-800 border-l-2 border-blue-500' : 'bg-primary/10 text-foreground border-l-2 border-primary'}
       `}>
         <div className="flex items-center justify-between gap-1">
-            <span className="font-bold">{eventInfo.timeText}</span>
-            {isDomiciliar && <Home className="h-2 w-2" />}
+          <span className="font-bold">{eventInfo.timeText}</span>
+          {isDomiciliar && <Home className="h-2 w-2" />}
         </div>
-        
+
         {/* Nome Clicável */}
-        <div 
-            className="truncate font-medium hover:underline hover:text-primary cursor-pointer flex items-center gap-0.5 mt-0.5 z-20"
-            onPointerDown={(e) => e.stopPropagation()} // Importante para FullCalendar
-            onClick={(e) => handleNavigate(e, patientId)}
-            title="Ir para ficha"
+        <div
+          className="truncate font-medium hover:underline hover:text-primary cursor-pointer flex items-center gap-0.5 mt-0.5 z-20"
+          onPointerDown={(e) => e.stopPropagation()} // Importante para FullCalendar
+          onClick={(e) => handleNavigate(e, patientId)}
+          title="Ir para ficha"
         >
-            {patientName}
-            {patientId && <ExternalLink className="h-2 w-2 opacity-50" />}
+          {patientName}
+          {patientId && <ExternalLink className="h-2 w-2 opacity-50" />}
+        </div>
+
+        {/* TIPO (Adicionado) */}
+        <div className="text-[9px] opacity-80 uppercase tracking-tight truncate mt-0.5">
+          {event.extendedProps.type || 'Consulta'}
         </div>
       </div>
     );
@@ -78,31 +83,31 @@ const MonthlyCalendarView = ({
 
   return (
     <div className="h-[600px] calendar-monthly-view">
-        <style>{`
+      <style>{`
             .fc-event { background: transparent !important; border: none !important; box-shadow: none !important; }
             .fc-daygrid-day-frame { cursor: pointer; }
             .fc-daygrid-day:hover { background-color: hsl(var(--muted)/0.3); }
         `}</style>
 
-        <FullCalendar
-            ref={calendarRef}
-            plugins={[dayGridPlugin, interactionPlugin]}
-            initialView="dayGridMonth"
-            locale={ptBrLocale}
-            headerToolbar={false}
-            events={events}
-            dateClick={(info) => onDayClick && onDayClick(info.date)}
-            eventClick={(info) => {
-                // Ao clicar no evento (fora do nome), abre o modal
-                const originalApp = appointments.find(a => a.id === info.event.id);
-                if (originalApp && onAppointmentClick) {
-                    onAppointmentClick(originalApp);
-                }
-            }}
-            eventContent={renderEventContent}
-            dayMaxEvents={3}
-            height="100%"
-        />
+      <FullCalendar
+        ref={calendarRef}
+        plugins={[dayGridPlugin, interactionPlugin]}
+        initialView="dayGridMonth"
+        locale={ptBrLocale}
+        headerToolbar={false}
+        events={events}
+        dateClick={(info) => onDayClick && onDayClick(info.date)}
+        eventClick={(info) => {
+          // Ao clicar no evento (fora do nome), abre o modal
+          const originalApp = appointments.find(a => a.id === info.event.id);
+          if (originalApp && onAppointmentClick) {
+            onAppointmentClick(originalApp);
+          }
+        }}
+        eventContent={renderEventContent}
+        dayMaxEvents={3}
+        height="100%"
+      />
     </div>
   );
 };

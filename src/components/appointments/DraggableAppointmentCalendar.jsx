@@ -108,8 +108,12 @@ const DraggableAppointment = memo(({ appointment, onAppointmentClick }) => {
           {/* Nome do paciente */}
           <p className="font-semibold text-primary truncate">{appointment.contact?.name || 'Paciente'}</p>
 
-          {/* Tipo de consulta */}
-          <p className="text-primary/80 truncate text-xs">{appointment.appointment_type || appointment.title}</p>
+          {/* Tipo de consulta (Badge) */}
+          <div className="mt-0.5">
+            <span className="inline-block px-1.5 py-0.5 rounded-[3px] bg-background/20 text-[10px] font-medium uppercase tracking-wider leading-none">
+              {appointment.appointment_type || appointment.title || 'Consulta'}
+            </span>
+          </div>
 
           {/* Status */}
           <div className="flex items-center gap-1 mt-1">
@@ -147,9 +151,8 @@ const DroppableTimeSlot = memo(({
   return (
     <div
       ref={setNodeRef}
-      className={`border-l border-b p-1 min-h-[120px] cursor-pointer transition-colors ${
-        isOver ? 'bg-primary/5 border-primary/30' : 'hover:bg-muted/50'
-      }`}
+      className={`border-l border-b p-1 min-h-[120px] cursor-pointer transition-colors ${isOver ? 'bg-primary/5 border-primary/30' : 'hover:bg-muted/50'
+        }`}
       onClick={() => onSlotClick(date, time)}
     >
       <SortableContext
@@ -306,9 +309,8 @@ const DraggableAppointmentCalendar = ({
               <p className="text-sm font-medium text-muted-foreground capitalize">
                 {format(date, 'EEE', { locale: ptBR })}
               </p>
-              <p className={`font-semibold text-2xl mt-1 ${
-                isTodayFns(date) ? 'text-primary' : 'text-foreground'
-              }`}>
+              <p className={`font-semibold text-2xl mt-1 ${isTodayFns(date) ? 'text-primary' : 'text-foreground'
+                }`}>
                 {format(date, 'd')}
               </p>
             </div>
