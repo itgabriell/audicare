@@ -23,6 +23,18 @@ async function sendText(phone, message) {
         const url = `${UAZAPI_URL}/send/text`;
         console.log(`📡 [UAZAPI] Enviando para ${cleanPhone}...`);
 
+        // DEBUG: Verificar se a chave está chegando corretamente
+        if (UAZAPI_API_KEY) {
+            console.log(`🔑 [DEBUG] API Key Length: ${UAZAPI_API_KEY.length}`);
+            console.log(`🔑 [DEBUG] API Key Start: ${UAZAPI_API_KEY.substring(0, 4)}...`);
+            // Check for hidden chars
+            if (UAZAPI_API_KEY.trim() !== UAZAPI_API_KEY) {
+                console.warn('⚠️ [WARNING] A chave API parece ter espaços em branco extras!');
+            }
+        } else {
+            console.error('❌ [DEBUG] UAZAPI_API_KEY está undefined ou vazia dentro do try/catch (o que é estranho pois passamos pelo check inicial)');
+        }
+
         // Payload estritamente conforme documentação e teste validado
         const payload = {
             "number": cleanPhone,
