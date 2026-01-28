@@ -523,11 +523,11 @@ export const getDashboardStats = async () => {
     supabase
       .from('repair_tickets')
       .select('id', { count: 'exact', head: true })
-      .eq('clinic_id', clinicId)
-      .neq('status', 'Concluído')
-      .neq('status', 'Entregue')
-      .neq('status', 'ready')
-      .neq('status', 'delivered'),
+      .eq('clinic_id', clinicId),
+    //.neq('status', 'Concluído') // TODO: Verificar valores válidos do ENUM status
+    //.neq('status', 'Entregue')
+    //.neq('status', 'ready')
+    //.neq('status', 'delivered'),
 
     // 3. Leads 24h
     supabase
@@ -562,7 +562,7 @@ export const getDashboardStats = async () => {
       .from('messages')
       .select('id', { count: 'exact', head: true })
       .eq('clinic_id', clinicId)
-      .eq('sender_type', 'ai')
+      .eq('sender_type', 'AI') // Correção: 'ai' -> 'AI' (assumindo enum case-sensitive)
       .gte('created_at', firstDayOfMonth)
       .then(res => res)
       .catch((err) => {
