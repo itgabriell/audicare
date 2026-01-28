@@ -514,36 +514,39 @@ export const getDashboardStats = async () => {
     // 1. Agendamentos de HOJE
     supabase
       .from('appointments')
-      .select('*', { count: 'exact', head: true })
+      .select('id', { count: 'exact', head: true })
       .eq('clinic_id', clinicId)
       .gte('appointment_date', todayStart)
       .lte('appointment_date', todayEnd),
 
-    // 2. Reparos ATIVOS (Corrigido filtro not.in)
+    // 2. Reparos ATIVOS (Filtro simplificado com neq)
     supabase
       .from('repair_tickets')
-      .select('*', { count: 'exact', head: true })
+      .select('id', { count: 'exact', head: true })
       .eq('clinic_id', clinicId)
-      .filter('status', 'not.in', '("Concluído","Entregue","ready","delivered")'),
+      .neq('status', 'Concluído')
+      .neq('status', 'Entregue')
+      .neq('status', 'ready')
+      .neq('status', 'delivered'),
 
     // 3. Leads 24h
     supabase
       .from('leads')
-      .select('*', { count: 'exact', head: true })
+      .select('id', { count: 'exact', head: true })
       .eq('clinic_id', clinicId)
       .gte('created_at', last24h),
 
     // 4. Leads Mês
     supabase
       .from('leads')
-      .select('*', { count: 'exact', head: true })
+      .select('id', { count: 'exact', head: true })
       .eq('clinic_id', clinicId)
       .gte('created_at', firstDayOfMonth),
 
     // 5. Vendas Mês
     supabase
       .from('leads')
-      .select('*', { count: 'exact', head: true })
+      .select('id', { count: 'exact', head: true })
       .eq('clinic_id', clinicId)
       .in('status', ['purchased', 'won', 'venda_realizada', 'Venda Realizada'])
       .gte('created_at', firstDayOfMonth),
@@ -551,19 +554,19 @@ export const getDashboardStats = async () => {
     // 6. Total Pacientes
     supabase
       .from('patients')
-      .select('*', { count: 'exact', head: true })
+      .select('id', { count: 'exact', head: true })
       .eq('clinic_id', clinicId),
 
     // 7. Clara / IA (Contagem de interações no mês)
     supabase
       .from('messages')
-      .select('*', { count: 'exact', head: true })
+      .select('id', { count: 'exact', head: true })
       .eq('clinic_id', clinicId)
       .eq('sender_type', 'ai')
       .gte('created_at', firstDayOfMonth)
       .then(res => res)
       .catch((err) => {
-        console.warn("Erro ao contar mensagens:", err);
+        // Silenciar erro se a tabela não existir ou falhar
         return { count: 0 };
       }),
 
@@ -579,7 +582,7 @@ export const getDashboardStats = async () => {
     // 9. Gráfico: Status Reparos
     supabase
       .from('repair_tickets')
-      .select('status')
+      .select('id, status')
       .eq('clinic_id', clinicId)
   ]);
 
