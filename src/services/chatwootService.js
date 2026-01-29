@@ -7,20 +7,40 @@ class ChatwootService {
     }
 
     async _invokeProxy(method, endpoint, body = null) {
-        const { data, error } = await supabase.functions.invoke('chatwoot-proxy', {
-            body: {
-                method,
-                endpoint,
-                body
-            }
-        });
+        // Change to point to Local Backend (VPS) instead of Edge Function
+        // Assuming the backend is running on the same host or configured API URL
+        // In local dev this might be http://localhost:4000
+        // In prod it might be https://api.audicarefono.com.br or /api via nginx
 
-        if (error) {
-            console.error('[ChatwootService] Proxy Error:', error);
+        // Try to detect environment or use a fixed var
+        const BACKEND_URL = import.meta.env.VITE_BACKEND_URL || 'http://localhost:4000';
+
+        try {
+            const response = await fetch(`${BACKEND_URL}/api/chatwoot-proxy`, {
+                method: 'POST', // Always POST to our proxy endpoint
+                headers: {
+                    'Content-Type': 'application/json'
+                    // Add auth headers if your backend requires them (e.g. Bearer token)
+                },
+                body: JSON.stringify({
+                    method,
+                    endpoint,
+                    body
+                })
+            });
+
+            if (!response.ok) {
+                const errorData = await response.json().catch(() => ({}));
+                console.error('[ChatwootService] Backend Proxy Error:', response.status, errorData);
+                throw new Error(errorData.error || 'Backend Proxy Failed');
+            }
+
+            return await response.json();
+
+        } catch (error) {
+            console.error('[ChatwootService] Network/Proxy Error:', error);
             throw error;
         }
-
-        return data;
     }
 
     // --- MÉTODOS PÚBLICOS ---

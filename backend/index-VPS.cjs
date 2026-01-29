@@ -210,6 +210,61 @@ if (patientEngagementAutomation) {
     });
 }
 
+// ========================================================
+// 💬 CHATWOOT PROXY (Backend-Side)
+// Bypass de CORS e Edge Functions
+// ========================================================
+app.post('/api/chatwoot-proxy', async (req, res) => {
+    try {
+        const { endpoint, method = 'GET', body } = req.body;
+
+        if (!endpoint) {
+            return res.status(400).json({ error: 'Endpoint is required' });
+        }
+
+        const CHATWOOT_BASE_URL = process.env.VITE_CHATWOOT_BASE_URL || process.env.CHATWOOT_BASE_URL || 'https://chat.audicarefono.com.br';
+        const ACCOUNT_ID = process.env.VITE_CHATWOOT_ACCOUNT_ID || process.env.CHATWOOT_ACCOUNT_ID || '1';
+        const API_TOKEN = process.env.VITE_CHATWOOT_API_TOKEN || process.env.CHATWOOT_API_TOKEN;
+
+        if (!API_TOKEN) {
+            console.error('❌ Server misconfiguration: CHATWOOT_API_TOKEN missing');
+            return res.status(500).json({ error: 'Server misconfiguration' });
+        }
+
+        const url = `${CHATWOOT_BASE_URL}/api/v1/accounts/${ACCOUNT_ID}${endpoint}`;
+
+        // Use dynamic import for fetch if needed in older Node versions, or global fetch in Node 18+
+        // Assuming Node 18+ based on "index(VPS).cjs" context
+        const response = await fetch(url, {
+            method,
+            headers: {
+                'Content-Type': 'application/json',
+                'api_access_token': API_TOKEN
+            },
+            body: body ? JSON.stringify(body) : undefined
+        });
+
+        const contentType = response.headers.get("content-type");
+        let data;
+        if (contentType && contentType.includes("application/json")) {
+            data = await response.json();
+        } else {
+            data = await response.text();
+        }
+
+        if (!response.ok) {
+            console.error('❌ Chatwoot Error:', response.status, data);
+            return res.status(response.status).json({ error: 'Upstream Error', details: data });
+        }
+
+        res.json(data);
+
+    } catch (error) {
+        console.error('❌ Proxy Fatal Error:', error);
+        res.status(500).json({ error: error.message });
+    }
+});
+
 // --- START ---
 app.listen(PORT, () => {
     console.log(`✅ Backend Audicare rodando na porta ${PORT}`);
