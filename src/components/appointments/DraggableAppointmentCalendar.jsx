@@ -10,283 +10,29 @@ import {
   useSensor,
   useSensors,
 } from '@dnd-kit/core';
-import {
-  arrayMove,
-  SortableContext,
-  sortableKeyboardCoordinates,
-  verticalListSortingStrategy,
-} from '@dnd-kit/sortable';
-import {
-  useSortable,
-} from '@dnd-kit/sortable';
-import { CSS } from '@dnd-kit/utilities';
-import { GripVertical } from 'lucide-react';
-import { useTheme } from '@/contexts/ThemeContext';
+import { ChevronLeft, ChevronRight, GripVertical } from 'lucide-react';
+import { Button } from '@/components/ui/button';
 
-const DraggableAppointment = memo(({ appointment, onAppointmentClick }) => {
-  const { theme } = useTheme();
-
-  const {
-    attributes,
-    listeners,
-    setNodeRef,
-    transform,
-    transition,
-    isDragging,
-  } = useSortable({
-    id: appointment.id,
-    data: {
-      type: 'appointment',
-      appointment,
-    },
-  });
-
-  const style = {
-    transform: CSS.Transform.toString(transform),
-    transition,
-    opacity: isDragging ? 0.5 : 1,
-  };
-
-  const getStatusColor = (status) => {
-    switch (status) {
-      case 'confirmed': return theme === 'dark' ? 'bg-green-700' : 'bg-green-500';
-      case 'arrived': return theme === 'dark' ? 'bg-blue-600' : 'bg-blue-500';
-      case 'completed': return theme === 'dark' ? 'bg-gray-700' : 'bg-gray-500';
-      case 'no_show': return theme === 'dark' ? 'bg-red-700' : 'bg-red-500';
-      case 'cancelled': return theme === 'dark' ? 'bg-gray-600' : 'bg-gray-400';
-      case 'rescheduled': return theme === 'dark' ? 'bg-yellow-700' : 'bg-yellow-500';
-      case 'not_confirmed': return theme === 'dark' ? 'bg-orange-700' : 'bg-orange-500';
-      default: return theme === 'dark' ? 'bg-slate-700' : 'bg-primary';
-    }
-  };
-
-  const getStatusLabel = (status) => {
-    switch (status) {
-      case 'confirmed': return 'Confirmado';
-      case 'arrived': return 'Chegou';
-      case 'completed': return 'Concluído';
-      case 'no_show': return 'Não Compareceu';
-      case 'cancelled': return 'Cancelado';
-      case 'rescheduled': return 'Reagendado';
-      case 'not_confirmed': return 'Não Confirmado';
-      default: return 'Agendado';
-    }
-  };
-
-  return (
-    <div
-      ref={setNodeRef}
-      style={style}
-      {...attributes}
-      className={`${getStatusColor(appointment.status)}/20 text-primary-foreground p-2 rounded-md text-xs mb-1 hover:bg-opacity-30 transition-colors group cursor-move border-l-4 ${getStatusColor(appointment.status)} overflow-hidden`}
-    >
-      <div className="flex items-start gap-1">
-        <GripVertical
-          {...listeners}
-          className="h-3 w-3 text-primary/60 group-hover:text-primary/80 mt-0.5 opacity-0 group-hover:opacity-100 transition-opacity cursor-grab active:cursor-grabbing"
-        />
-        <div
-          className="flex-1 cursor-pointer"
-          onClick={(e) => {
-            e.stopPropagation();
-            onAppointmentClick(appointment);
-          }}
-        >
-          {/* Horário */}
-          <p className="font-bold text-white text-xs">
-            {(() => {
-              const date = new Date(appointment.start_time || appointment.appointment_date);
-              // Exibir exatamente a hora cadastrada, sem conversões de timezone
-              return date.toLocaleTimeString('pt-BR', {
-                hour: '2-digit',
-                minute: '2-digit',
-                hour12: false
-              });
-            })()}
-          </p>
-
-          {/* Nome do paciente */}
-          <p className="font-semibold text-primary truncate">{appointment.contact?.name || 'Paciente'}</p>
-
-          {/* Tipo de consulta (Badge) */}
-          <div className="mt-0.5">
-            <span className="inline-block px-1.5 py-0.5 rounded-[3px] bg-background/20 text-[10px] font-medium uppercase tracking-wider leading-none">
-              {appointment.appointment_type || appointment.title || 'Consulta'}
-            </span>
-          </div>
-
-          {/* Status */}
-          <div className="flex items-center gap-1 mt-1">
-            <div className={`w-2 h-2 rounded-full ${getStatusColor(appointment.status)}`}></div>
-            <span className="text-xs text-primary/70 truncate">{getStatusLabel(appointment.status)}</span>
-          </div>
-        </div>
-      </div>
-    </div>
-  );
-});
-
-const DroppableTimeSlot = memo(({
-  date,
-  time,
-  appointments,
-  onSlotClick,
-  onAppointmentClick
-}) => {
-  const timeHour = parseInt(time.split(':')[0]);
-
-  const {
-    setNodeRef,
-    isOver,
-  } = useSortable({
-    id: `${date.toDateString()}_${timeHour}`,
-    data: {
-      type: 'slot',
-      date,
-      time,
-      timeHour,
-    },
-  });
-
-  return (
-    <div
-      ref={setNodeRef}
-      className={`border-l border-b p-1 min-h-[120px] cursor-pointer transition-colors ${isOver ? 'bg-primary/5 border-primary/30' : 'hover:bg-muted/50'
-        }`}
-      onClick={() => onSlotClick(date, time)}
-    >
-      <SortableContext
-        items={appointments.map(app => app.id)}
-        strategy={verticalListSortingStrategy}
-      >
-        {appointments.map(app => (
-          <DraggableAppointment
-            key={`${app.id}-${app.status}`}
-            appointment={app}
-            onAppointmentClick={onAppointmentClick}
-          />
-        ))}
-      </SortableContext>
-    </div>
-  );
-});
+// ... existing code ...
 
 const DraggableAppointmentCalendar = ({
   currentDate,
   appointments,
   onSlotClick,
   onAppointmentClick,
-  onAppointmentMove
+  onAppointmentMove,
+  onDateChange // NEW PROP
 }) => {
-  const [activeId, setActiveId] = React.useState(null);
-  const [activeAppointment, setActiveAppointment] = React.useState(null);
-
-  const sensors = useSensors(
-    useSensor(PointerSensor, {
-      activationConstraint: {
-        distance: 8,
-      },
-    }),
-    useSensor(KeyboardSensor, {
-      coordinateGetter: sortableKeyboardCoordinates,
-    })
-  );
-
-  const timeSlots = useMemo(() =>
-    Array.from({ length: 11 }, (_, i) => `${i + 8}:00`), // 8:00 to 18:00
-    []
-  );
-
-  const weekDates = useMemo(() => {
-    const start = startOfWeek(currentDate, { locale: ptBR });
-    return Array.from({ length: 7 }, (_, i) => addDays(start, i));
-  }, [currentDate]);
-
-  // CORREÇÃO DE FUSO HORÁRIO: Memoizar todos os agendamentos por slot de uma vez
-  // Forçar criação de objetos Date para garantir conversão UTC para Local
-  const appointmentsBySlot = useMemo(() => {
-    const map = new Map();
-    appointments.forEach(app => {
-      // O 'new Date()' converte automaticamente o ISO (UTC) para o Horário do Navegador (Local)
-      const appDate = new Date(app.start_time || app.appointment_date);
-      const dateKey = appDate.toDateString();
-      const hour = appDate.getHours();
-      const slotKey = `${dateKey}_${hour}`;
-
-      if (!map.has(slotKey)) {
-        map.set(slotKey, []);
-      }
-      map.get(slotKey).push(app);
-    });
-    return map;
-  }, [appointments]);
-
-  const handleDragStart = (event) => {
-    setActiveId(event.active.id);
-    const appointment = appointments.find(app => app.id === event.active.id);
-    setActiveAppointment(appointment);
-  };
-
-  const handleDragEnd = (event) => {
-    const { active, over } = event;
-
-    setActiveId(null);
-    setActiveAppointment(null);
-
-    if (!over) return;
-
-    const activeAppointment = appointments.find(app => app.id === active.id);
-    if (!activeAppointment) return;
-
-    // If dropped on another appointment, find its slot
-    let targetSlot = over.data.current;
-    if (over.data.current?.type === 'appointment') {
-      const targetAppointment = appointments.find(app => app.id === over.id);
-      if (targetAppointment) {
-        const targetDate = new Date(targetAppointment.start_time || targetAppointment.appointment_date);
-        targetSlot = {
-          type: 'slot',
-          date: targetDate,
-          time: `${targetDate.getHours()}:00`,
-          timeHour: targetDate.getHours(),
-        };
-      }
-    }
-
-    if (!targetSlot || targetSlot.type !== 'slot') return;
-
-    // Calculate new date/time
-    const newDate = new Date(targetSlot.date);
-    newDate.setHours(targetSlot.timeHour, 0, 0, 0);
-
-    // Check if it's a different time slot
-    const currentDate = new Date(activeAppointment.start_time || activeAppointment.appointment_date);
-    const isDifferentSlot = currentDate.getTime() !== newDate.getTime();
-
-    if (isDifferentSlot && onAppointmentMove) {
-      onAppointmentMove(activeAppointment, newDate);
-    }
-  };
+  // ... existing code ...
 
   const handleDragOver = (event) => {
-    // Custom collision detection for time slots
-    const { active, over } = event;
+    // ... existing code ...
+  };
 
-    if (!over) return;
-
-    // If hovering over an appointment, redirect to its slot
-    if (over.data.current?.type === 'appointment') {
-      const targetAppointment = appointments.find(app => app.id === over.id);
-      if (targetAppointment) {
-        const targetDate = new Date(targetAppointment.start_time || targetAppointment.appointment_date);
-        const slotId = `${targetDate.toDateString()}_${targetDate.getHours()}`;
-
-        // Find the slot element and trigger hover
-        const slotElement = document.querySelector(`[data-sortable-id="${slotId}"]`);
-        if (slotElement) {
-          // This will trigger the visual feedback
-        }
-      }
+  // NEW: Helper for navigation
+  const navigateWeek = (direction) => {
+    if (onDateChange) {
+      onDateChange(addDays(currentDate, direction * 7));
     }
   };
 
@@ -298,6 +44,25 @@ const DraggableAppointmentCalendar = ({
       onDragEnd={handleDragEnd}
       onDragOver={handleDragOver}
     >
+      {/* NEW: Navigation Header within component if not controlled externally fully */}
+      {/* However, the Dialog in ChatIntegration shows "Hoje" button externally. */}
+      {/* Let's add arrows next to the dates or as a header row. */}
+
+      <div className="flex items-center justify-between p-4 border-b bg-white dark:bg-slate-900 sticky left-0 z-20">
+        <div className="flex items-center gap-2">
+          <Button variant="outline" size="icon" onClick={() => navigateWeek(-1)} title="Semana Anterior">
+            <ChevronLeft className="h-4 w-4" />
+          </Button>
+          <span className="font-semibold text-lg capitalize min-w-[150px] text-center">
+            {format(currentDate, 'MMMM yyyy', { locale: ptBR })}
+          </span>
+          <Button variant="outline" size="icon" onClick={() => navigateWeek(1)} title="Próxima Semana">
+            <ChevronRight className="h-4 w-4" />
+          </Button>
+        </div>
+        {/* Could add a Today button or other controls here */}
+      </div>
+
       <div className="overflow-x-auto bg-card rounded-lg border">
         <div className="grid grid-cols-[auto_repeat(7,1fr)] min-w-[900px]">
           {/* Time column header */}
@@ -315,6 +80,9 @@ const DraggableAppointmentCalendar = ({
               </p>
             </div>
           ))}
+
+          {/* Time slots and appointments */}
+          {/* ... existing rendering ... */}
 
           {/* Time slots and appointments */}
           {timeSlots.map(time => {

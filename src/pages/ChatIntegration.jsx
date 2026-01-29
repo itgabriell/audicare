@@ -224,39 +224,47 @@ const ChatIntegration = () => {
       </div>
 
       {/* Floating Action Buttons */}
-      <div className="absolute bottom-6 right-6 z-20 flex flex-col gap-3 items-end">
-        {/* View Calendar Button */}
-        <Button
-          onClick={() => setIsCalendarOpen(true)}
-          className="h-12 w-12 rounded-full shadow-lg shadow-black/10 hover:scale-105 transition-transform bg-white dark:bg-slate-800 hover:bg-slate-50 text-slate-700 dark:text-slate-200 border border-slate-200 dark:border-slate-700"
-          title="Ver Agenda / Disponibilidade"
-        >
-          <Calendar className="h-5 w-5" />
-        </Button>
+      <div className="absolute bottom-24 right-5 z-20 flex flex-col gap-4 items-end pointer-events-none">
 
-        {/* Quick Schedule Button */}
-        <Button
-          onClick={handleOpenSchedule}
-          className="h-14 w-14 rounded-full shadow-xl shadow-primary/30 hover:scale-110 transition-transform bg-primary hover:bg-primary/90 text-white flex items-center justify-center border-4 border-white dark:border-slate-900"
-          title="Agendar Consulta Rápida"
-        >
-          <Plus className="h-6 w-6" />
-        </Button>
+        {/* Container with pointer-events-auto for actual buttons */}
+        <div className="flex flex-col gap-4 items-end pointer-events-auto">
+          {/* View Calendar Button */}
+          <Button
+            onClick={() => setIsCalendarOpen(true)}
+            className="h-14 w-14 rounded-full shadow-lg shadow-black/10 hover:scale-105 transition-transform bg-white dark:bg-slate-800 hover:bg-slate-50 text-slate-700 dark:text-slate-200 border border-slate-200 dark:border-slate-700 flex flex-col items-center justify-center gap-0.5"
+            title="Ver Agenda / Disponibilidade"
+          >
+            <Calendar className="h-6 w-6" />
+          </Button>
+
+          {/* Quick Schedule Button - Larger and more prominent */}
+          <Button
+            onClick={handleOpenSchedule}
+            className="h-16 w-16 rounded-full shadow-2xl shadow-primary/40 hover:scale-110 transition-transform bg-primary hover:bg-primary/90 text-white flex items-center justify-center border-[5px] border-white dark:border-slate-900"
+            title="Agendar Consulta Rápida"
+          >
+            <Plus className="h-8 w-8" />
+          </Button>
+        </div>
       </div>
 
       {/* Calendar View Modal */}
       <Dialog open={isCalendarOpen} onOpenChange={setIsCalendarOpen}>
-        <DialogContent className="max-w-5xl h-[80vh] flex flex-col p-6 rounded-3xl">
-          <div className="flex justify-between items-center mb-4">
-            <h2 className="text-xl font-bold">Consultar Agenda</h2>
-            <Button variant="outline" onClick={() => setCurrentDate(new Date())}>Hoje</Button>
+        <DialogContent className="max-w-6xl h-[85vh] flex flex-col p-6 rounded-3xl bg-slate-50 dark:bg-slate-950">
+          <div className="flex justify-between items-center mb-0">
+            <h2 className="text-2xl font-bold flex items-center gap-2">
+              <Calendar className="w-6 h-6 text-primary" />
+              Consultar Agenda
+            </h2>
+            <Button variant="outline" onClick={() => setCurrentDate(new Date())}>Voltar para Hoje</Button>
           </div>
-          <div className="flex-1 overflow-hidden border rounded-xl bg-slate-50/50">
+          <div className="flex-1 overflow-hidden border rounded-xl bg-white dark:bg-slate-900 shadow-sm mt-4">
             <DraggableAppointmentCalendar
               currentDate={currentDate}
               appointments={appointments}
               onSlotClick={handleSlotClick}
               onAppointmentClick={() => { }}
+              onDateChange={setCurrentDate} // Enable navigation
             />
           </div>
         </DialogContent>
