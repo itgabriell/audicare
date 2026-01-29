@@ -197,9 +197,8 @@ const DraggableAppointmentCalendar = ({
   );
 
   const weekDates = useMemo(() => {
-    const start = startOfWeek(currentDate, { locale: ptBR });
-    return Array.from({ length: 7 }, (_, i) => addDays(start, i))
-      .filter(date => date.getDay() !== 0);
+    const start = startOfWeek(currentDate, { locale: ptBR, weekStartsOn: 1 }); // Start on Monday
+    return Array.from({ length: 6 }, (_, i) => addDays(start, i)); // 6 days: Mon-Sat
   }, [currentDate]);
 
   // CORREÇÃO DE FUSO HORÁRIO: Memoizar todos os agendamentos por slot de uma vez
