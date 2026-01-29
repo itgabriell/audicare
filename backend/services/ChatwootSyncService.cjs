@@ -1,4 +1,4 @@
-const { supabase } = require('../../src/lib/customSupabaseClient');
+const { supabase } = require('../lib/customSupabaseClient');
 
 /**
  * Serviço de Sincronização Chatwoot -> CRM
