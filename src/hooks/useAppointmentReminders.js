@@ -1,8 +1,7 @@
 import { useState, useCallback } from 'react';
 import { supabase } from '@/lib/customSupabaseClient';
-import { chatwootService } from '@/services/chatwootService'; // <--- CORRIGIDO: Importação nomeada
+import { chatwootService } from '@/services/chatwootService';
 import { notificationService } from '@/services/notificationService';
-import { uazapiService } from '@/services/uazapiService';
 
 /**
  * Hook para gerenciar lembretes automáticos de agendamentos via Chatwoot
@@ -85,9 +84,8 @@ export const useAppointmentReminders = () => {
         .replace('{time}', time)
         .replace('{greeting}', greeting);
 
-      // --- ENVIO VIA UAZAPI (DIRETO) ---
-      // const result = await chatwootService.sendAppointmentReminder(appointment, patient, template);
-      const result = await uazapiService.sendConfirmationMessage(patient.phone, message);
+      // --- ENVIO VIA CHATWOOT (PROXY) ---
+      const result = await chatwootService.sendAppointmentReminder(appointment, patient, message);
 
       if (result.success) {
         // Registrar no banco que o lembrete foi enviado
