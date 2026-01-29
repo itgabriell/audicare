@@ -94,8 +94,13 @@ const PatientDetails = () => {
       setApptDialogOpen(false);
       setRefreshTrigger(prev => prev + 1);
 
-      // Notificação opcional
+      // Notificação e Automação
       try {
+        // Disparar Automação de "Novo Agendamento"
+        const API_BASE = import.meta.env.VITE_API_BASE_URL || 'https://api.audicarefono.com.br';
+        fetch(`${API_BASE}/api/automations/appointment-created/${saved.id}`, { method: 'POST' })
+          .catch(err => console.error("Falha ao disparar automação:", err));
+
         await createNotification({
           type: 'appointment',
           title: 'Nova consulta (Via Perfil)',

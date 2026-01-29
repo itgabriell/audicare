@@ -159,6 +159,12 @@ if (automationManager) {
             res.json(await automationManager.processAppointmentStatusChange(req.params.appointmentId, newStatus, oldStatus));
         } catch (error) { res.status(500).json({ error: error.message }); }
     });
+
+    app.post('/api/automations/appointment-created/:appointmentId', async (req, res) => {
+        try {
+            res.json(await automationManager.processAppointmentCreated(req.params.appointmentId));
+        } catch (error) { res.status(500).json({ error: error.message }); }
+    });
 }
 
 // ========================================================
