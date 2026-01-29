@@ -196,6 +196,60 @@ const Appointments = () => {
 
       loadAppointments();
 
+      // Disparar automação APENAS para novos agendamentos
+      if (!appointmentData.id) {
+        try {
+          const API_BASE = import.meta.env.VITE_API_BASE_URL || 'https://api.audicarefono.com.br';
+          const API_KEY = import.meta.env.VITE_INTERNAL_API_KEY;
+
+          console.log("🚀 [Frontend] Disparando automação para Novo Agendamento:", savedAppointment.id);
+
+          fetch(`${API_BASE}/api/automations/appointment-created/${savedAppointment.id}`, {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+              'x-api-key': API_KEY
+            }
+          })
+            .then(res => {
+              if (res.ok) {
+                console.log("✅ [Frontend] Automação disparada com sucesso.");
+                toast({ title: 'Automação Enviada', description: 'Mensagem de confirmação disparada.', className: "bg-green-50 border-green-200 text-green-800" });
+              } else {
+                console.warn("⚠️ [Frontend] Falha no disparo da automação:", res.status);
+                toast({ title: 'Aviso', description: 'Agendamento salvo, mas falha ao enviar mensagem automática.', variant: 'destructive' });
+              }
+            })
+            .catch(err => {
+              console.error("❌ [Frontend] Erro de rede na automação:", err);
+              toast({ title: 'Erro de Conexão', description: 'Não foi possível conectar ao servidor de automação.', variant: 'destructive' });
+            });
+
+        } catch (e) { console.warn("Erro ao tentar disparar automação:", e); }
+      }
+
+      // Disparar automação APENAS para novos agendamentos
+      if (!appointmentData.id) {
+        try {
+          const API_BASE = import.meta.env.VITE_API_BASE_URL || 'https://api.audicarefono.com.br';
+          const API_KEY = import.meta.env.VITE_INTERNAL_API_KEY;
+
+          console.log("🚀 [Frontend] Disparando automação para Novo Agendamento:", savedAppointment.id);
+
+          fetch(`${API_BASE}/api/automations/appointment-created/${savedAppointment.id}`, {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+              'x-api-key': API_KEY
+            }
+          }).then(res => {
+            if (res.ok) console.log("✅ [Frontend] Automação disparada com sucesso.");
+            else console.warn("⚠️ [Frontend] Falha no disparo da automação:", res.status);
+          }).catch(err => console.error("❌ [Frontend] Erro de rede na automação:", err));
+
+        } catch (e) { console.warn("Erro ao tentar disparar automação:", e); }
+      }
+
       try {
         const patientName = patients.find((p) => p.id === savedAppointment.contact_id || p.id === savedAppointment.patient_id)?.name || 'Paciente';
         const appointmentDate = format(new Date(savedAppointment.start_time), "dd/MM/yyyy 'às' HH:mm", { locale: ptBR });
