@@ -228,9 +228,8 @@ const Tasks = () => {
 
       <div className="h-full flex flex-col space-y-4 overflow-hidden pr-1 relative">
         {/* Modern Floating Header & Controls */}
-        <div className="flex flex-col gap-4 bg-white/60 dark:bg-slate-900/60 backdrop-blur-md p-4 rounded-3xl border border-slate-200/50 dark:border-slate-800/50 shadow-sm z-10 shrink-0">
-
-          <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
+        <div className="flex flex-col gap-2 md:gap-4 bg-white/60 dark:bg-slate-900/60 backdrop-blur-md p-3 md:p-4 rounded-3xl border border-slate-200/50 dark:border-slate-800/50 shadow-sm z-10 shrink-0">
+          <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-2 md:gap-4">
             <div>
               <h1 className="text-2xl font-bold tracking-tight text-slate-900 dark:text-slate-100 font-sans">
                 Tarefas Internas
@@ -244,7 +243,7 @@ const Tasks = () => {
                 setEditingTask(null);
                 setDialogOpen(true);
               }}
-              className="rounded-2xl h-11 px-5 shadow-lg shadow-primary/25 hover:shadow-primary/40 transition-all active:scale-95"
+              className="rounded-2xl h-11 px-5 shadow-lg shadow-primary/25 hover:shadow-primary/40 transition-all active:scale-95 w-full md:w-auto"
             >
               <Plus className="h-4 w-4 mr-2" />
               Nova Tarefa
@@ -252,7 +251,7 @@ const Tasks = () => {
           </div>
 
           {/* Filters Row */}
-          <div className="flex flex-col lg:flex-row gap-3 items-center w-full">
+          <div className="flex flex-col lg:flex-row gap-2 md:gap-3 items-center w-full">
             <div className="relative w-full lg:w-96 group">
               <Search className="absolute left-4 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400 transition-colors group-focus-within:text-primary" />
               <Input

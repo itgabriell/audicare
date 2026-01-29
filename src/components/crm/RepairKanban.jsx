@@ -138,23 +138,23 @@ const RepairKanban = () => {
     };
 
     return (
-        <div className="h-[calc(100vh-80px)] flex flex-col p-6 bg-background">
+        <div className="h-[calc(100vh-80px)] flex flex-col p-2 md:p-6 bg-background">
             {/* HEADER DA PÁGINA */}
-            <div className="flex justify-between items-center mb-8">
+            <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 mb-4 md:mb-8">
                 <div>
-                    <h1 className="text-3xl font-bold text-foreground flex items-center gap-3">
-                        <Wrench className="h-8 w-8 text-primary" /> Central de Reparos
+                    <h1 className="text-2xl md:text-3xl font-bold text-foreground flex items-center gap-2 md:gap-3">
+                        <Wrench className="h-6 w-6 md:h-8 md:w-8 text-primary" /> Central de Reparos
                     </h1>
-                    <p className="text-muted-foreground mt-1">
+                    <p className="text-muted-foreground mt-1 text-sm md:text-base">
                         Gerencie o fluxo de envio, conserto e retorno de aparelhos.
                     </p>
                 </div>
 
                 <Dialog open={isModalOpen} onOpenChange={setIsModalOpen}>
-                    <Button size="lg" className="shadow-md" onClick={handleOpenNew}>
+                    <Button size="lg" className="w-full md:w-auto shadow-md h-11" onClick={handleOpenNew}>
                         <Plus className="mr-2 h-5 w-5" /> Nova Ordem de Serviço
                     </Button>
-
+                    {/* ... Dialog Content ... */}
                     <DialogContent className="sm:max-w-[500px] rounded-3xl bg-white dark:bg-slate-900 border-none shadow-2xl">
                         <DialogHeader>
                             <DialogTitle>{formData.id ? 'Editar OS' : 'Abrir Nova OS'}</DialogTitle>
@@ -204,10 +204,10 @@ const RepairKanban = () => {
             </div>
 
             {/* ÁREA DO KANBAN */}
-            <div className="flex-1 overflow-x-auto pb-4">
-                <div className="flex gap-6 min-w-max h-full">
+            <div className="flex-1 overflow-x-auto pb-4 scrollbar-thin md:scrollbar-default">
+                <div className="flex gap-4 md:gap-6 min-w-max h-full px-1">
                     {COLUMNS.map(col => (
-                        <div key={col.id} className={`w-[320px] rounded-xl flex flex-col border shadow-sm ${col.color}`}>
+                        <div key={col.id} className={`w-[85vw] md:w-[320px] shrink-0 rounded-xl flex flex-col border shadow-sm ${col.color} snap-center`}>
 
                             {/* Cabeçalho da Coluna */}
                             <div className="p-4 border-b border-border/10 bg-background/40 backdrop-blur-sm rounded-t-xl flex justify-between items-center">

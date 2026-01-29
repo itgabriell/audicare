@@ -254,8 +254,8 @@ const Invoices = () => {
   return (
     <div className="space-y-6">
       {/* Header Floating */}
-      <div className="flex flex-col gap-4 bg-white/60 dark:bg-slate-900/60 backdrop-blur-md p-4 rounded-3xl border border-slate-200/50 dark:border-slate-800/50 shadow-sm z-10 shrink-0">
-        <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
+      <div className="flex flex-col gap-2 md:gap-4 bg-white/60 dark:bg-slate-900/60 backdrop-blur-md p-3 md:p-4 rounded-3xl border border-slate-200/50 dark:border-slate-800/50 shadow-sm z-10 shrink-0">
+        <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-2 md:gap-4">
           <div>
             <h1 className="text-2xl font-bold tracking-tight text-slate-900 dark:text-slate-100 font-sans flex items-center gap-2">
               <Receipt className="h-6 w-6 text-primary" />
@@ -272,8 +272,8 @@ const Invoices = () => {
             </Badge>
 
             {selectedInvoices.length > 0 && (
-              <Button onClick={handleBulkDownload} variant="outline" className="rounded-xl h-9">
-                <Download className="h-3.5 w-3.5 mr-2" />
+              <Button onClick={handleBulkDownload} variant="outline" className="rounded-xl h-11">
+                <Download className="h-4 w-4 mr-2" />
                 Baixar Selecionadas ({selectedInvoices.length})
               </Button>
             )}
@@ -393,7 +393,7 @@ const Invoices = () => {
 
       {/* Tabela */}
       <Card className="rounded-3xl shadow-sm border-slate-200 dark:border-slate-800 overflow-hidden">
-        <CardContent className="p-0">
+        <CardContent className="p-0 overflow-x-auto">
           <Table>
             <TableHeader className="bg-slate-50 dark:bg-slate-900 border-b border-slate-100 dark:border-slate-800">
               <TableRow className="hover:bg-transparent">

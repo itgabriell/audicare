@@ -122,8 +122,8 @@ const CRM = () => {
       <div className="flex flex-col h-[calc(100vh-6rem)] space-y-4 pr-1">
 
         {/* Header Floating */}
-        <div className="flex flex-col gap-4 bg-white/60 dark:bg-slate-900/60 backdrop-blur-md p-4 rounded-3xl border border-slate-200/50 dark:border-slate-800/50 shadow-sm z-10 shrink-0">
-          <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
+        <div className="flex flex-col gap-2 md:gap-4 bg-white/60 dark:bg-slate-900/60 backdrop-blur-md p-3 md:p-4 rounded-3xl border border-slate-200/50 dark:border-slate-800/50 shadow-sm z-10 shrink-0">
+          <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-2 md:gap-4">
             <div>
               <h1 className="text-2xl font-bold tracking-tight text-slate-900 dark:text-slate-100 font-sans flex items-center gap-2">
                 <MessageSquare className="h-6 w-6 text-primary" />
@@ -138,16 +138,16 @@ const CRM = () => {
               <Button
                 variant={showAITrainer ? "secondary" : "outline"}
                 onClick={() => setShowAITrainer(!showAITrainer)}
-                className="hidden sm:flex rounded-xl h-10"
+                className="hidden sm:flex rounded-xl h-11"
               >
                 <Brain className="h-4 w-4 mr-2" />
                 {showAITrainer ? 'Fechar Treinador' : 'Treinar IA'}
               </Button>
 
-              <Button variant="outline" size="icon" onClick={fetchLeads} title="Atualizar" className="rounded-xl h-10 w-10">
+              <Button variant="outline" size="icon" onClick={fetchLeads} title="Atualizar" className="rounded-xl h-11 w-11 mt-auto">
                 <RefreshCw className={`h-4 w-4 ${loading ? 'animate-spin' : ''}`} />
               </Button>
-              <Button onClick={handleNewLead} className="w-full sm:w-auto rounded-xl h-10 shadow-lg shadow-primary/20">
+              <Button onClick={handleNewLead} className="w-full sm:w-auto rounded-xl h-11 shadow-lg shadow-primary/20">
                 <Plus className="h-4 w-4 mr-2" />
                 Novo Lead
               </Button>

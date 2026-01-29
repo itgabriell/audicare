@@ -242,23 +242,23 @@ const Automations = () => {
 
             <div className="h-full flex flex-col space-y-4 pr-1 relative">
                 {/* Floating Header */}
-                <div className="flex flex-col gap-4 bg-white/60 dark:bg-slate-900/60 backdrop-blur-md p-4 rounded-3xl border border-slate-200/50 dark:border-slate-800/50 shadow-sm z-10 shrink-0">
-                    <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
+                <div className="flex flex-col gap-2 md:gap-4 bg-white/60 dark:bg-slate-900/60 backdrop-blur-md p-3 md:p-4 rounded-3xl border border-slate-200/50 dark:border-slate-800/50 shadow-sm z-10 shrink-0">
+                    <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-2 md:gap-4">
                         <div>
                             <h1 className="text-2xl font-bold tracking-tight text-slate-900 dark:text-slate-100 font-sans flex items-center gap-2">
                                 <Bot className="h-6 w-6 text-primary" />
-                                Automações de Engajamento
+                                Automações
                             </h1>
                             <p className="text-muted-foreground text-sm">
-                                Configure mensagens automáticas para manter o contato com seus pacientes via Chatwoot
+                                Configure mensagens automáticas para seus pacientes
                             </p>
                         </div>
                         <Button
                             onClick={handleCreateAutomation}
-                            className="rounded-xl h-10 shadow-lg shadow-primary/20 hover:shadow-primary/30 transition-all"
+                            className="rounded-xl h-11 px-5 shadow-lg shadow-primary/20 hover:shadow-primary/30 transition-all w-full md:w-auto"
                         >
                             <Plus className="mr-2 h-4 w-4" />
-                            Criar Automação
+                            Nova Automação
                         </Button>
                     </div>
                 </div>
@@ -272,7 +272,7 @@ const Automations = () => {
                                 Abaixo estão as automações configuradas. Cada automação pode ser executada manualmente ou disparada automaticamente.
                             </CardDescription>
                         </CardHeader>
-                        <CardContent className="p-0">
+                        <CardContent className="p-0 overflow-x-auto">
                             {loading ? (
                                 <div className="flex items-center justify-center py-12">
                                     <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>

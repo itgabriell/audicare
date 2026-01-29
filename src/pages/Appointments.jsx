@@ -306,7 +306,7 @@ const Appointments = () => {
 
       <div className="h-full flex flex-col space-y-4 overflow-hidden pr-1 relative">
         {/* Modern Floating Header & Controls */}
-        <div className="flex flex-col gap-4 bg-white/60 dark:bg-slate-900/60 backdrop-blur-md p-4 rounded-3xl border border-slate-200/50 dark:border-slate-800/50 shadow-sm z-10 shrink-0">
+        <div className="flex flex-col gap-2 md:gap-4 bg-white/60 dark:bg-slate-900/60 backdrop-blur-md p-3 md:p-4 rounded-3xl border border-slate-200/50 dark:border-slate-800/50 shadow-sm z-10 shrink-0">
 
           <div className="flex flex-col lg:flex-row justify-between items-start lg:items-center gap-4">
             <div>
@@ -339,12 +339,12 @@ const Appointments = () => {
 
               <div className="h-6 w-px bg-slate-200 dark:bg-slate-700 mx-1 hidden sm:block" />
 
-              <Button variant="outline" onClick={handleToday} className="rounded-xl h-10 border-slate-200 dark:border-slate-700">
+              <Button variant="outline" onClick={handleToday} className="rounded-xl h-11 border-slate-200 dark:border-slate-700">
                 Hoje
               </Button>
 
-              <Button onClick={handleOpenDialog} className="rounded-xl h-10 shadow-lg shadow-primary/20 hover:shadow-primary/30 transition-all">
-                <Plus className="h-4 w-4 mr-2" />
+              <Button onClick={handleOpenDialog} className="rounded-xl h-11 shadow-lg shadow-primary/20 hover:shadow-primary/30 transition-all ml-auto lg:ml-0">
+                <Plus className="h-5 w-5 mr-2" />
                 Nova Consulta
               </Button>
             </div>
@@ -359,7 +359,7 @@ const Appointments = () => {
                   variant={viewMode === mode ? 'default' : 'ghost'}
                   size="sm"
                   onClick={() => setViewMode(mode)}
-                  className={`text-xs h-8 px-4 rounded-lg capitalize transition-all ${viewMode === mode ? 'shadow-sm' : 'text-muted-foreground hover:bg-white/50 dark:hover:bg-slate-700/50'}`}
+                  className={`text-xs h-9 px-3 sm:px-4 rounded-lg capitalize transition-all ${viewMode === mode ? 'shadow-sm' : 'text-muted-foreground hover:bg-white/50 dark:hover:bg-slate-700/50'}`}
                 >
                   {mode === 'day' ? 'Dia' : mode === 'week' ? 'Semana' : 'Mês'}
                 </Button>
@@ -372,7 +372,7 @@ const Appointments = () => {
               size="sm"
               onClick={() => handleBulkAction('confirm_tomorrow')}
               disabled={!!processingAction}
-              className="rounded-xl h-9 border-dashed border-green-300 text-green-700 hover:bg-green-50 dark:border-green-800 dark:text-green-400 dark:hover:bg-green-900/20 w-full sm:w-auto ml-auto"
+              className="rounded-xl h-10 border-dashed border-green-300 text-green-700 hover:bg-green-50 dark:border-green-800 dark:text-green-400 dark:hover:bg-green-900/20 w-full sm:w-auto ml-auto"
             >
               {processingAction === 'confirm_tomorrow' ? <Loader2 className="h-3.5 w-3.5 animate-spin mr-2" /> : <Send className="h-3.5 w-3.5 mr-2" />}
               Confirmar p/ Amanhã

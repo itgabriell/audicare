@@ -187,7 +187,7 @@ const Dashboard = () => {
         <ChartCard
           title="Fluxo da Semana"
           icon={Activity}
-          className="md:col-span-7 lg:col-span-6 min-h-[350px] border-none shadow-lg shadow-slate-200/50 dark:shadow-none"
+          className="md:col-span-8 lg:col-span-6 min-h-[350px] border-none shadow-lg shadow-slate-200/50 dark:shadow-none"
         >
           <div className="h-[300px] w-full">
             {processWeekData().length > 0 ? (
@@ -241,7 +241,7 @@ const Dashboard = () => {
         <ChartCard
           title="Oficina"
           icon={Wrench}
-          className="md:col-span-12 lg:col-span-3 min-h-[350px] lg:min-h-0 border-none shadow-lg shadow-slate-200/50 dark:shadow-none"
+          className="md:col-span-4 lg:col-span-3 min-h-[350px] lg:min-h-0 border-none shadow-lg shadow-slate-200/50 dark:shadow-none"
         >
           <div className="h-[300px] w-full flex items-center justify-center">
             {processRepairData().length > 0 ? (

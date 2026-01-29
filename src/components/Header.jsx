@@ -24,7 +24,7 @@ const Header = ({ children, onMenuClick, showMenuButton, onCommandPaletteOpen })
   const childrenArray = React.Children.toArray(children);
   const title = childrenArray.length > 0 ? childrenArray[0] : null;
   const rest = childrenArray.length > 1 ? childrenArray.slice(1) : [];
-  
+
   const { user, signOut } = useAuth();
   const navigate = useNavigate();
 
@@ -58,18 +58,18 @@ const Header = ({ children, onMenuClick, showMenuButton, onCommandPaletteOpen })
   };
 
   return (
-    <header className="sticky top-0 z-20 flex items-center justify-between px-6 py-4 border-b border-border/50 bg-card/95 backdrop-blur supports-[backdrop-filter]:bg-card/60 shadow-sm">
+    <header className="sticky top-0 z-20 flex items-center justify-between px-3 py-3 md:px-6 md:py-4 border-b border-border/50 bg-card/95 backdrop-blur supports-[backdrop-filter]:bg-card/60 shadow-sm">
       {/* Lado esquerdo - Menu + Título */}
-      <div className="flex items-center gap-3">
+      <div className="flex items-center gap-2 md:gap-3">
         {showMenuButton && (
           <Button
             variant="ghost"
             size="sm"
             onClick={onMenuClick}
-            className="md:hidden h-9 w-9 p-0 hover:bg-muted/80 transition-all duration-200 hover:scale-105 active:scale-95"
+            className="md:hidden h-11 w-11 p-0 hover:bg-muted/80 transition-all duration-200 hover:scale-105 active:scale-95 text-foreground"
             title="Abrir menu"
           >
-            <Menu className="h-5 w-5" />
+            <Menu className="h-6 w-6" />
           </Button>
         )}
         <div className="text-lg font-semibold text-foreground">{title}</div>
@@ -108,8 +108,8 @@ const Header = ({ children, onMenuClick, showMenuButton, onCommandPaletteOpen })
         {user && (
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
-              <Button 
-                variant="ghost" 
+              <Button
+                variant="ghost"
                 className="relative h-10 w-10 rounded-xl hover:bg-muted/80 transition-all duration-200 hover:scale-105 active:scale-95"
               >
                 <Avatar className="h-10 w-10 ring-2 ring-border/50 ring-offset-2 ring-offset-background">
@@ -119,9 +119,9 @@ const Header = ({ children, onMenuClick, showMenuButton, onCommandPaletteOpen })
                 </Avatar>
               </Button>
             </DropdownMenuTrigger>
-            <DropdownMenuContent 
-              className="w-56 rounded-xl shadow-lg border-border/50" 
-              align="end" 
+            <DropdownMenuContent
+              className="w-56 rounded-xl shadow-lg border-border/50"
+              align="end"
               forceMount
             >
               <DropdownMenuLabel className="font-normal px-3 py-2">
@@ -135,7 +135,7 @@ const Header = ({ children, onMenuClick, showMenuButton, onCommandPaletteOpen })
                 </div>
               </DropdownMenuLabel>
               <DropdownMenuSeparator className="my-1" />
-              <DropdownMenuItem 
+              <DropdownMenuItem
                 onClick={() => navigate('/settings')}
                 className="rounded-lg mx-1 cursor-pointer"
               >
@@ -143,8 +143,8 @@ const Header = ({ children, onMenuClick, showMenuButton, onCommandPaletteOpen })
                 <span>Configurações</span>
               </DropdownMenuItem>
               <DropdownMenuSeparator className="my-1" />
-              <DropdownMenuItem 
-                onClick={handleLogout} 
+              <DropdownMenuItem
+                onClick={handleLogout}
                 className="text-destructive rounded-lg mx-1 cursor-pointer focus:text-destructive"
               >
                 <LogOut className="mr-2 h-4 w-4" />
