@@ -2,7 +2,8 @@ import { supabase } from '@/lib/customSupabaseClient';
 
 class ChatwootService {
     constructor() {
-        this.inboxId = import.meta.env.VITE_CHATWOOT_INBOX_ID || '2';
+        // Inbox ID real confirmado: 1
+        this.inboxId = import.meta.env.VITE_CHATWOOT_INBOX_ID || '1';
         // Removed exposed API tokens and URLs. They are now managed by the Edge Function.
     }
 

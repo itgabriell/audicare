@@ -28,7 +28,6 @@ try {
     console.warn("⚠️ Stack:", e.stack);
 }
 
-
 // Serviço de sincronização Chatwoot
 try {
     chatwootSyncService = require('./services/ChatwootSyncService.cjs');
@@ -37,23 +36,55 @@ try {
 }
 
 // --- MIDDLEWARES ---
-app.use(cors({ origin: true, credentials: true }));
+
+// 1. LOGGING DE DEBUG (Essencial para diagnosticar se a requisição chega)
+app.use((req, res, next) => {
+    console.log(`[INCOMING] ${req.method} ${req.url} | Origin: ${req.headers.origin}`);
+    next();
+});
+
+// 2. CONFIGURAÇÃO CORS "BLINDADA"
+// Aceita qualquer origem dinamicamente. Resolve problemas com Load Balancers e Proxies.
+const corsOptions = {
+    origin: function (origin, callback) {
+        // null = requisição server-to-server ou mobile. true = aceita o que vier.
+        return callback(null, true);
+    },
+    methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS', 'PATCH'],
+    allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With', 'Accept', 'Origin', 'api_access_token'],
+    credentials: true,
+    optionsSuccessStatus: 200
+};
+
+app.use(cors(corsOptions));
+// A linha abaixo causava erro em versões novas do Express/path-to-regexp
+// app.options('*', cors(corsOptions)); 
+// O middleware acima já deve tratar OPTIONS se configurado corretamente.
+
 app.use(express.json({ limit: '50mb' }));
 app.use(express.urlencoded({ extended: true }));
 
 // --- ROTAS DE SAÚDE ---
-app.get('/', (req, res) => res.send('🤖 Audicare Backend (Automation & CRM Sync)'));
+app.get('/', (req, res) => res.send('🤖 Audicare Backend (CORS FIX APPLIED)'));
 app.get('/health', (req, res) => res.json({
     status: 'online',
     mode: 'automation_crm_hybrid',
     automationManager: !!automationManager,
-    legacyAutomation: !!patientEngagementAutomation
+    legacyAutomation: !!patientEngagementAutomation,
+    cors: 'permissive'
 }));
 
 // --- NOVO: ROTA DE ENVIO DIRETO UAZAPI (Backend-Side) ---
-const uazapiClient = require('./lib/uazapiClient.cjs');
+let uazapiClient;
+try {
+    uazapiClient = require('./lib/uazapiClient.cjs');
+} catch (e) {
+    console.warn("⚠️ uazapiClient não encontrado. Rota de envio direto será desativada.");
+}
 
 app.post('/api/messages/send', async (req, res) => {
+    if (!uazapiClient) return res.status(503).json({ error: 'Serviço de mensageria indisponível (Lib missing)' });
+
     try {
         const { phone, message } = req.body;
         if (!phone || !message) {
@@ -73,9 +104,6 @@ app.post('/api/messages/send', async (req, res) => {
 // ========================================================
 app.post('/webhooks/chatwoot-events', async (req, res) => {
     try {
-        // Log para debug
-        // console.log('🔄 [Webhook] Evento:', req.body.event);
-
         if (chatwootSyncService) {
             const result = await chatwootSyncService.handleChatwootEvent(req.body);
             res.json(result);
@@ -91,121 +119,65 @@ app.post('/webhooks/chatwoot-events', async (req, res) => {
 // ========================================================
 // 🤖 ROTAS DE AUTOMAÇÃO (NOVO SISTEMA COM BANCO)
 // ========================================================
-// --- IMPORTAÇÕES EXTENDIDAS ---
 const authMiddleware = require('./middleware/authMiddleware.cjs');
 
-// ... (código existente)
-
-// ========================================================
-// 🤖 ROTAS DE AUTOMAÇÃO (NOVO SISTEMA COM BANCO)
-// ========================================================
 if (automationManager) {
     console.log('✅ Registrando rotas de automação...');
-    // Aplicar Middleware de Autenticação em automações
     app.use('/api/automations', authMiddleware);
 
-    // Listar automações
     app.get('/api/automations', async (req, res) => {
         try {
             const { clinicId } = req.query;
-            if (!clinicId) {
-                return res.status(400).json({ error: 'clinicId é obrigatório' });
-            }
-            const result = await automationManager.getAutomations(clinicId);
-            res.json(result);
-        } catch (error) {
-            console.error('❌ Erro ao listar automações:', error.message);
-            res.status(500).json({ error: error.message });
-        }
+            if (!clinicId) return res.status(400).json({ error: 'clinicId é obrigatório' });
+            res.json(await automationManager.getAutomations(clinicId));
+        } catch (error) { res.status(500).json({ error: error.message }); }
     });
 
-    // Criar automação
     app.post('/api/automations', async (req, res) => {
-        try {
-            const result = await automationManager.saveAutomation(req.body);
-            res.json(result);
-        } catch (error) {
-            console.error('❌ Erro ao salvar automação:', error.message);
-            res.status(500).json({ error: error.message });
-        }
+        try { res.json(await automationManager.saveAutomation(req.body)); }
+        catch (error) { res.status(500).json({ error: error.message }); }
     });
 
-    // Atualizar automação
     app.put('/api/automations/:automationId', async (req, res) => {
-        try {
-            const { automationId } = req.params;
-            const result = await automationManager.updateAutomation(automationId, req.body);
-            res.json(result);
-        } catch (error) {
-            console.error('❌ Erro ao atualizar automação:', error.message);
-            res.status(500).json({ error: error.message });
-        }
+        try { res.json(await automationManager.updateAutomation(req.params.automationId, req.body)); }
+        catch (error) { res.status(500).json({ error: error.message }); }
     });
 
-    // Remover automação
     app.delete('/api/automations/:automationId', async (req, res) => {
-        try {
-            const { automationId } = req.params;
-            const result = await automationManager.deleteAutomation(automationId);
-            res.json(result);
-        } catch (error) {
-            console.error('❌ Erro ao remover automação:', error.message);
-            res.status(500).json({ error: error.message });
-        }
+        try { res.json(await automationManager.deleteAutomation(req.params.automationId)); }
+        catch (error) { res.status(500).json({ error: error.message }); }
     });
 
-    // Testar automação
     app.post('/api/automations/:automationId/test', async (req, res) => {
-        try {
-            const { automationId } = req.params;
-            const { phone } = req.body;
-            const result = await automationManager.testAutomation(automationId, phone);
-            res.json(result);
-        } catch (error) {
-            console.error('❌ Erro no teste de automação:', error.message);
-            res.status(500).json({ error: error.message });
-        }
+        try { res.json(await automationManager.testAutomation(req.params.automationId, req.body.phone)); }
+        catch (error) { res.status(500).json({ error: error.message }); }
     });
 
-    // Trigger de Status (Appointment) - Novo sistema
     app.post('/api/automations/appointment-status/:appointmentId', async (req, res) => {
         try {
-            const { appointmentId } = req.params;
             const { newStatus, oldStatus } = req.body;
-            const result = await automationManager.processAppointmentStatusChange(appointmentId, newStatus, oldStatus);
-            res.json(result);
-        } catch (error) {
-            console.error('❌ Erro no processamento de status:', error.message);
-            res.status(500).json({ error: error.message });
-        }
+            res.json(await automationManager.processAppointmentStatusChange(req.params.appointmentId, newStatus, oldStatus));
+        } catch (error) { res.status(500).json({ error: error.message }); }
     });
 }
 
 // ========================================================
-// 🤖 ROTAS DE AUTOMAÇÃO (LEGACY - MANTER COMPATIBILIDADE)
+// 🤖 ROTAS DE AUTOMAÇÃO (LEGACY)
 // ========================================================
 if (patientEngagementAutomation) {
     app.post('/api/automation/test/:type', async (req, res) => {
-        try {
-            const result = await patientEngagementAutomation.testAutomation(req.params.type, req.body.phone, req.body.data);
-            res.json(result);
-        } catch (error) { res.status(500).json({ error: error.message }); }
+        try { res.json(await patientEngagementAutomation.testAutomation(req.params.type, req.body.phone, req.body.data)); }
+        catch (error) { res.status(500).json({ error: error.message }); }
     });
-
-    app.get('/api/automation/settings', (req, res) => {
-        res.json(patientEngagementAutomation.getSettings());
-    });
-
+    app.get('/api/automation/settings', (req, res) => res.json(patientEngagementAutomation.getSettings()));
     app.put('/api/automation/settings', (req, res) => {
         patientEngagementAutomation.updateSettings(req.body);
         res.json({ success: true });
     });
-
     app.post('/api/automation/appointment-status/:appointmentId', async (req, res) => {
         try {
             const { newStatus, oldStatus } = req.body;
-            const result = await patientEngagementAutomation.processAppointmentStatusChange(req.params.appointmentId, newStatus, oldStatus);
-            res.json(result);
+            res.json(await patientEngagementAutomation.processAppointmentStatusChange(req.params.appointmentId, newStatus, oldStatus));
         } catch (error) { res.status(500).json({ error: error.message }); }
     });
 }
@@ -215,15 +187,13 @@ if (patientEngagementAutomation) {
 // Bypass de CORS e Edge Functions
 // ========================================================
 app.post('/api/chatwoot-proxy', async (req, res) => {
+    console.log('[PROXY] 📩 Request received for:', req.body?.endpoint);
     try {
         const { endpoint, method = 'GET', body } = req.body;
-
-        if (!endpoint) {
-            return res.status(400).json({ error: 'Endpoint is required' });
-        }
+        if (!endpoint) return res.status(400).json({ error: 'Endpoint is required' });
 
         const CHATWOOT_BASE_URL = process.env.VITE_CHATWOOT_BASE_URL || process.env.CHATWOOT_BASE_URL || 'https://chat.audicarefono.com.br';
-        const ACCOUNT_ID = process.env.VITE_CHATWOOT_ACCOUNT_ID || process.env.CHATWOOT_ACCOUNT_ID || '1';
+        const ACCOUNT_ID = process.env.VITE_CHATWOOT_ACCOUNT_ID || process.env.CHATWOOT_ACCOUNT_ID || '2';
         const API_TOKEN = process.env.VITE_CHATWOOT_API_TOKEN || process.env.CHATWOOT_API_TOKEN;
 
         if (!API_TOKEN) {
@@ -232,9 +202,8 @@ app.post('/api/chatwoot-proxy', async (req, res) => {
         }
 
         const url = `${CHATWOOT_BASE_URL}/api/v1/accounts/${ACCOUNT_ID}${endpoint}`;
+        console.log(`[PROXY] ➡️ Forwarding to: ${url}`);
 
-        // Use dynamic import for fetch if needed in older Node versions, or global fetch in Node 18+
-        // Assuming Node 18+ based on "index(VPS).cjs" context
         const response = await fetch(url, {
             method,
             headers: {
@@ -252,8 +221,10 @@ app.post('/api/chatwoot-proxy', async (req, res) => {
             data = await response.text();
         }
 
+        console.log(`[PROXY] ⬅️ Upstream Response: ${response.status}`);
+
         if (!response.ok) {
-            console.error('❌ Chatwoot Error:', response.status, data);
+            console.error('❌ Chatwoot Error Details:', typeof data === 'object' ? JSON.stringify(data) : data);
             return res.status(response.status).json({ error: 'Upstream Error', details: data });
         }
 
@@ -265,10 +236,6 @@ app.post('/api/chatwoot-proxy', async (req, res) => {
     }
 });
 
-// --- START ---
 app.listen(PORT, () => {
     console.log(`✅ Backend Audicare rodando na porta ${PORT}`);
-    console.log(`🔄 Sync CRM: Ativo em /webhooks/chatwoot-events`);
-    console.log(`🤖 Automação Legacy: ${patientEngagementAutomation ? 'Ativa' : 'Inativa'}`);
-    console.log(`🤖 AutomationManager: ${automationManager ? 'Ativa' : 'Inativa'}`);
 });
