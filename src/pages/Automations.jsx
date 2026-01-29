@@ -416,6 +416,73 @@ const Automations = () => {
                         </DialogContent>
                     </Dialog>
 
+                    {/* Dialog de Confirmação de Execução */}
+                    <Dialog open={runDialogOpen} onOpenChange={setRunDialogOpen}>
+                        <DialogContent className="max-w-md rounded-3xl">
+                            <DialogHeader>
+                                <DialogTitle>Executar {selectedAutomation?.name}?</DialogTitle>
+                                <DialogDescription>
+                                    Escolha como deseja executar esta automação.
+                                </DialogDescription>
+                            </DialogHeader>
+                            <div className="flex flex-col gap-3 py-4">
+                                <Button
+                                    variant="outline"
+                                    onClick={() => handleRunAutomation(selectedAutomation, 'test')}
+                                    className="justify-start h-12 text-left"
+                                >
+                                    <div className="flex flex-col items-start ml-2">
+                                        <span className="font-semibold text-slate-900 dark:text-slate-100">🧪 Executar Teste</span>
+                                        <span className="text-xs text-muted-foreground">Envia 1 mensagem para verificação.</span>
+                                    </div>
+                                </Button>
+                                <Button
+                                    onClick={() => handleRunAutomation(selectedAutomation, 'execute')}
+                                    className="justify-start h-12 text-left bg-emerald-600 hover:bg-emerald-700 text-white"
+                                >
+                                    <div className="flex flex-col items-start ml-2">
+                                        <span className="font-semibold">🚀 Executar para Todos</span>
+                                        <span className="text-xs text-emerald-100">Processa todos os contatos elegíveis agora.</span>
+                                    </div>
+                                </Button>
+                            </div>
+                        </DialogContent>
+                    </Dialog>
+
+                    {/* Dialog de Relatório de Execução */}
+                    <Dialog open={reportDialogOpen} onOpenChange={setReportDialogOpen}>
+                        <DialogContent className="max-w-md rounded-3xl">
+                            <DialogHeader>
+                                <DialogTitle className="flex items-center gap-2">
+                                    ✅ Execução Concluída
+                                </DialogTitle>
+                                <DialogDescription>
+                                    Resumo da execução da automação.
+                                </DialogDescription>
+                            </DialogHeader>
+                            {executionResult && (
+                                <div className="space-y-4">
+                                    <div className="grid grid-cols-2 gap-4">
+                                        <div className="bg-green-50 dark:bg-green-900/20 p-4 rounded-2xl text-center border border-green-100 dark:border-green-900">
+                                            <p className="text-3xl font-bold text-green-600 dark:text-green-400">{executionResult.successCount}</p>
+                                            <p className="text-sm font-medium text-green-800 dark:text-green-300">Enviados</p>
+                                        </div>
+                                        <div className="bg-red-50 dark:bg-red-900/20 p-4 rounded-2xl text-center border border-red-100 dark:border-red-900">
+                                            <p className="text-3xl font-bold text-red-600 dark:text-red-400">{executionResult.failureCount}</p>
+                                            <p className="text-sm font-medium text-red-800 dark:text-red-300">Falhas</p>
+                                        </div>
+                                    </div>
+                                    <div className="text-xs text-center text-muted-foreground">
+                                        Uma notificação foi gerada no sistema com este resumo.
+                                    </div>
+                                </div>
+                            )}
+                            <div className="flex justify-end mt-4">
+                                <Button onClick={() => setReportDialogOpen(false)} className="w-full rounded-xl">Fechar</Button>
+                            </div>
+                        </DialogContent>
+                    </Dialog>
+
                 </div>
             </div>
         </>
