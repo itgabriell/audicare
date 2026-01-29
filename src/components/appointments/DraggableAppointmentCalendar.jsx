@@ -198,7 +198,8 @@ const DraggableAppointmentCalendar = ({
 
   const weekDates = useMemo(() => {
     const start = startOfWeek(currentDate, { locale: ptBR });
-    return Array.from({ length: 7 }, (_, i) => addDays(start, i));
+    return Array.from({ length: 7 }, (_, i) => addDays(start, i))
+      .filter(date => date.getDay() !== 0);
   }, [currentDate]);
 
   // CORREÇÃO DE FUSO HORÁRIO: Memoizar todos os agendamentos por slot de uma vez
@@ -320,7 +321,7 @@ const DraggableAppointmentCalendar = ({
       </div>
 
       <div className="overflow-x-auto bg-card rounded-lg border">
-        <div className="grid grid-cols-[auto_repeat(7,1fr)] min-w-[900px]">
+        <div className={`grid grid-cols-[auto_repeat(${weekDates.length},1fr)] min-w-[900px]`}>
           {/* Time column header */}
           <div className="sticky left-0 bg-card z-10 p-2"></div>
 
