@@ -3,12 +3,15 @@ import { supabase } from '@/lib/customSupabaseClient';
 import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import { Plus, Wrench, Calendar, Smartphone, Hash, ArrowRight, ArrowLeft, Pencil, Trash2, X } from 'lucide-react';
+import { Plus, Wrench, Calendar, Smartphone, Hash, ArrowRight, ArrowLeft, Pencil, Trash2, X, MessageCircle } from 'lucide-react';
 import { useToast } from '@/components/ui/use-toast';
+import { useChatNavigation } from '@/hooks/useChatNavigation';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
+import { getPatients } from '@/database';
+import { PatientCombobox } from '@/components/appointments/PatientCombobox';
 
 const COLUMNS = [
     { id: 'received', title: '📥 Na Clínica (Gaveta)', color: 'border-t-4 border-slate-500 bg-slate-50/50 dark:bg-slate-900/20' },
@@ -22,7 +25,9 @@ const RepairKanban = () => {
     const [tickets, setTickets] = useState([]);
     const [loading, setLoading] = useState(true);
     const [isModalOpen, setIsModalOpen] = useState(false);
+    const [patients, setPatients] = useState([]);
     const { toast } = useToast();
+    const { navigateToChat, loading: chatLoading } = useChatNavigation();
 
     // Estado do formulário
     const [formData, setFormData] = useState({
@@ -35,7 +40,13 @@ const RepairKanban = () => {
 
     useEffect(() => {
         fetchTickets();
+        fetchPatients();
     }, []);
+
+    const fetchPatients = async () => {
+        const { data } = await getPatients(1, 100); // Fetch top 100 for now
+        setPatients(data || []);
+    };
 
     const fetchTickets = async () => {
         const { data, error } = await supabase
@@ -50,7 +61,7 @@ const RepairKanban = () => {
 
     // Abre modal vazio para criar
     const handleOpenNew = () => {
-        setFormData({ id: null, patient_name: '', patient_phone: '', device_brand: '', problem_description: '' });
+        setFormData({ id: null, patient_id: null, patient_name: '', patient_phone: '', device_brand: '', problem_description: '' });
         setIsModalOpen(true);
     };
 
@@ -58,6 +69,7 @@ const RepairKanban = () => {
     const handleOpenEdit = (ticket) => {
         setFormData({
             id: ticket.id,
+            patient_id: ticket.patient_id || null,
             patient_name: ticket.patient_name,
             patient_phone: ticket.patient_phone,
             device_brand: ticket.device_brand,
@@ -77,6 +89,7 @@ const RepairKanban = () => {
             const { error: updateError } = await supabase
                 .from('repair_tickets')
                 .update({
+                    patient_id: formData.patient_id,
                     patient_name: formData.patient_name,
                     patient_phone: formData.patient_phone,
                     device_brand: formData.device_brand,
@@ -160,51 +173,75 @@ const RepairKanban = () => {
                             <DialogTitle>{formData.id ? 'Editar OS' : 'Abrir Nova OS'}</DialogTitle>
                         </DialogHeader>
                         <div className="space-y-4 py-4">
-                            <div className="grid grid-cols-2 gap-4">
-                                <div className="space-y-2">
-                                    <Label>Nome do Paciente</Label>
-                                    <Input
-                                        value={formData.patient_name}
-                                        onChange={e => setFormData({ ...formData, patient_name: e.target.value })}
-                                        placeholder="Ex: Maria Silva"
+                            <div className="space-y-2">
+                                <Label>Vincular Paciente (Busca Automática)</Label>
+                                <div className="border rounded-md p-1">
+                                    <PatientCombobox
+                                        patients={patients}
+                                        value={formData.patient_id}
+                                        onChange={(val) => {
+                                            const p = patients.find(x => x.id === val);
+                                            if (p) {
+                                                setFormData({
+                                                    ...formData,
+                                                    patient_id: p.id,
+                                                    patient_name: p.name,
+                                                    patient_phone: p.phone || ''
+                                                });
+                                            } else {
+                                                setFormData({ ...formData, patient_id: val }); // If custom/cleared
+                                            }
+                                        }}
+                                        onPatientsUpdate={fetchPatients}
                                     />
                                 </div>
-                                <div className="space-y-2">
-                                    <Label>Telefone</Label>
-                                    <Input
-                                        value={formData.patient_phone}
-                                        onChange={e => setFormData({ ...formData, patient_phone: e.target.value })}
-                                        placeholder="(61) 99999-9999"
-                                    />
-                                </div>
                             </div>
-                            <div className="space-y-2">
-                                <Label>Marca / Modelo</Label>
-                                <Input
-                                    placeholder="Ex: Phonak Marvel M90"
-                                    value={formData.device_brand}
-                                    onChange={e => setFormData({ ...formData, device_brand: e.target.value })}
-                                />
-                            </div>
-                            <div className="space-y-2">
-                                <Label>Descrição do Problema</Label>
-                                <Textarea
-                                    placeholder="Ex: Aparelho mudo, troca de cápsula..."
-                                    value={formData.problem_description}
-                                    onChange={e => setFormData({ ...formData, problem_description: e.target.value })}
-                                    className="min-h-[100px]"
-                                />
-                            </div>
-                            <Button onClick={handleSave} className="w-full mt-2">
-                                {formData.id ? 'Salvar Alterações' : 'Gerar OS'}
-                            </Button>
                         </div>
+                        <div className="grid grid-cols-2 gap-4">
+                            <div className="space-y-2">
+                                <Label>Nome do Paciente</Label>
+                                <Input
+                                    value={formData.patient_name}
+                                    onChange={e => setFormData({ ...formData, patient_name: e.target.value })}
+                                    placeholder="Ex: Maria Silva"
+                                />
+                            </div>
+                            <div className="space-y-2">
+                                <Label>Telefone</Label>
+                                <Input
+                                    value={formData.patient_phone}
+                                    onChange={e => setFormData({ ...formData, patient_phone: e.target.value })}
+                                    placeholder="(61) 99999-9999"
+                                />
+                            </div>
+                        </div>
+                        <div className="space-y-2">
+                            <Label>Marca / Modelo</Label>
+                            <Input
+                                placeholder="Ex: Phonak Marvel M90"
+                                value={formData.device_brand}
+                                onChange={e => setFormData({ ...formData, device_brand: e.target.value })}
+                            />
+                        </div>
+                        <div className="space-y-2">
+                            <Label>Descrição do Problema</Label>
+                            <Textarea
+                                placeholder="Ex: Aparelho mudo, troca de cápsula..."
+                                value={formData.problem_description}
+                                onChange={e => setFormData({ ...formData, problem_description: e.target.value })}
+                                className="min-h-[100px]"
+                            />
+                        </div>
+                        <Button onClick={handleSave} className="w-full mt-2">
+                            {formData.id ? 'Salvar Alterações' : 'Gerar OS'}
+                        </Button>
+
                     </DialogContent>
-                </Dialog>
-            </div>
+                </Dialog >
+            </div >
 
             {/* ÁREA DO KANBAN */}
-            <div className="flex-1 overflow-x-auto pb-4 scrollbar-thin md:scrollbar-default">
+            < div className="flex-1 overflow-x-auto pb-4 scrollbar-thin md:scrollbar-default" >
                 <div className="flex gap-4 md:gap-6 min-w-max h-full px-1">
                     {COLUMNS.map(col => (
                         <div key={col.id} className={`w-[85vw] md:w-[320px] shrink-0 rounded-xl flex flex-col border shadow-sm ${col.color} snap-center`}>
@@ -240,6 +277,19 @@ const RepairKanban = () => {
 
                                                 {/* Botões Edit/Delete (Visíveis no Hover ou fixos) */}
                                                 <div className="flex gap-1 opacity-100 sm:opacity-0 sm:group-hover:opacity-100 transition-opacity">
+                                                    <Button
+                                                        variant="ghost"
+                                                        size="icon"
+                                                        className="h-6 w-6 text-muted-foreground hover:text-green-500"
+                                                        onClick={(e) => {
+                                                            e.stopPropagation();
+                                                            navigateToChat({ name: ticket.patient_name, phone: ticket.patient_phone });
+                                                        }}
+                                                        disabled={chatLoading}
+                                                        title="Abrir Conversa"
+                                                    >
+                                                        <MessageCircle className="w-3 h-3" />
+                                                    </Button>
                                                     <Button variant="ghost" size="icon" className="h-6 w-6 text-muted-foreground hover:text-blue-500" onClick={() => handleOpenEdit(ticket)}>
                                                         <Pencil className="w-3 h-3" />
                                                     </Button>
@@ -301,8 +351,8 @@ const RepairKanban = () => {
                         </div>
                     ))}
                 </div>
-            </div>
-        </div>
+            </div >
+        </div >
     );
 };
 

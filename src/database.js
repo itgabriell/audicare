@@ -430,6 +430,12 @@ export const deleteRepair = async (id) => {
   if (error) throw error;
 };
 
+export const getRepairsByPatientId = async (patientId) => {
+  const cid = await getClinicId();
+  const { data } = await supabase.from('repair_tickets').select('*').eq('clinic_id', cid).eq('patient_id', patientId).order('created_at', { ascending: false });
+  return data || [];
+};
+
 export const getDashboardMetrics = async () => {
   const clinicId = await getClinicId();
   if (!clinicId) return null;

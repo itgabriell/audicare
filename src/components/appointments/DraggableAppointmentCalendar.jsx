@@ -17,9 +17,10 @@ import {
   useSortable,
 } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
-import { ChevronLeft, ChevronRight, GripVertical } from 'lucide-react';
+import { ChevronLeft, ChevronRight, GripVertical, MessageCircle } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { useTheme } from '@/contexts/ThemeContext';
+import { useChatNavigation } from '@/hooks/useChatNavigation';
 
 const DraggableAppointment = memo(({ appointment, onAppointmentClick }) => {
   const { theme } = useTheme();
@@ -38,6 +39,8 @@ const DraggableAppointment = memo(({ appointment, onAppointmentClick }) => {
       appointment,
     },
   });
+
+  const { navigateToChat, loading: chatLoading } = useChatNavigation();
 
   const style = {
     transform: CSS.Transform.toString(transform),
@@ -112,6 +115,26 @@ const DraggableAppointment = memo(({ appointment, onAppointmentClick }) => {
               {appointment.appointment_type || appointment.title || 'Consulta'}
             </span>
           </div>
+
+          {/* Botão de Chat (Absolute or Inline) - Using inline for better layout control */}
+          {appointment.contact?.phone && (
+            <div className="absolute top-1 right-1 opacity-0 group-hover:opacity-100 transition-opacity">
+              <div
+                role="button"
+                className={`p-1 rounded-full bg-white/20 hover:bg-green-500/80 text-white ${chatLoading ? 'opacity-50 cursor-wait' : 'cursor-pointer'}`}
+                onClick={(e) => {
+                  e.stopPropagation();
+                  navigateToChat({
+                    name: appointment.contact?.name,
+                    phone: appointment.contact?.phone
+                  });
+                }}
+                title="Abrir Conversa"
+              >
+                <MessageCircle className="w-3 h-3" />
+              </div>
+            </div>
+          )}
 
           {/* Status */}
           <div className="flex items-center gap-1 mt-1">
