@@ -13,7 +13,8 @@ class ChatwootService {
         // In prod it might be https://api.audicarefono.com.br or /api via nginx
 
         // Try to detect environment or use a fixed var
-        const BACKEND_URL = import.meta.env.VITE_BACKEND_URL || 'http://localhost:4000';
+        // PRIORIDADE: VITE_API_BASE_URL (Produção definida no .env) -> VITE_BACKEND_URL (Legado) -> Localhost
+        const BACKEND_URL = import.meta.env.VITE_API_BASE_URL || import.meta.env.VITE_BACKEND_URL || 'http://localhost:4000';
 
         try {
             const response = await fetch(`${BACKEND_URL}/api/chatwoot-proxy`, {
