@@ -132,6 +132,15 @@ const AppointmentDialog = ({
       id: appointment?.id
     };
 
+    // Lógica para registrar horários de Chegada e Saída
+    if (data.status === 'arrived' && appointment?.status !== 'arrived') {
+      payload.arrival_time = new Date().toISOString();
+    }
+
+    if (data.status === 'completed' && appointment?.status !== 'completed') {
+      payload.completion_time = new Date().toISOString();
+    }
+
     delete payload.type;
 
     onSave(payload);
@@ -264,6 +273,7 @@ const AppointmentDialog = ({
                     <SelectContent>
                       <SelectItem value="scheduled">Agendado</SelectItem>
                       <SelectItem value="confirmed">Confirmado</SelectItem>
+                      <SelectItem value="arrived">Chegou</SelectItem>
                       <SelectItem value="completed">Concluído</SelectItem>
                       <SelectItem value="cancelled">Cancelado</SelectItem>
                       <SelectItem value="no_show">Não Compareceu</SelectItem>

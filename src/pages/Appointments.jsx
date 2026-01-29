@@ -200,14 +200,27 @@ const Appointments = () => {
         const patientName = patients.find((p) => p.id === savedAppointment.contact_id || p.id === savedAppointment.patient_id)?.name || 'Paciente';
         const appointmentDate = format(new Date(savedAppointment.start_time), "dd/MM/yyyy 'às' HH:mm", { locale: ptBR });
 
-        await createNotification({
-          type: 'appointment',
-          title: appointmentData.id ? 'Consulta reagendada' : 'Nova consulta agendada',
-          message: `Consulta de ${patientName} para ${appointmentDate}`,
-          related_entity_type: 'appointment',
-          related_entity_id: savedAppointment.id,
-          metadata: { appointment_id: savedAppointment.id }
-        });
+        // Notificação de CHEGADA
+        if (savedAppointment.status === 'arrived') {
+          await createNotification({
+            type: 'patient_arrived',
+            title: 'Paciente Chegou',
+            message: `${patientName} chegou para a consulta de ${format(new Date(savedAppointment.start_time), "HH:mm")}.`,
+            related_entity_type: 'appointment',
+            related_entity_id: savedAppointment.id,
+            metadata: { appointment_id: savedAppointment.id }
+          });
+        } else {
+          // Notificação padrão
+          await createNotification({
+            type: 'appointment',
+            title: appointmentData.id ? 'Consulta atualizada' : 'Nova consulta agendada',
+            message: `Consulta de ${patientName} para ${appointmentDate}`,
+            related_entity_type: 'appointment',
+            related_entity_id: savedAppointment.id,
+            metadata: { appointment_id: savedAppointment.id }
+          });
+        }
       } catch (e) { console.warn('Erro notificação:', e); }
 
       setDialogOpen(false);

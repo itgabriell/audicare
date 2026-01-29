@@ -19,7 +19,10 @@ const PatientCard = ({ patient, onEdit, onDelete }) => {
     const phoneToUse = primaryPhone?.phone || patient.phone;
 
     if (phoneToUse) {
-      navigate(`/inbox?phone=${phoneToUse.replace(/\D/g, '')}`);
+      const cleanPhone = phoneToUse.replace(/\D/g, '');
+      const encodedName = encodeURIComponent(patient.name || 'Paciente');
+      const encodedEmail = encodeURIComponent(patient.email || '');
+      navigate(`/inbox?phone=${cleanPhone}&name=${encodedName}&email=${encodedEmail}`);
     }
   }, [patient.phone, patient.phones, navigate]);
 

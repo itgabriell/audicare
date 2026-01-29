@@ -27,9 +27,21 @@ class ChatwootService {
 
     async findContact(phone) {
         try {
-            const cleanPhone = phone.replace(/\D/g, '');
-            // Proxy GET request
-            // Original: /api/v1/accounts/{id}/contacts/search?q={phone}
+            // E.164 Standard: +<country><number>
+            // Ensure we search with the '+' if searching by phone_number specifically, 
+            // BUT Chatwoot search endpoint 'q' allows partials usually. 
+            // However, to be precise, we should strip everything and ensure country code.
+
+            let cleanPhone = phone.replace(/\D/g, '');
+            if (!cleanPhone.startsWith('55') && cleanPhone.length > 9) {
+                // Assume Brazil if no country code and it looks like a full number (10 or 11 digits)
+                // But be careful not to double add if user inputted 55...
+                // Safe assumption for this specific app context:
+                cleanPhone = `55${cleanPhone}`;
+            }
+
+            // Chatwoot often indexes by the full E.164 string like '+55...'
+            // We search for the number included in the string
             const data = await this._invokeProxy('GET', `/contacts/search?q=${cleanPhone}`);
             return data.payload && data.payload.length > 0 ? data.payload[0] : null;
         } catch (error) {
@@ -40,20 +52,30 @@ class ChatwootService {
 
     async createContact(contactData) {
         try {
+            let cleanPhone = contactData.phone.replace(/\D/g, '');
+            if (!cleanPhone.startsWith('55') && cleanPhone.length > 9) {
+                cleanPhone = `55${cleanPhone}`;
+            }
+
             const payload = {
                 name: contactData.name,
-                email: contactData.email,
-                phone_number: `+${contactData.phone.replace(/\D/g, '')}`
+                phone_number: `+${cleanPhone}` // Strict E.164 for creation
             };
+
+            if (contactData.email) {
+                payload.email = contactData.email;
+            }
 
             // Proxy POST request
             const data = await this._invokeProxy('POST', `/contacts`, payload);
             return data.payload.contact;
         } catch (error) {
-            // Simple error handling for duplicate contacts, though the proxy might mask the 422 status structure.
-            // Needs robust handling in real-world, but fallback to findContact is safe.
             console.warn('Erro ao criar contato (possível duplicidade):', error);
-            return this.findContact(contactData.phone);
+            // Fallback: try finding it again with the strict formatted phone
+            let cleanPhone = contactData.phone.replace(/\D/g, '');
+            if (!cleanPhone.startsWith('55') && cleanPhone.length > 9) cleanPhone = `55${cleanPhone}`;
+
+            return this.findContact(cleanPhone);
         }
     }
 
@@ -83,14 +105,21 @@ class ChatwootService {
             if (!phone) throw new Error('Paciente sem telefone');
 
             const cleanPhone = phone.replace(/\D/g, '');
-            const formattedPhone = cleanPhone.startsWith('55') ? cleanPhone : `55${cleanPhone}`;
+
+            // Format phone for search (checking country code)
+            let formattedPhone = cleanPhone;
+            if (!cleanPhone.startsWith('55') && cleanPhone.length > 9) {
+                formattedPhone = `55${cleanPhone}`;
+            }
 
             let contact = await this.findContact(formattedPhone);
+
             if (!contact) {
+                // If not found, create strictly
                 contact = await this.createContact({
                     name: patient.name,
-                    phone: formattedPhone,
-                    email: patient.email
+                    phone: formattedPhone, // Already has 55, createContact adds +
+                    email: patient.email || undefined // Pass undefined if null/empty
                 });
             }
 

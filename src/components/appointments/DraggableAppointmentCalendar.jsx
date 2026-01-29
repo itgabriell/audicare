@@ -50,7 +50,7 @@ const DraggableAppointment = memo(({ appointment, onAppointmentClick }) => {
   const getStatusColor = (status) => {
     switch (status) {
       case 'confirmed': return theme === 'dark' ? 'bg-green-700' : 'bg-green-500';
-      case 'arrived': return theme === 'dark' ? 'bg-blue-700' : 'bg-blue-500';
+      case 'arrived': return theme === 'dark' ? 'bg-blue-600' : 'bg-blue-500';
       case 'completed': return theme === 'dark' ? 'bg-gray-700' : 'bg-gray-500';
       case 'no_show': return theme === 'dark' ? 'bg-red-700' : 'bg-red-500';
       case 'cancelled': return theme === 'dark' ? 'bg-gray-600' : 'bg-gray-400';
@@ -161,7 +161,7 @@ const DroppableTimeSlot = memo(({
       >
         {appointments.map(app => (
           <DraggableAppointment
-            key={app.id}
+            key={`${app.id}-${app.status}`}
             appointment={app}
             onAppointmentClick={onAppointmentClick}
           />

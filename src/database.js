@@ -235,7 +235,7 @@ export const updateAppointment = async (arg1, arg2) => {
     'clinic_id', 'patient_id', 'professional_id', 'appointment_date',
     'status', 'appointment_type', 'duration', 'notes', 'obs',
     'contact_id', 'title', 'start_time', 'end_time',
-    'location', 'professional_name'
+    'location', 'professional_name', 'arrival_time', 'completion_time'
   ];
 
   const cleanUpdates = Object.keys(updates)

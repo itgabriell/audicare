@@ -7,7 +7,8 @@ import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Badge } from '@/components/ui/badge';
 import { useToast } from '@/components/ui/use-toast';
 import { ArrowLeft, Edit, Trash2, User, MessageCircle, Stethoscope } from 'lucide-react';
-import { getPatientById, deletePatient, updatePatient, getContactByPatientId, getPatientTags } from '@/database';
+import { getPatientById, deletePatient, updatePatient, getContactByPatientId, getPatientTags, addAppointment, createNotification } from '@/database';
+import AppointmentDialog from '@/components/appointments/AppointmentDialog';
 
 import PatientInfo from '@/components/patients/PatientInfo';
 import PatientHistory from '@/components/patients/PatientHistory';
@@ -27,6 +28,8 @@ const PatientDetails = () => {
   const [patientTags, setPatientTags] = useState([]);
   const [loading, setLoading] = useState(true);
   const [isDialogOpen, setIsDialogOpen] = useState(false);
+  const [apptDialogOpen, setApptDialogOpen] = useState(false);
+  const [apptInitialData, setApptInitialData] = useState(null);
 
   const fetchPatient = async () => {
     try {
@@ -66,6 +69,46 @@ const PatientDetails = () => {
 
   useEffect(() => { fetchPatient(); }, [id]);
 
+  useEffect(() => {
+    const handleOpenDialog = (e) => {
+      if (e.detail?.patientId === id) {
+        setApptInitialData({
+          leadId: id, // AppointmentDialog uses 'leadId' for patient pre-selection
+          date: new Date()
+        });
+        setApptDialogOpen(true);
+      }
+    };
+    window.addEventListener('open-appointment-dialog', handleOpenDialog);
+    return () => window.removeEventListener('open-appointment-dialog', handleOpenDialog);
+  }, [id]);
+
+  const handleAppointmentSave = async (data) => {
+    try {
+      // Garante que o paciente está selecionado
+      const payload = { ...data, patient_id: id };
+      const saved = await addAppointment(payload);
+
+      toast({ title: "Sucesso", description: "Agendamento criado!" });
+      setApptDialogOpen(false);
+
+      // Notificação opcional
+      try {
+        await createNotification({
+          type: 'appointment',
+          title: 'Nova consulta (Via Perfil)',
+          message: `Agendamento criado para ${patient.name}`,
+          related_entity_type: 'appointment',
+          related_entity_id: saved.id
+        });
+      } catch (e) { console.warn(e); }
+
+    } catch (err) {
+      console.error(err);
+      toast({ variant: "destructive", title: "Erro", description: "Falha ao criar agendamento." });
+    }
+  };
+
   const handleDelete = async () => {
     if (window.confirm('Tem certeza que deseja excluir este paciente?')) {
       try {
@@ -90,18 +133,18 @@ const PatientDetails = () => {
   };
 
   const handleMessage = () => {
-    if (contact && contact.phone) {
-      navigate(`/inbox?phone=${contact.phone.replace(/\D/g, '')}`);
-    } else {
-      // Lógica simplificada: No seu banco atual, 'phone' é uma coluna direta, não uma lista.
-      // Removemos a busca por 'phones.find' pois a tabela patient_phones não existe no seu schema.
-      const phoneToUse = patient.phone;
+    // Determina qual objeto usar (Contato CRM ou Paciente direto)
+    const target = contact || patient;
+    const phoneToUse = target.phone;
 
-      if (phoneToUse) {
-        navigate(`/inbox?phone=${phoneToUse.replace(/\D/g, '')}`);
-      } else {
-        toast({ variant: "destructive", title: "Indisponível", description: "Paciente sem telefone cadastrado." });
-      }
+    if (phoneToUse) {
+      const cleanPhone = phoneToUse.replace(/\D/g, '');
+      const encodedName = encodeURIComponent(target.name || 'Paciente');
+      const encodedEmail = encodeURIComponent(target.email || '');
+
+      navigate(`/inbox?phone=${cleanPhone}&name=${encodedName}&email=${encodedEmail}`);
+    } else {
+      toast({ variant: "destructive", title: "Indisponível", description: "Paciente sem telefone cadastrado." });
     }
   };
 
@@ -204,6 +247,17 @@ const PatientDetails = () => {
       </Tabs>
 
       <PatientDialog open={isDialogOpen} onOpenChange={setIsDialogOpen} patient={patient} onSave={handleUpdate} />
+
+      {/* Dialog de Agendamento */}
+      <AppointmentDialog
+        open={apptDialogOpen}
+        onOpenChange={setApptDialogOpen}
+        onSave={handleAppointmentSave}
+        initialData={apptInitialData}
+        patients={[patient]} // Passa apenas este paciente
+        onDelete={() => { }} // Não implementado exclusão aqui por enquanto
+        appointment={null} // Sempre cria novo por aqui
+      />
     </div>
   );
 };
