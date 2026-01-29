@@ -51,7 +51,7 @@ const corsOptions = {
         return callback(null, true);
     },
     methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS', 'PATCH'],
-    allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With', 'Accept', 'Origin', 'api_access_token'],
+    allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With', 'Accept', 'Origin', 'api_access_token', 'x-api-key'],
     credentials: true,
     optionsSuccessStatus: 200
 };
