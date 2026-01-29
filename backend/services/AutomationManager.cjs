@@ -828,7 +828,7 @@ class AutomationManager {
    */
   async processAppointmentCreated(appointmentId) {
     try {
-      console.log(`🆕 [AutomationManager] Novo agendamento criado: ${appointmentId}`);
+      console.log(`🚀 [AutomationManager] INICIANDO TRIGGER: appointment_created para ID ${appointmentId}`);
 
       // 1. Buscar automações ativas para este evento
       const { data: automations, error } = await supabase
@@ -837,14 +837,26 @@ class AutomationManager {
         .eq('trigger_type', 'event')
         .eq('status', 'active');
 
-      if (error) throw error;
+      if (error) {
+        console.error('❌ [AutomationManager] Erro ao buscar automações:', error.message);
+        throw error;
+      }
+
+      console.log(`📋 [AutomationManager] Automações ativas encontradas: ${automations?.length || 0}`);
 
       // Filtrar no código pois o campo é JSONB ou texto variado
-      const relevantAutomations = automations?.filter(auto =>
-        auto.trigger_config?.event_type === 'appointment_created'
-      ) || [];
+      const relevantAutomations = automations?.filter(auto => {
+        const isMatch = auto.trigger_config?.event_type === 'appointment_created';
+        console.log(`   - Automação "${auto.name}": Match? ${isMatch}`);
+        return isMatch;
+      }) || [];
 
-      if (relevantAutomations.length === 0) return { success: true, reason: 'no_automations' };
+      console.log(`🎯 [AutomationManager] Automações RELEVANTES para este evento: ${relevantAutomations.length}`);
+
+      if (relevantAutomations.length === 0) {
+        console.warn('⚠️ [AutomationManager] Nenhuma automação configurada para appointment_created. Saindo.');
+        return { success: true, reason: 'no_automations' };
+      }
 
       // 2. Buscar dados completos do agendamento
       const { data: appointment, error: aptError } = await supabase
@@ -856,33 +868,53 @@ class AutomationManager {
         .eq('id', appointmentId)
         .single();
 
-      if (aptError || !appointment) throw new Error('Agendamento não encontrado');
+      if (aptError || !appointment) {
+        console.error('❌ [AutomationManager] Agendamento não encontrado no banco.');
+        throw new Error('Agendamento não encontrado');
+      }
 
       const patient = appointment.patients;
-      if (!patient) throw new Error('Paciente não encontrado');
+      if (!patient) {
+        console.error('❌ [AutomationManager] Paciente não encontrado para este agendamento.');
+        throw new Error('Paciente não encontrado');
+      }
+
+      console.log(`👤 [AutomationManager] Paciente: ${patient.name} (ID: ${patient.id})`);
 
       const phoneNumber = this.getPrimaryPhoneNumber(patient);
-      if (!phoneNumber) return { success: false, reason: 'no_phone' };
+      console.log(`📱 [AutomationManager] Telefone identificado: ${phoneNumber}`);
+
+      if (!phoneNumber) {
+        console.warn('⚠️ [AutomationManager] Paciente sem telefone válido. Abortando.');
+        return { success: false, reason: 'no_phone' };
+      }
 
       // 3. Executar automações
       for (const automation of relevantAutomations) {
+        console.log(`▶️ [AutomationManager] Executando automação: ${automation.name}`);
+
         const message = this.processTemplate(automation.action_config.message_template, { patient, appointment });
-        await this.sendViaChatwoot(phoneNumber, message);
+        console.log(`📝 [AutomationManager] Mensagem gerada: "${message}"`);
+
+        const result = await this.sendViaChatwoot(phoneNumber, message);
+        console.log(`📨 [AutomationManager] Resultado envio:`, result);
 
         // Logar execução (simplificado)
-        await supabase.from('automation_execution_logs').insert({
-          target_phone: phoneNumber,
-          target_name: patient.name,
-          status: 'sent',
-          message_content: message, // Se tiver coluna
-          automation_id: automation.id
-        });
+        if (result.success) {
+          await supabase.from('automation_execution_logs').insert({
+            target_phone: phoneNumber,
+            target_name: patient.name,
+            status: 'sent',
+            // message_content: message, // Se tiver coluna
+            automation_id: automation.id
+          });
+        }
       }
 
       return { success: true, triggered: relevantAutomations.length };
 
     } catch (error) {
-      console.error('❌ Erro processAppointmentCreated:', error.message);
+      console.error('❌ [AutomationManager] ERRO FATAL processAppointmentCreated:', error.message);
       return { success: false, error: error.message };
     }
   }
