@@ -78,7 +78,7 @@ const DraggableAppointment = memo(({ appointment, onAppointmentClick }) => {
       {...attributes}
       className={`${getStatusColor(appointment.status)}/20 text-primary-foreground p-2 rounded-md text-xs mb-1 hover:bg-opacity-30 transition-colors group cursor-move border-l-4 ${getStatusColor(appointment.status)} overflow-hidden`}
     >
-      <div className="flex items-start gap-1">
+      <div className="flex items-start gap-1 min-w-0">
         <GripVertical
           {...listeners}
           className="h-3 w-3 text-primary/60 group-hover:text-primary/80 mt-0.5 opacity-0 group-hover:opacity-100 transition-opacity cursor-grab active:cursor-grabbing"
@@ -322,7 +322,7 @@ const DraggableAppointmentCalendar = ({
       <div className="overflow-x-auto bg-card rounded-lg border">
         <div
           className="grid w-full"
-          style={{ gridTemplateColumns: 'auto repeat(6, 1fr)' }}
+          style={{ gridTemplateColumns: '60px repeat(6, 1fr)' }}
         >
           {/* Time column header */}
           <div className="sticky left-0 bg-card z-10 p-2"></div>
