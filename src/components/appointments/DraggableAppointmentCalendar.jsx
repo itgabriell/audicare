@@ -321,7 +321,7 @@ const DraggableAppointmentCalendar = ({
 
       <div className="overflow-x-auto bg-card rounded-lg border">
         <div
-          className="grid w-full min-w-[700px]"
+          className="grid w-full"
           style={{ gridTemplateColumns: 'auto repeat(6, 1fr)' }}
         >
           {/* Time column header */}
