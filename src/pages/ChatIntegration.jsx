@@ -8,7 +8,7 @@ import DraggableAppointmentCalendar from '@/components/appointments/DraggableApp
 import { getPatients, addAppointment, createNotification } from '@/database';
 import { useToast } from '@/components/ui/use-toast';
 import { Button } from '@/components/ui/button';
-import { Dialog, DialogContent } from "@/components/ui/dialog";
+import { Dialog, DialogContent, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import { format } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 import { useAppointments } from '@/hooks/useAppointments';
@@ -252,10 +252,15 @@ const ChatIntegration = () => {
       <Dialog open={isCalendarOpen} onOpenChange={setIsCalendarOpen}>
         <DialogContent className="max-w-6xl h-[85vh] flex flex-col p-6 rounded-3xl bg-slate-50 dark:bg-slate-950">
           <div className="flex justify-between items-center mb-0">
-            <h2 className="text-2xl font-bold flex items-center gap-2">
-              <Calendar className="w-6 h-6 text-primary" />
-              Consultar Agenda
-            </h2>
+            <div className="mb-0">
+              <DialogTitle className="text-2xl font-bold flex items-center gap-2">
+                <Calendar className="w-6 h-6 text-primary" />
+                Consultar Agenda
+              </DialogTitle>
+              <DialogDescription className="text-muted-foreground mt-1">
+                Visualize e gerencie os agendamentos da semana.
+              </DialogDescription>
+            </div>
             <Button variant="outline" onClick={() => setCurrentDate(new Date())}>Voltar para Hoje</Button>
           </div>
           <div className="flex-1 overflow-hidden border rounded-xl bg-white dark:bg-slate-900 shadow-sm mt-4">
