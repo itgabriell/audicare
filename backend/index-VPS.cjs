@@ -123,6 +123,14 @@ const authMiddleware = require('./middleware/authMiddleware.cjs');
 
 if (automationManager) {
     console.log('✅ Registrando rotas de automação...');
+
+    // Middleware de Debug para Automações - Loga TUDO que chega aqui
+    app.use('/api/automations', (req, res, next) => {
+        console.log(`📡 [API REQUEST] ${req.method} ${req.originalUrl}`);
+        console.log(`   Headers: x-api-key=${req.headers['x-api-key'] ? 'PRESENT (' + req.headers['x-api-key'].substring(0, 3) + '...)' : 'MISSING'}`);
+        next();
+    });
+
     app.use('/api/automations', authMiddleware);
 
     app.get('/api/automations', async (req, res) => {
