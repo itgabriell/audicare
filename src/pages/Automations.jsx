@@ -24,6 +24,11 @@ const Automations = () => {
     const [dialogOpen, setDialogOpen] = useState(false);
     const [editingAutomation, setEditingAutomation] = useState(null);
     const [saving, setSaving] = useState(false);
+    const [processingAutomationId, setProcessingAutomationId] = useState(null);
+    const [runDialogOpen, setRunDialogOpen] = useState(false);
+    const [selectedAutomation, setSelectedAutomation] = useState(null);
+    const [reportDialogOpen, setReportDialogOpen] = useState(false);
+    const [executionResult, setExecutionResult] = useState(null);
     const { toast } = useToast();
     const { user } = useAuth();
 
@@ -125,31 +130,42 @@ const Automations = () => {
         }
     };
 
-    const handleExecuteAutomation = async (automation) => {
-        try {
-            toast({
-                title: 'Executando automação...',
-                description: `Iniciando execução da automação "${automation.name}".`,
-            });
+    const handleRunAutomation = async (automation, mode) => {
+        setProcessingAutomationId(automation.id);
+        setRunDialogOpen(false);
 
-            // Usar rota do backend ao invés do AutomationService
+        try {
             const apiUrl = import.meta.env.VITE_API_BASE_URL || 'https://api.audicarefono.com.br';
-            const response = await fetch(`${apiUrl}/api/automations/${automation.id}/test`, {
+            let endpoint = '';
+            let body = {};
+
+            if (mode === 'test') {
+                endpoint = `/api/automations/${automation.id}/test`;
+                body = { phone: '11999999999' };
+                toast({ title: 'Iniciando Teste...', description: 'Enviando mensagem de teste.' });
+            } else {
+                endpoint = `/api/automations/${automation.id}/execute`;
+                toast({ title: 'Iniciando Execução em Massa...', description: 'Isso pode levar alguns instantes.' });
+            }
+
+            const response = await fetch(`${apiUrl}${endpoint}`, {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
                     'x-api-key': import.meta.env.VITE_INTERNAL_API_KEY
                 },
-                body: JSON.stringify({ phone: '11999999999' }) // Número de teste
+                body: JSON.stringify(body)
             });
 
             const result = await response.json();
 
             if (result.success) {
-                toast({
-                    title: 'Teste executado',
-                    description: `Mensagem de teste enviada com sucesso.`,
-                });
+                if (mode === 'execute') {
+                    setExecutionResult(result);
+                    setReportDialogOpen(true);
+                } else {
+                    toast({ title: 'Teste enviado!', description: 'Verifique seu WhatsApp.' });
+                }
             } else {
                 throw new Error(result.error || 'Erro na execução');
             }
@@ -157,10 +173,12 @@ const Automations = () => {
         } catch (error) {
             console.error('Error executing automation:', error);
             toast({
-                title: 'Erro na execução',
-                description: error.message || 'Não foi possível executar a automação.',
+                title: 'Erro',
+                description: error.message,
                 variant: 'destructive'
             });
+        } finally {
+            setProcessingAutomationId(null);
         }
     };
 
@@ -332,11 +350,17 @@ const Automations = () => {
                                                         <Button
                                                             variant="ghost"
                                                             size="icon"
-                                                            onClick={() => handleExecuteAutomation(automation)}
+                                                            onClick={() => {
+                                                                setSelectedAutomation(automation);
+                                                                setRunDialogOpen(true);
+                                                            }}
                                                             title="Executar automação"
                                                             className="h-8 w-8 rounded-full hover:bg-emerald-50 hover:text-emerald-600 dark:hover:bg-emerald-900/20 dark:hover:text-emerald-400"
                                                         >
-                                                            <Play className="h-4 w-4" />
+                                                            {processingAutomationId === automation.id ?
+                                                                <div className="h-4 w-4 animate-spin rounded-full border-2 border-emerald-600 border-t-transparent" /> :
+                                                                <Play className="h-4 w-4" />
+                                                            }
                                                         </Button>
                                                         <Button
                                                             variant="ghost"

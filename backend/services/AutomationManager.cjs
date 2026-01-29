@@ -140,6 +140,19 @@ class AutomationManager {
 
         console.log(`✅ [AutomationManager] Automação ${automation.name} concluída: ${successCount} sucesso(s), ${failureCount} falha(s)`);
 
+        // CRIAR NOTIFICAÇÃO DE SISTEMA
+        await this.createSystemNotification({
+          title: 'Automação Finalizada',
+          message: `Automação "${automation.name}" concluída. Enviados: ${successCount}, Falhas: ${failureCount}.`,
+          type: 'system',
+          metadata: {
+            automation_id: automation.id,
+            execution_id: execution.id,
+            success_count: successCount,
+            failure_count: failureCount
+          }
+        });
+
         return {
           success: true,
           automationId,
@@ -159,6 +172,13 @@ class AutomationManager {
           })
           .eq('id', execution.id);
 
+        await this.createSystemNotification({
+          title: 'Erro na Automação',
+          message: `Falha ao executar "${automation.name}": ${execError.message}`,
+          type: 'error',
+          metadata: { automation_id: automationId, error: execError.message }
+        });
+
         throw execError;
       }
 
@@ -169,6 +189,44 @@ class AutomationManager {
         automationId,
         error: error.message
       };
+    }
+  }
+
+  /**
+   * Cria uma notificação no sistema (Tabela notifications)
+   */
+  async createSystemNotification({ title, message, type, metadata }) {
+    try {
+      // Tenta buscar um usuário admin ou o primeiro usuário para atribuir a notificação
+      // Idealmente seria para todos os admins, mas vamos simplificar pegando um usuário válido
+      // ou deixando user_id null se a tabela permitir (geralmente notifications requer user_id)
+
+      // Estratégia: Inserir sem user_id se for notificação global, ou buscar um admin
+      // Vamos tentar inserir com um user padrão ou buscar o dono da automação se possível.
+      // Como aqui não tenho o user context, vou tentar buscar o primeiro user da tabela auth (via hack ou query se possível, mas auth é protegido).
+      // Melhor: Buscar na tabela profiles um admin.
+
+      const { data: admin } = await supabase
+        .from('profiles')
+        .select('id')
+        .eq('role', 'admin') // Assumindo coluna role
+        .limit(1)
+        .single();
+
+      const targetUserId = admin?.id;
+
+      if (targetUserId) {
+        await supabase.from('notifications').insert({
+          user_id: targetUserId,
+          type: type || 'info', // system, alert, info
+          title,
+          message,
+          metadata: metadata || {},
+          read: false
+        });
+      }
+    } catch (error) {
+      console.warn('⚠️ Falha ao criar notificação de sistema:', error.message);
     }
   }
 
