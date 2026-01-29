@@ -1,14 +1,17 @@
-import React, { useState, useEffect } from 'react';
-import { Loader2, CalendarPlus } from 'lucide-react';
+import React, { useState, useEffect, useCallback } from 'react';
+import { Loader2, CalendarPlus, Calendar, Plus } from 'lucide-react';
 import { useSearchParams } from 'react-router-dom';
 
 import { chatwootService } from '@/services/chatwootService';
 import AppointmentDialog from '@/components/appointments/AppointmentDialog';
+import DraggableAppointmentCalendar from '@/components/appointments/DraggableAppointmentCalendar';
 import { getPatients, addAppointment, createNotification } from '@/database';
 import { useToast } from '@/components/ui/use-toast';
 import { Button } from '@/components/ui/button';
+import { Dialog, DialogContent } from "@/components/ui/dialog";
 import { format } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
+import { useAppointments } from '@/hooks/useAppointments';
 
 const ChatIntegration = () => {
   const [isLoading, setIsLoading] = useState(true);
@@ -21,15 +24,21 @@ const ChatIntegration = () => {
   const [initialDialogData, setInitialDialogData] = useState(null);
   const { toast } = useToast();
 
+  // States for Calendar View
+  const [isCalendarOpen, setIsCalendarOpen] = useState(false);
+  const [currentDate, setCurrentDate] = useState(new Date());
+
+  // Use the hook for appointments data
+  const { appointments, loading: loadingAppointments, refetch: loadAppointments } = useAppointments();
+
   // URL Base do Chatwoot
-  // NOTA: Idealmente, deveria vir de uma variável de ambiente, mas mantendo o padrão já existente
   const BASE_URL = "https://chat.audicarefono.com.br";
 
   // Fetch Patients for Combobox
   useEffect(() => {
     const fetchPatients = async () => {
       try {
-        const patientsData = await getPatients(1, 1000); // Fetch enough patients
+        const patientsData = await getPatients(1, 1000);
         setPatients(Array.isArray(patientsData?.data) ? patientsData.data : []);
       } catch (error) {
         console.error("Erro ao carregar pacientes para o chat:", error);
@@ -45,23 +54,20 @@ const ChatIntegration = () => {
         const conversationId = searchParams.get('conversation_id');
         const accountId = searchParams.get('account_id') || '2';
 
-        // Caso 1: ID da conversa já fornecido (Link direto)
         if (conversationId) {
           setComputedUrl(`${BASE_URL}/app/accounts/${accountId}/conversations/${conversationId}`);
           return;
         }
 
-        // Caso 2: Temos telefone? Tentar resolver a conversa
         const phone = searchParams.get('phone');
         const name = searchParams.get('name');
         const email = searchParams.get('email');
 
         if (phone) {
-          // Simula um objeto paciente para o serviço
           const patientMock = {
             name: name || 'Visitante',
             email: email || '',
-            phone: phone // O serviço já trata a limpeza
+            phone: phone
           };
 
           try {
@@ -72,11 +78,9 @@ const ChatIntegration = () => {
             }
           } catch (err) {
             console.error("Falha ao resolver conversa Chatwoot:", err);
-            // Se falhar, cai no dashboard, mas loga o erro
           }
         }
 
-        // Caso 3: Fallback para Dashboard
         setComputedUrl(`${BASE_URL}/app/accounts/${accountId}/dashboard`);
 
       } finally {
@@ -85,16 +89,14 @@ const ChatIntegration = () => {
     };
 
     resolveUrl();
-  }, [searchParams]); // Re-executa se os parâmetros mudarem
+  }, [searchParams]);
 
-  // Handle Quick Schedule Click
-  const handleOpenSchedule = () => {
-    // Tenta pre-preencher com dados da URL se houver
+  // Helper to find patient context
+  const getContextPatientId = () => {
     const name = searchParams.get('name');
     const phone = searchParams.get('phone');
-    const leadId = searchParams.get('leadId'); // Se vier de algum lugar
+    const leadId = searchParams.get('leadId');
 
-    // Tentar encontrar paciente pelo nome ou telefone na lista carregada
     let preSelectedPatientId = leadId || '';
 
     if (!preSelectedPatientId && (name || phone)) {
@@ -105,27 +107,44 @@ const ChatIntegration = () => {
       });
       if (found) preSelectedPatientId = found.id;
     }
+    return preSelectedPatientId;
+  };
 
+  // Handle Quick Schedule Click
+  const handleOpenSchedule = () => {
     setInitialDialogData({
-      date: new Date(), // Hoje
-      time: null,       // Próxima hora (lógica do Dialog)
-      leadId: preSelectedPatientId // O Dialog usa 'leadId' ou 'patient_id' no reset logic
+      date: new Date(),
+      time: null,
+      leadId: getContextPatientId()
     });
     setIsAppointmentDialogOpen(true);
   };
 
-  // Handle Save (Copied largely from Appointments.jsx for consistency)
+  // Handle Calendar Slot Click
+  const handleSlotClick = useCallback((date, time) => {
+    // 1. Close Calendar
+    setIsCalendarOpen(false);
+
+    // 2. Open Appointment Dialog with selected slot
+    setInitialDialogData({
+      date: date,
+      time: time,
+      leadId: getContextPatientId() // Still try to attach patient context
+    });
+    setIsAppointmentDialogOpen(true);
+  }, [patients, searchParams]);
+
+  // Handle Save
   const handleSaveAppointment = async (appointmentData) => {
     try {
-      // 1. Salvar no banco
       const savedAppointment = await addAppointment(appointmentData);
 
       toast({ title: "Sucesso", description: "Agendamento criado via Inbox!" });
       setIsAppointmentDialogOpen(false);
       setInitialDialogData(null);
+      loadAppointments(); // Refresh calendar data
 
-      // 2. Disparar Automação (Mesma lógica do Appointments.jsx)
-      // Disparar automação APENAS para novos agendamentos (aqui sempre é novo)
+      // Automation Trigger
       try {
         const API_BASE = import.meta.env.VITE_API_BASE_URL || 'https://api.audicarefono.com.br';
         const API_KEY = import.meta.env.VITE_INTERNAL_API_KEY;
@@ -155,7 +174,7 @@ const ChatIntegration = () => {
 
       } catch (e) { console.warn("Erro ao tentar disparar automação (Inbox):", e); }
 
-      // 3. Notificação Interna
+      // Internal Notification
       try {
         const patientName = patients.find((p) => p.id === savedAppointment.contact_id || p.id === savedAppointment.patient_id)?.name || 'Paciente';
         const appointmentDate = format(new Date(savedAppointment.start_time), "dd/MM/yyyy 'às' HH:mm", { locale: ptBR });
@@ -176,7 +195,7 @@ const ChatIntegration = () => {
     }
   };
 
-  if (!computedUrl) return null; // Ou um loading spin inicial
+  if (!computedUrl) return null;
 
   return (
     <div className="flex-1 h-full w-full relative bg-slate-50 dark:bg-slate-950 rounded-3xl overflow-hidden border border-slate-200 dark:border-slate-800 shadow-sm group">
@@ -194,7 +213,7 @@ const ChatIntegration = () => {
       )}
       <div className="w-full h-full">
         <iframe
-          key={computedUrl} // Força re-render real quando URL muda
+          key={computedUrl}
           src={computedUrl}
           className="w-full h-full border-none"
           style={{ width: '100%', height: '100%' }}
@@ -204,16 +223,44 @@ const ChatIntegration = () => {
         />
       </div>
 
-      {/* Floating Action Button (FAB) for Scheduling */}
-      <div className="absolute bottom-6 right-6 z-20">
+      {/* Floating Action Buttons */}
+      <div className="absolute bottom-6 right-6 z-20 flex flex-col gap-3 items-end">
+        {/* View Calendar Button */}
+        <Button
+          onClick={() => setIsCalendarOpen(true)}
+          className="h-12 w-12 rounded-full shadow-lg shadow-black/10 hover:scale-105 transition-transform bg-white dark:bg-slate-800 hover:bg-slate-50 text-slate-700 dark:text-slate-200 border border-slate-200 dark:border-slate-700"
+          title="Ver Agenda / Disponibilidade"
+        >
+          <Calendar className="h-5 w-5" />
+        </Button>
+
+        {/* Quick Schedule Button */}
         <Button
           onClick={handleOpenSchedule}
           className="h-14 w-14 rounded-full shadow-xl shadow-primary/30 hover:scale-110 transition-transform bg-primary hover:bg-primary/90 text-white flex items-center justify-center border-4 border-white dark:border-slate-900"
           title="Agendar Consulta Rápida"
         >
-          <CalendarPlus className="h-6 w-6" />
+          <Plus className="h-6 w-6" />
         </Button>
       </div>
+
+      {/* Calendar View Modal */}
+      <Dialog open={isCalendarOpen} onOpenChange={setIsCalendarOpen}>
+        <DialogContent className="max-w-5xl h-[80vh] flex flex-col p-6 rounded-3xl">
+          <div className="flex justify-between items-center mb-4">
+            <h2 className="text-xl font-bold">Consultar Agenda</h2>
+            <Button variant="outline" onClick={() => setCurrentDate(new Date())}>Hoje</Button>
+          </div>
+          <div className="flex-1 overflow-hidden border rounded-xl bg-slate-50/50">
+            <DraggableAppointmentCalendar
+              currentDate={currentDate}
+              appointments={appointments}
+              onSlotClick={handleSlotClick}
+              onAppointmentClick={() => { }}
+            />
+          </div>
+        </DialogContent>
+      </Dialog>
 
       {/* Shared Appointment Dialog */}
       <AppointmentDialog
@@ -222,8 +269,8 @@ const ChatIntegration = () => {
         onSave={handleSaveAppointment}
         initialData={initialDialogData}
         patients={patients}
-        onDelete={() => { }} // Create-only mode implies no delete logic needed immediately
-        appointment={null}  // Always new
+        onDelete={() => { }}
+        appointment={null}
       />
     </div>
   );
