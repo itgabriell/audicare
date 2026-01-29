@@ -4,6 +4,7 @@ class ChatwootService {
     constructor() {
         // Inbox ID real confirmado: 1
         this.inboxId = import.meta.env.VITE_CHATWOOT_INBOX_ID || '1';
+        this.accountId = import.meta.env.VITE_CHATWOOT_ACCOUNT_ID || '2';
         // Removed exposed API tokens and URLs. They are now managed by the Edge Function.
     }
 
@@ -151,10 +152,8 @@ class ChatwootService {
             return {
                 contactId: contact.id,
                 conversationId: conversation.id,
-                // Account ID is hidden in backend now, but we return a placeholder or 
-                // if the frontend relies on it for links, we might need to fetch it or keep it in env (non-sensitive).
-                // For now, removing it from return unless strictly needed.
-                accountId: 1 // Default/Fallback
+                // Account ID garantido via env ou default 2
+                accountId: this.accountId
             };
 
         } catch (error) {

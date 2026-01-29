@@ -18,7 +18,7 @@ const ChatIntegration = () => {
       setIsLoading(true);
       try {
         const conversationId = searchParams.get('conversation_id');
-        const accountId = searchParams.get('account_id') || '1';
+        const accountId = searchParams.get('account_id') || '2';
 
         // Caso 1: ID da conversa já fornecido (Link direto)
         if (conversationId) {
