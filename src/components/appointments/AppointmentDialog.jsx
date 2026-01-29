@@ -185,6 +185,8 @@ const AppointmentDialog = ({
                     value={field.value}
                     onChange={field.onChange}
                     className="border-none shadow-none focus:ring-0"
+                    initialSearchTerm={initialData?.patientName || ''}
+                    initialPhone={initialData?.patientPhone || ''}
                   />
                 </div>
               )}

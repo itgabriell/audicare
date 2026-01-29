@@ -115,7 +115,9 @@ const ChatIntegration = () => {
     setInitialDialogData({
       date: new Date(),
       time: null,
-      leadId: getContextPatientId()
+      leadId: getContextPatientId(),
+      patientName: searchParams.get('name'),
+      patientPhone: searchParams.get('phone')
     });
     setIsAppointmentDialogOpen(true);
   };
@@ -129,7 +131,9 @@ const ChatIntegration = () => {
     setInitialDialogData({
       date: date,
       time: time,
-      leadId: getContextPatientId() // Still try to attach patient context
+      leadId: getContextPatientId(), // Still try to attach patient context
+      patientName: searchParams.get('name'),
+      patientPhone: searchParams.get('phone')
     });
     setIsAppointmentDialogOpen(true);
   }, [patients, searchParams]);
