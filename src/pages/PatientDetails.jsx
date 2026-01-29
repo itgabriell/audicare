@@ -30,6 +30,7 @@ const PatientDetails = () => {
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [apptDialogOpen, setApptDialogOpen] = useState(false);
   const [apptInitialData, setApptInitialData] = useState(null);
+  const [refreshTrigger, setRefreshTrigger] = useState(0);
 
   const fetchPatient = async () => {
     try {
@@ -91,6 +92,7 @@ const PatientDetails = () => {
 
       toast({ title: "Sucesso", description: "Agendamento criado!" });
       setApptDialogOpen(false);
+      setRefreshTrigger(prev => prev + 1);
 
       // Notificação opcional
       try {
@@ -241,7 +243,7 @@ const PatientDetails = () => {
           <TabsContent value="info"><PatientInfo patient={patient} contact={contact} /></TabsContent>
           <TabsContent value="history"><PatientHistory patient={patient} /></TabsContent>
           <TabsContent value="documents"><PatientDocuments patientId={id} /></TabsContent>
-          <TabsContent value="appointments"><PatientAppointments patientId={id} /></TabsContent>
+          <TabsContent value="appointments"><PatientAppointments patientId={id} key={refreshTrigger} /></TabsContent>
           <TabsContent value="invoices"><InvoiceList patientId={id} /></TabsContent>
         </div>
       </Tabs>
