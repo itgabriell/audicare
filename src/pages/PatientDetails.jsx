@@ -98,8 +98,15 @@ const PatientDetails = () => {
       try {
         // Disparar Automação de "Novo Agendamento"
         const API_BASE = import.meta.env.VITE_API_BASE_URL || 'https://api.audicarefono.com.br';
-        fetch(`${API_BASE}/api/automations/appointment-created/${saved.id}`, { method: 'POST' })
-          .catch(err => console.error("Falha ao disparar automação:", err));
+        const API_KEY = import.meta.env.VITE_INTERNAL_API_KEY;
+
+        fetch(`${API_BASE}/api/automations/appointment-created/${saved.id}`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'x-api-key': API_KEY
+          }
+        }).catch(err => console.error("Falha ao disparar automação:", err));
 
         await createNotification({
           type: 'appointment',
