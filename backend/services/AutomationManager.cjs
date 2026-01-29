@@ -928,29 +928,7 @@ class AutomationManager {
       return { success: false, error: error.message };
     }
   }
-    const { filter_config, clinic_id } = automation;
-let phones = [];
 
-try {
-  // Aplicar filtros aos contatos/pacientes
-  if (filter_config?.filters && filter_config.filters.length > 0) {
-    for (const filter of filter_config.filters) {
-      const filteredPhones = await this.applyFilterToPhones(filter, clinic_id);
-      phones = [...phones, ...filteredPhones];
-    }
-
-    // Remover duplicatas
-    phones = [...new Set(phones)];
-  }
-
-  console.log(`📞 [AutomationManager] Telefones encontrados com filtros: ${phones.length}`);
-  return phones.slice(0, 5); // Limitar a 5 telefones para teste
-
-} catch (error) {
-  console.error('❌ [AutomationManager] Erro ao filtrar telefones:', error.message);
-  return [];
-}
-  }
 
   /**
    * Aplica filtro específico para obter telefones
@@ -959,105 +937,105 @@ try {
    * @returns {Promise<Array>} - Telefones que correspondem ao filtro
    */
   async applyFilterToPhones(filter, clinicId) {
-  const { type, operator, value } = filter;
-  const phones = [];
+    const { type, operator, value } = filter;
+    const phones = [];
 
-  try {
-    switch (type) {
-      case 'has_phone':
-        if (operator === 'equals' && value === 'true') {
-          // Buscar contatos com telefone
-          const { data: contacts, error } = await supabase
+    try {
+      switch (type) {
+        case 'has_phone':
+          if (operator === 'equals' && value === 'true') {
+            // Buscar contatos com telefone
+            const { data: contacts, error } = await supabase
+              .from('contacts')
+              .select('phone')
+              .eq('clinic_id', clinicId)
+              .not('phone', 'is', null)
+              .neq('phone', '')
+              .limit(10);
+
+            if (!error && contacts) {
+              contacts.forEach(contact => {
+                if (contact.phone) phones.push(contact.phone);
+              });
+            }
+          }
+          break;
+
+        case 'birthday':
+          // Para teste, buscar qualquer contato com telefone
+          const { data: birthdayContacts, error: birthdayError } = await supabase
             .from('contacts')
             .select('phone')
             .eq('clinic_id', clinicId)
             .not('phone', 'is', null)
             .neq('phone', '')
-            .limit(10);
+            .limit(5);
 
-          if (!error && contacts) {
-            contacts.forEach(contact => {
+          if (!birthdayError && birthdayContacts) {
+            birthdayContacts.forEach(contact => {
               if (contact.phone) phones.push(contact.phone);
             });
           }
-        }
-        break;
+          break;
 
-      case 'birthday':
-        // Para teste, buscar qualquer contato com telefone
-        const { data: birthdayContacts, error: birthdayError } = await supabase
-          .from('contacts')
-          .select('phone')
-          .eq('clinic_id', clinicId)
-          .not('phone', 'is', null)
-          .neq('phone', '')
-          .limit(5);
+        case 'has_appointments':
+          // Buscar pacientes com consultas
+          const { data: patientsWithAppointments, error: aptError } = await supabase
+            .from('patients')
+            .select('phone')
+            .eq('clinic_id', clinicId)
+            .not('phone', 'is', null)
+            .neq('phone', '')
+            .limit(5);
 
-        if (!birthdayError && birthdayContacts) {
-          birthdayContacts.forEach(contact => {
-            if (contact.phone) phones.push(contact.phone);
-          });
-        }
-        break;
+          if (!aptError && patientsWithAppointments) {
+            patientsWithAppointments.forEach(patient => {
+              if (patient.phone) phones.push(patient.phone);
+            });
+          }
+          break;
 
-      case 'has_appointments':
-        // Buscar pacientes com consultas
-        const { data: patientsWithAppointments, error: aptError } = await supabase
-          .from('patients')
-          .select('phone')
-          .eq('clinic_id', clinicId)
-          .not('phone', 'is', null)
-          .neq('phone', '')
-          .limit(5);
+        case 'patient_status':
+          // Buscar pacientes com status específico
+          const { data: patientsByStatus, error: statusError } = await supabase
+            .from('patients')
+            .select('phone')
+            .eq('clinic_id', clinicId)
+            .eq('status', value)
+            .not('phone', 'is', null)
+            .neq('phone', '')
+            .limit(5);
 
-        if (!aptError && patientsWithAppointments) {
-          patientsWithAppointments.forEach(patient => {
-            if (patient.phone) phones.push(patient.phone);
-          });
-        }
-        break;
+          if (!statusError && patientsByStatus) {
+            patientsByStatus.forEach(patient => {
+              if (patient.phone) phones.push(patient.phone);
+            });
+          }
+          break;
 
-      case 'patient_status':
-        // Buscar pacientes com status específico
-        const { data: patientsByStatus, error: statusError } = await supabase
-          .from('patients')
-          .select('phone')
-          .eq('clinic_id', clinicId)
-          .eq('status', value)
-          .not('phone', 'is', null)
-          .neq('phone', '')
-          .limit(5);
+        default:
+          // Filtro genérico - buscar contatos
+          const { data: genericContacts, error: genericError } = await supabase
+            .from('contacts')
+            .select('phone')
+            .eq('clinic_id', clinicId)
+            .not('phone', 'is', null)
+            .neq('phone', '')
+            .limit(5);
 
-        if (!statusError && patientsByStatus) {
-          patientsByStatus.forEach(patient => {
-            if (patient.phone) phones.push(patient.phone);
-          });
-        }
-        break;
+          if (!genericError && genericContacts) {
+            genericContacts.forEach(contact => {
+              if (contact.phone) phones.push(contact.phone);
+            });
+          }
+      }
 
-      default:
-        // Filtro genérico - buscar contatos
-        const { data: genericContacts, error: genericError } = await supabase
-          .from('contacts')
-          .select('phone')
-          .eq('clinic_id', clinicId)
-          .not('phone', 'is', null)
-          .neq('phone', '')
-          .limit(5);
-
-        if (!genericError && genericContacts) {
-          genericContacts.forEach(contact => {
-            if (contact.phone) phones.push(contact.phone);
-          });
-        }
+    } catch (error) {
+      console.error(`❌ [AutomationManager] Erro ao aplicar filtro ${type}:`, error.message);
     }
 
-  } catch (error) {
-    console.error(`❌ [AutomationManager] Erro ao aplicar filtro ${type}:`, error.message);
+    return phones;
   }
-
-  return phones;
-}
 
   /**
    * Envia mensagem diretamente para UAZAPI (bypass Chatwoot)
@@ -1066,96 +1044,96 @@ try {
    * @returns {Promise<Object>} - Resultado do envio
    */
   async sendDirectToUAZAPI(phoneNumber, message) {
-  try {
-    console.log(`📱 [UAZAPI] Enviando mensagem diretamente para ${phoneNumber}`);
+    try {
+      console.log(`📱 [UAZAPI] Enviando mensagem diretamente para ${phoneNumber}`);
 
-    // Formatar telefone para formato brasileiro (sem +)
-    const cleanPhone = phoneNumber.replace(/\D/g, '');
-    const formattedPhone = cleanPhone.length === 11 ? cleanPhone : cleanPhone;
+      // Formatar telefone para formato brasileiro (sem +)
+      const cleanPhone = phoneNumber.replace(/\D/g, '');
+      const formattedPhone = cleanPhone.length === 11 ? cleanPhone : cleanPhone;
 
-    console.log(`📞 [UAZAPI] Telefone formatado: ${formattedPhone}`);
+      console.log(`📞 [UAZAPI] Telefone formatado: ${formattedPhone}`);
 
-    // Criar payload da mensagem
-    const payload = {
-      chatid: `${formattedPhone}@s.whatsapp.net`,
-      content: {
+      // Criar payload da mensagem
+      const payload = {
+        chatid: `${formattedPhone}@s.whatsapp.net`,
+        content: {
+          text: message,
+          contextInfo: {}
+        },
+        convertOptions: "",
+        edited: "",
+        fromMe: true,
+        messageTimestamp: Date.now(),
+        messageType: "ExtendedTextMessage",
+        owner: "55123456789", // Número do bot
+        quoted: "",
+        reaction: "",
+        readChatAttempted: false,
+        sender: "55123456789@s.whatsapp.net",
+        senderName: "Audicare Aparelhos Auditivos",
+        source: "api",
+        status: "Pending",
         text: message,
-        contextInfo: {}
-      },
-      convertOptions: "",
-      edited: "",
-      fromMe: true,
-      messageTimestamp: Date.now(),
-      messageType: "ExtendedTextMessage",
-      owner: "55123456789", // Número do bot
-      quoted: "",
-      reaction: "",
-      readChatAttempted: false,
-      sender: "55123456789@s.whatsapp.net",
-      senderName: "Audicare Aparelhos Auditivos",
-      source: "api",
-      status: "Pending",
-      text: message,
-      track_id: "",
-      track_source: ""
-    };
-
-    console.log(`📤 [UAZAPI] Payload:`, JSON.stringify(payload, null, 2));
-
-    // Endpoint correto da UAZAPI para texto
-    const uazapiUrl = 'https://audicare.uazapi.com/send/text';
-    console.log(`🔄 [UAZAPI] Usando endpoint correto: ${uazapiUrl}`);
-
-    // Payload limpo conforme esperado pela UAZAPI
-    const cleanPayload = {
-      number: formattedPhone,  // Apenas números: "556185155358"
-      text: message           // Apenas o texto da mensagem
-    };
-
-    console.log('🚀 [UAZAPI] Enviando Clean Payload para /send/text:', JSON.stringify(cleanPayload));
-
-    const apiResponse = await axios.post(uazapiUrl, cleanPayload, {
-      headers: {
-        'Accept': 'application/json',
-        'Content-Type': 'application/json',
-        'token': 'c1bd63dc-e1c4-4956-bd0b-e277bb59dc38'  // Token de autenticação
-      }
-    });
-
-    console.log(`✅ [UAZAPI] Resposta:`, apiResponse.data);
-
-    // Verificar se foi enviado com sucesso
-    if (apiResponse.data && !apiResponse.data.code) {
-      console.log(`🎯 [UAZAPI] Mensagem enviada com sucesso`);
-
-      return {
-        success: true,
-        messageId: `uazapi_${Date.now()}`,
-        directSend: true
+        track_id: "",
+        track_source: ""
       };
-    } else {
-      console.warn(`⚠️ [UAZAPI] Resposta com código:`, apiResponse.data);
+
+      console.log(`📤 [UAZAPI] Payload:`, JSON.stringify(payload, null, 2));
+
+      // Endpoint correto da UAZAPI para texto
+      const uazapiUrl = 'https://audicare.uazapi.com/send/text';
+      console.log(`🔄 [UAZAPI] Usando endpoint correto: ${uazapiUrl}`);
+
+      // Payload limpo conforme esperado pela UAZAPI
+      const cleanPayload = {
+        number: formattedPhone,  // Apenas números: "556185155358"
+        text: message           // Apenas o texto da mensagem
+      };
+
+      console.log('🚀 [UAZAPI] Enviando Clean Payload para /send/text:', JSON.stringify(cleanPayload));
+
+      const apiResponse = await axios.post(uazapiUrl, cleanPayload, {
+        headers: {
+          'Accept': 'application/json',
+          'Content-Type': 'application/json',
+          'token': 'c1bd63dc-e1c4-4956-bd0b-e277bb59dc38'  // Token de autenticação
+        }
+      });
+
+      console.log(`✅ [UAZAPI] Resposta:`, apiResponse.data);
+
+      // Verificar se foi enviado com sucesso
+      if (apiResponse.data && !apiResponse.data.code) {
+        console.log(`🎯 [UAZAPI] Mensagem enviada com sucesso`);
+
+        return {
+          success: true,
+          messageId: `uazapi_${Date.now()}`,
+          directSend: true
+        };
+      } else {
+        console.warn(`⚠️ [UAZAPI] Resposta com código:`, apiResponse.data);
+        return {
+          success: false,
+          error: apiResponse.data?.message || 'Erro na UAZAPI',
+          directSend: true
+        };
+      }
+
+    } catch (error) {
+      console.error('❌ [UAZAPI] Erro ao enviar diretamente:', {
+        status: error.response?.status,
+        data: error.response?.data,
+        message: error.message
+      });
+
       return {
         success: false,
-        error: apiResponse.data?.message || 'Erro na UAZAPI',
+        error: error.message,
         directSend: true
       };
     }
-
-  } catch (error) {
-    console.error('❌ [UAZAPI] Erro ao enviar diretamente:', {
-      status: error.response?.status,
-      data: error.response?.data,
-      message: error.message
-    });
-
-    return {
-      success: false,
-      error: error.message,
-      directSend: true
-    };
   }
-}
 }
 
 module.exports = new AutomationManager();
