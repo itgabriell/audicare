@@ -228,27 +228,7 @@ const Appointments = () => {
         } catch (e) { console.warn("Erro ao tentar disparar automação:", e); }
       }
 
-      // Disparar automação APENAS para novos agendamentos
-      if (!appointmentData.id) {
-        try {
-          const API_BASE = import.meta.env.VITE_API_BASE_URL || 'https://api.audicarefono.com.br';
-          const API_KEY = import.meta.env.VITE_INTERNAL_API_KEY;
 
-          console.log("🚀 [Frontend] Disparando automação para Novo Agendamento:", savedAppointment.id);
-
-          fetch(`${API_BASE}/api/automations/appointment-created/${savedAppointment.id}`, {
-            method: 'POST',
-            headers: {
-              'Content-Type': 'application/json',
-              'x-api-key': API_KEY
-            }
-          }).then(res => {
-            if (res.ok) console.log("✅ [Frontend] Automação disparada com sucesso.");
-            else console.warn("⚠️ [Frontend] Falha no disparo da automação:", res.status);
-          }).catch(err => console.error("❌ [Frontend] Erro de rede na automação:", err));
-
-        } catch (e) { console.warn("Erro ao tentar disparar automação:", e); }
-      }
 
       try {
         const patientName = patients.find((p) => p.id === savedAppointment.contact_id || p.id === savedAppointment.patient_id)?.name || 'Paciente';
