@@ -14,19 +14,19 @@ import { getRepairs, addRepair, updateRepair, deleteRepair } from '@/database';
 
 // Dummy component, replace with actual implementation
 const RepairDialog = ({ open, onOpenChange, onSave, repair }) => {
-    const { toast } = useToast();
-    const handleNotImplemented = () => {
-        toast({
-            title: "🚧 Não implementado",
-            description: "A criação e edição de reparos ainda não foi implementada.",
-        });
-        onOpenChange(false);
-    }
-    useEffect(() => {
-        if(open) handleNotImplemented();
-    }, [open]);
-    
-    return null;
+  const { toast } = useToast();
+  const handleNotImplemented = () => {
+    toast({
+      title: "🚧 Não implementado",
+      description: "A criação e edição de reparos ainda não foi implementada.",
+    });
+    onOpenChange(false);
+  }
+  useEffect(() => {
+    if (open) handleNotImplemented();
+  }, [open]);
+
+  return null;
 }
 
 const Repairs = () => {
@@ -71,7 +71,7 @@ const Repairs = () => {
       setDialogOpen(false);
       setEditingRepair(null);
     } catch (error) {
-       toast({
+      toast({
         title: "Erro ao salvar reparo",
         description: error.message,
         variant: "destructive",
@@ -80,21 +80,21 @@ const Repairs = () => {
   };
 
   const handleDeleteRepair = async (repairId) => {
-     const originalRepairs = [...repairs];
-     setRepairs(prev => prev.filter(r => r.id !== repairId));
-     try {
-       await deleteRepair(repairId);
-       toast({ title: "Sucesso!", description: "Reparo removido." });
-     } catch (error) {
-       setRepairs(originalRepairs);
-       toast({
+    const originalRepairs = [...repairs];
+    setRepairs(prev => prev.filter(r => r.id !== repairId));
+    try {
+      await deleteRepair(repairId);
+      toast({ title: "Sucesso!", description: "Reparo removido." });
+    } catch (error) {
+      setRepairs(originalRepairs);
+      toast({
         title: "Erro ao remover reparo",
         description: error.message,
         variant: "destructive",
       });
-     }
+    }
   };
-  
+
   const handleEditRepair = (repair) => {
     setEditingRepair(repair);
     setDialogOpen(true);
@@ -116,64 +116,73 @@ const Repairs = () => {
         <meta name="description" content="Gerenciamento de reparos de aparelhos auditivos" />
       </Helmet>
 
-      <div className="space-y-6">
-        <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+      <div className="h-full flex flex-col space-y-4 overflow-hidden pr-1 relative">
+        {/* Floating Header */}
+        <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 bg-white/60 dark:bg-slate-900/60 backdrop-blur-md p-4 rounded-3xl border border-slate-200/50 dark:border-slate-800/50 shadow-sm z-10 shrink-0">
           <div>
-            <h1 className="text-3xl font-bold text-foreground">Reparos</h1>
-            <p className="text-muted-foreground mt-1">Acompanhe os reparos de aparelhos auditivos</p>
+            <h1 className="text-2xl font-bold tracking-tight text-slate-900 dark:text-slate-100 font-sans">
+              Reparos
+            </h1>
+            <p className="text-muted-foreground text-sm">
+              Acompanhe os reparos de aparelhos auditivos
+            </p>
           </div>
-          <Button onClick={() => { setEditingRepair(null); setDialogOpen(true); }}>
+          <Button onClick={() => { setEditingRepair(null); setDialogOpen(true); }} className="rounded-xl h-10 shadow-lg shadow-primary/20">
             <Plus className="h-4 w-4 mr-2" />
             Novo Reparo
           </Button>
         </div>
-        
+
         {loading ? (
-             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                {[...Array(3)].map((_, i) => (
-                     <Card key={i} className="animate-pulse">
-                         <CardHeader>
-                             <div className="h-6 bg-muted rounded w-3/4"></div>
-                             <div className="h-4 bg-muted rounded w-1/2 mt-2"></div>
-                         </CardHeader>
-                         <CardContent>
-                            <div className="h-4 bg-muted rounded w-1/4"></div>
-                         </CardContent>
-                     </Card>
-                ))}
-             </div>
-        ) : repairs.length === 0 ? (
-            <div className="text-center py-16 border-2 border-dashed rounded-lg">
-                <p className="text-muted-foreground">Nenhum reparo encontrado.</p>
-                <Button onClick={() => setDialogOpen(true)} className="mt-4">
-                    Adicionar Primeiro Reparo
-                </Button>
-            </div>
-        ) : (
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-            {repairs.map(repair => (
-              <Card key={repair.id}>
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 p-1">
+            {[...Array(3)].map((_, i) => (
+              <Card key={i} className="animate-pulse border-slate-100 dark:border-slate-800 rounded-3xl">
                 <CardHeader>
+                  <div className="h-6 bg-slate-100 dark:bg-slate-800 rounded w-3/4"></div>
+                  <div className="h-4 bg-slate-100 dark:bg-slate-800 rounded w-1/2 mt-2"></div>
+                </CardHeader>
+                <CardContent>
+                  <div className="h-4 bg-slate-100 dark:bg-slate-800 rounded w-1/4"></div>
+                </CardContent>
+              </Card>
+            ))}
+          </div>
+        ) : repairs.length === 0 ? (
+          <div className="text-center py-16 border-2 border-dashed rounded-lg">
+            <p className="text-muted-foreground">Nenhum reparo encontrado.</p>
+            <Button onClick={() => setDialogOpen(true)} className="mt-4">
+              Adicionar Primeiro Reparo
+            </Button>
+          </div>
+        ) : (
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 overflow-y-auto scrollbar-hide pb-20 p-1">
+            {repairs.map(repair => (
+              <Card key={repair.id} className="rounded-3xl border-slate-200 dark:border-slate-800 shadow-sm hover:shadow-lg hover:-translate-y-1 transition-all duration-300">
+                <CardHeader className="pb-2">
                   <div className="flex justify-between items-center">
-                    <CardTitle>{repair.patient_name}</CardTitle>
+                    <CardTitle className="text-base font-bold text-slate-800 dark:text-slate-100 line-clamp-1">{repair.patient_name}</CardTitle>
                     <DropdownMenu>
                       <DropdownMenuTrigger asChild>
-                        <Button variant="ghost" size="icon">
+                        <Button variant="ghost" size="icon" className="h-8 w-8 rounded-full">
                           <MoreHorizontal className="h-4 w-4" />
                         </Button>
                       </DropdownMenuTrigger>
-                      <DropdownMenuContent>
+                      <DropdownMenuContent align="end" className="rounded-xl">
                         <DropdownMenuItem onClick={() => handleEditRepair(repair)}>Editar</DropdownMenuItem>
                         <DropdownMenuItem onClick={() => handleDeleteRepair(repair.id)} className="text-destructive">Excluir</DropdownMenuItem>
                       </DropdownMenuContent>
                     </DropdownMenu>
                   </div>
-                  <p className="text-sm text-muted-foreground">{repair.device_model}</p>
+                  <p className="text-sm font-medium text-muted-foreground">{repair.device_model}</p>
                 </CardHeader>
                 <CardContent>
-                  <div className="flex items-center gap-2">
-                    <span className={`h-2 w-2 rounded-full ${getStatusColor(repair.status)}`}></span>
-                    <span className="text-sm">{repair.status}</span>
+                  <div className="flex items-center gap-2 mt-2">
+                    <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium border ${repair.status === 'Concluído' ? 'bg-green-50 text-green-700 border-green-200 dark:bg-green-900/20 dark:text-green-400 dark:border-green-900/30' :
+                        repair.status === 'Em andamento' ? 'bg-blue-50 text-blue-700 border-blue-200 dark:bg-blue-900/20 dark:text-blue-400 dark:border-blue-900/30' :
+                          'bg-amber-50 text-amber-700 border-amber-200 dark:bg-amber-900/20 dark:text-amber-400 dark:border-amber-900/30'
+                      }`}>
+                      {repair.status}
+                    </span>
                   </div>
                 </CardContent>
               </Card>
@@ -182,7 +191,7 @@ const Repairs = () => {
         )}
       </div>
 
-      <RepairDialog 
+      <RepairDialog
         open={dialogOpen}
         onOpenChange={setDialogOpen}
         onSave={handleSaveRepair}

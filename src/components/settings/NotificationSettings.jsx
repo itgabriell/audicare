@@ -101,7 +101,7 @@ const NotificationSettings = () => {
       icon: Users,
       label: 'Pacientes',
       description: 'Notificar sobre novos pacientes e atualizações',
-      color: 'text-purple-500'
+      color: 'text-rose-500'
     },
     {
       key: 'task',

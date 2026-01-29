@@ -1,14 +1,14 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { Helmet } from 'react-helmet';
 import { motion } from 'framer-motion';
-import { 
-    Plus, Search, RefreshCcw, Download, Upload, 
-    ChevronLeft, ChevronRight, ArrowUpDown, RefreshCw
+import {
+  Plus, Search, RefreshCcw, Download, Upload,
+  ChevronLeft, ChevronRight, ArrowUpDown, RefreshCw
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { 
-    Select, SelectContent, SelectItem, SelectTrigger, SelectValue 
+import {
+  Select, SelectContent, SelectItem, SelectTrigger, SelectValue
 } from '@/components/ui/select';
 import PatientCard from '@/components/patients/PatientCard';
 import PatientDialog from '@/components/patients/PatientDialog';
@@ -26,19 +26,19 @@ import {
 const Patients = () => {
   const { profile, loading: authLoading } = useAuth(); // Importamos authLoading para saber se o login acabou
   const { toast } = useToast();
-  
+
   // Data State
   const [patients, setPatients] = useState([]);
   const [totalCount, setTotalCount] = useState(0);
   const [loading, setLoading] = useState(true);
-  
+
   // Filter & Sort State
   const [searchTerm, setSearchTerm] = useState('');
   const [page, setPage] = useState(1);
   const [pageSize] = useState(12);
   const [sortBy, setSortBy] = useState('created_at');
   const [sortOrder, setSortOrder] = useState('desc');
-  
+
   // UI State
   const [dialogOpen, setDialogOpen] = useState(false);
   const [editingPatient, setEditingPatient] = useState(null);
@@ -81,8 +81,8 @@ const Patients = () => {
       .on('postgres_changes',
         { event: '*', schema: 'public', table: 'patients', filter: `clinic_id=eq.${profile.profile.clinic_id}` },
         (payload) => {
-            console.log('[Realtime] Change received:', payload);
-            loadPatients();
+          console.log('[Realtime] Change received:', payload);
+          loadPatients();
         }
       )
       .subscribe();
@@ -103,12 +103,12 @@ const Patients = () => {
         // Check Duplicate
         const isDuplicate = await checkDuplicatePatient(patientData.name, patientData.cpf);
         if (isDuplicate) {
-             toast({
-                variant: 'destructive',
-                title: 'Possível Duplicidade',
-                description: 'Já existe um paciente com este Nome ou CPF.'
-             });
-             return; 
+          toast({
+            variant: 'destructive',
+            title: 'Possível Duplicidade',
+            description: 'Já existe um paciente com este Nome ou CPF.'
+          });
+          return;
         }
 
         await addPatient(patientData);
@@ -116,7 +116,7 @@ const Patients = () => {
       }
       setDialogOpen(false);
       setEditingPatient(null);
-      loadPatients(); 
+      loadPatients();
     } catch (error) {
       console.error('[Patients] Save Error:', error);
       toast({
@@ -146,49 +146,49 @@ const Patients = () => {
 
   const handleExportCSV = async () => {
     try {
-        setIsExporting(true);
-        // Fetch ALL patients for export (ignoring pagination)
-        const { data } = await getPatients(1, 10000, searchTerm, sortBy, sortOrder);
-        
-        if (!data || data.length === 0) {
-            toast({ title: "Nada para exportar", description: "A lista está vazia." });
-            return;
-        }
+      setIsExporting(true);
+      // Fetch ALL patients for export (ignoring pagination)
+      const { data } = await getPatients(1, 10000, searchTerm, sortBy, sortOrder);
 
-        const headers = ["Nome", "CPF", "Email", "Telefone", "Nascimento", "Gênero", "Criado em"];
-        const csvRows = [headers.join(",")];
-        
-        data.forEach(p => {
-            const row = [
-                `"${p.name || ''}"`,
-                `"${p.cpf || ''}"`,
-                `"${p.email || ''}"`,
-                `"${p.phone || ''}"`,
-                `"${p.birthdate || ''}"`,
-                `"${p.gender || ''}"`,
-                `"${p.created_at || ''}"`
-            ];
-            csvRows.push(row.join(","));
-        });
+      if (!data || data.length === 0) {
+        toast({ title: "Nada para exportar", description: "A lista está vazia." });
+        return;
+      }
 
-        const csvString = csvRows.join("\n");
-        const blob = new Blob([csvString], { type: "text/csv;charset=utf-8;" });
-        const url = URL.createObjectURL(blob);
-        
-        const link = document.createElement("a");
-        link.setAttribute("href", url);
-        link.setAttribute("download", `pacientes_export_${new Date().toISOString().slice(0,10)}.csv`);
-        document.body.appendChild(link);
-        link.click();
-        document.body.removeChild(link);
+      const headers = ["Nome", "CPF", "Email", "Telefone", "Nascimento", "Gênero", "Criado em"];
+      const csvRows = [headers.join(",")];
 
-        toast({ title: "Exportação concluída", description: `${data.length} registros exportados.` });
+      data.forEach(p => {
+        const row = [
+          `"${p.name || ''}"`,
+          `"${p.cpf || ''}"`,
+          `"${p.email || ''}"`,
+          `"${p.phone || ''}"`,
+          `"${p.birthdate || ''}"`,
+          `"${p.gender || ''}"`,
+          `"${p.created_at || ''}"`
+        ];
+        csvRows.push(row.join(","));
+      });
+
+      const csvString = csvRows.join("\n");
+      const blob = new Blob([csvString], { type: "text/csv;charset=utf-8;" });
+      const url = URL.createObjectURL(blob);
+
+      const link = document.createElement("a");
+      link.setAttribute("href", url);
+      link.setAttribute("download", `pacientes_export_${new Date().toISOString().slice(0, 10)}.csv`);
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+
+      toast({ title: "Exportação concluída", description: `${data.length} registros exportados.` });
 
     } catch (error) {
-        console.error("Export error:", error);
-        toast({ variant: "destructive", title: "Erro na exportação", description: "Tente novamente mais tarde." });
+      console.error("Export error:", error);
+      toast({ variant: "destructive", title: "Erro na exportação", description: "Tente novamente mais tarde." });
     } finally {
-        setIsExporting(false);
+      setIsExporting(false);
     }
   };
 
@@ -199,41 +199,41 @@ const Patients = () => {
   const handleFileChange = async (event) => {
     const file = event.target.files[0];
     if (!file) return;
-    
+
     setIsImporting(true);
     const reader = new FileReader();
-    
+
     reader.onload = async (e) => {
-        try {
-            const text = e.target.result;
-            const rows = text.split('\n').slice(1); // Skip header
-            let successCount = 0;
-            
-            for (const row of rows) {
-                const cols = row.split(','); // Simple split
-                if (cols.length < 2) continue;
-                
-                // Remove quotes
-                const name = cols[0]?.replace(/"/g, '').trim();
-                const phone = cols[3]?.replace(/"/g, '').trim();
-                
-                if (name) {
-                    await addPatient({ name, phone });
-                    successCount++;
-                }
-            }
-            
-            toast({ title: "Importação Finalizada", description: `${successCount} pacientes importados.` });
-            loadPatients();
-        } catch (err) {
-             console.error(err);
-             toast({ variant: 'destructive', title: "Erro ao importar", description: "Verifique o formato do arquivo." });
-        } finally {
-            setIsImporting(false);
-            event.target.value = null; // Reset file input
+      try {
+        const text = e.target.result;
+        const rows = text.split('\n').slice(1); // Skip header
+        let successCount = 0;
+
+        for (const row of rows) {
+          const cols = row.split(','); // Simple split
+          if (cols.length < 2) continue;
+
+          // Remove quotes
+          const name = cols[0]?.replace(/"/g, '').trim();
+          const phone = cols[3]?.replace(/"/g, '').trim();
+
+          if (name) {
+            await addPatient({ name, phone });
+            successCount++;
+          }
         }
+
+        toast({ title: "Importação Finalizada", description: `${successCount} pacientes importados.` });
+        loadPatients();
+      } catch (err) {
+        console.error(err);
+        toast({ variant: 'destructive', title: "Erro ao importar", description: "Verifique o formato do arquivo." });
+      } finally {
+        setIsImporting(false);
+        event.target.value = null; // Reset file input
+      }
     };
-    
+
     reader.readAsText(file);
   };
 
@@ -248,147 +248,163 @@ const Patients = () => {
         <title>Pacientes - AudiCare</title>
       </Helmet>
 
-      <div className="space-y-6 p-2 pb-20">
-        {/* Top Header */}
-        <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
-          <div>
-            <h1 className="text-3xl font-bold tracking-tight">Pacientes</h1>
-            <p className="text-muted-foreground">
-              {authLoading ? 'Carregando perfil...' : `Gerencie sua base de ${totalCount} pacientes cadastrados.`}
-            </p>
-          </div>
+      <div className="h-full flex flex-col space-y-4 overflow-hidden pr-1 relative">
 
-          <div className="flex gap-2 w-full md:w-auto">
-             <input 
-                type="file" 
-                id="file-upload" 
-                accept=".csv" 
-                className="hidden" 
-                onChange={handleFileChange} 
-             />
-             <Button variant="outline" onClick={handleImportClick} disabled={isImporting || loading}>
-                {isImporting ? <RefreshCcw className="mr-2 h-4 w-4 animate-spin" /> : <Upload className="mr-2 h-4 w-4" />}
-                Importar
-             </Button>
-             
-             <Button variant="outline" onClick={handleExportCSV} disabled={isExporting || loading}>
-                {isExporting ? <RefreshCcw className="mr-2 h-4 w-4 animate-spin" /> : <Download className="mr-2 h-4 w-4" />}
-                Exportar
-             </Button>
-             
-             <Button onClick={() => { setEditingPatient(null); setDialogOpen(true); }}>
+        {/* Modern Floating Header & Controls */}
+        <div className="flex flex-col gap-4 bg-white/60 dark:bg-slate-900/60 backdrop-blur-md p-4 rounded-3xl border border-slate-200/50 dark:border-slate-800/50 shadow-sm z-10 shrink-0">
+
+          <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
+            <div>
+              <h1 className="text-2xl font-bold tracking-tight text-slate-900 dark:text-slate-100 font-sans">
+                Pacientes
+              </h1>
+              <div className="flex items-center gap-2 text-sm text-muted-foreground mt-0.5">
+                <span className="inline-block w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
+                {authLoading ? 'Sincronizando...' : `${totalCount} registros ativos`}
+              </div>
+            </div>
+
+            <div className="flex gap-2 w-full md:w-auto">
+              {/* Actions Group - Unified */}
+              <div className="flex items-center gap-2 p-1 bg-slate-100/50 dark:bg-slate-800/50 rounded-2xl border border-slate-200/50 dark:border-slate-700/50">
+                <input
+                  type="file"
+                  id="file-upload"
+                  accept=".csv"
+                  className="hidden"
+                  onChange={handleFileChange}
+                />
+                <Button variant="ghost" size="icon" onClick={handleImportClick} disabled={isImporting || loading} className="h-9 w-9 rounded-xl hover:bg-white dark:hover:bg-slate-700 shadow-none hover:shadow-sm transition-all" title="Importar CSV">
+                  {isImporting ? <RefreshCcw className="h-4 w-4 animate-spin" /> : <Upload className="h-4 w-4 text-slate-600 dark:text-slate-400" />}
+                </Button>
+                <Button variant="ghost" size="icon" onClick={handleExportCSV} disabled={isExporting || loading} className="h-9 w-9 rounded-xl hover:bg-white dark:hover:bg-slate-700 shadow-none hover:shadow-sm transition-all" title="Exportar CSV">
+                  {isExporting ? <RefreshCcw className="h-4 w-4 animate-spin" /> : <Download className="h-4 w-4 text-slate-600 dark:text-slate-400" />}
+                </Button>
+              </div>
+
+              <Button onClick={() => { setEditingPatient(null); setDialogOpen(true); }} className="rounded-2xl h-11 px-5 shadow-lg shadow-primary/25 hover:shadow-primary/40 transition-all active:scale-95">
                 <Plus className="mr-2 h-4 w-4" />
                 Novo Paciente
-             </Button>
+              </Button>
+            </div>
+          </div>
+
+          {/* Search & Filters Row */}
+          <div className="flex flex-col md:flex-row gap-3 items-center w-full">
+            <div className="relative w-full group">
+              <Search className="absolute left-4 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400 transition-colors group-focus-within:text-primary" />
+              <Input
+                placeholder="Buscar por nome, CPF ou telefone..."
+                value={searchTerm}
+                onChange={(e) => { setSearchTerm(e.target.value); setPage(1); }}
+                className="pl-11 h-11 bg-white dark:bg-slate-800 border-slate-200 dark:border-slate-700 focus:ring-2 focus:ring-primary/20 rounded-2xl transition-all shadow-sm"
+              />
+            </div>
+
+            <div className="flex gap-2 w-full md:w-auto items-center shrink-0">
+              <Select value={sortBy} onValueChange={(val) => { setSortBy(val); setPage(1); }}>
+                <SelectTrigger className="w-[160px] h-11 rounded-2xl border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 hover:bg-slate-50 dark:hover:bg-slate-700/50 shadow-sm">
+                  <div className="flex items-center gap-2 text-slate-600 dark:text-slate-300">
+                    <ArrowUpDown className="h-3.5 w-3.5" />
+                    <span className="text-xs font-semibold uppercase tracking-wide">Ordenar</span>
+                  </div>
+                </SelectTrigger>
+                <SelectContent className="rounded-xl border-slate-100 dark:border-slate-800 shadow-xl">
+                  <SelectItem value="created_at">Data Cadastro</SelectItem>
+                  <SelectItem value="name">Nome (A-Z)</SelectItem>
+                  <SelectItem value="updated_at">Recentes</SelectItem>
+                </SelectContent>
+              </Select>
+
+              <Button
+                variant="outline"
+                size="icon"
+                className="h-11 w-11 rounded-2xl border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 hover:bg-slate-50 dark:hover:bg-slate-700/50 shadow-sm"
+                onClick={() => setSortOrder(prev => {
+                  setPage(1);
+                  return prev === 'asc' ? 'desc' : 'asc';
+                })}
+                title={sortOrder === 'asc' ? "Crescente" : "Decrescente"}
+              >
+                {sortOrder === 'asc' ? <ChevronLeft className="h-4 w-4 rotate-90" /> : <ChevronRight className="h-4 w-4 rotate-90" />}
+              </Button>
+
+              <Button variant="ghost" size="icon" onClick={loadPatients} title="Atualizar" className="h-11 w-11 rounded-2xl hover:bg-slate-100 dark:hover:bg-slate-800">
+                <RefreshCw className={`h-4 w-4 text-slate-500 ${loading ? 'animate-spin' : ''}`} />
+              </Button>
+            </div>
           </div>
         </div>
 
-        {/* Controls Bar */}
-        <div className="flex flex-col md:flex-row gap-4 items-center bg-card p-4 rounded-lg border shadow-sm">
-            <div className="relative w-full md:w-96">
-                <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground pointer-events-none" />
-                {/* LUPA CORRIGIDA: pl-10 */}
-                <Input 
-                    placeholder="Buscar nome, CPF, telefone..." 
-                    value={searchTerm}
-                    onChange={(e) => { setSearchTerm(e.target.value); setPage(1); }} 
-                    className="pl-10"
-                />
-            </div>
-            
-            <div className="flex gap-2 w-full md:w-auto ml-auto">
-                 <Button variant="ghost" size="icon" onClick={loadPatients} title="Recarregar lista">
-                    <RefreshCw className={`h-4 w-4 ${loading ? 'animate-spin' : ''}`} />
-                 </Button>
-                 
-                 <Select value={sortBy} onValueChange={(val) => { setSortBy(val); setPage(1); }}>
-                    <SelectTrigger className="w-[140px]">
-                        <ArrowUpDown className="mr-2 h-4 w-4" />
-                        <SelectValue placeholder="Ordenar" />
-                    </SelectTrigger>
-                    <SelectContent>
-                        <SelectItem value="created_at">Data Criação</SelectItem>
-                        <SelectItem value="name">Nome</SelectItem>
-                        <SelectItem value="updated_at">Última Edição</SelectItem>
-                    </SelectContent>
-                 </Select>
-                 
-                 <Button 
-                    variant="ghost" 
-                    size="icon" 
-                    onClick={() => setSortOrder(prev => {
-                        setPage(1);
-                        return prev === 'asc' ? 'desc' : 'asc';
-                    })}
-                    title={sortOrder === 'asc' ? "Crescente" : "Decrescente"}
-                 >
-                    {sortOrder === 'asc' ? <ChevronLeft className="h-4 w-4 rotate-90" /> : <ChevronRight className="h-4 w-4 rotate-90" />}
-                 </Button>
-            </div>
-        </div>
-
-        {/* Content Area */}
-        {loading || authLoading ? (
-           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-              {Array(6).fill(0).map((_, i) => (
-                 <div key={i} className="h-40 bg-muted/20 animate-pulse rounded-xl border" />
+        {/* Content Area - Scrollable */}
+        <div className="flex-1 overflow-y-auto scrollbar-hide pb-4">
+          {loading || authLoading ? (
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 2xl:grid-cols-4 gap-4">
+              {Array(8).fill(0).map((_, i) => (
+                <div key={i} className="h-48 bg-muted/10 animate-pulse rounded-2xl border border-slate-100 dark:border-slate-800" />
               ))}
-           </div>
-        ) : patients.length > 0 ? (
-           <>
-             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+            </div>
+          ) : patients.length > 0 ? (
+            <>
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 2xl:grid-cols-4 gap-4">
                 {patients.map((patient) => (
-                <PatientCard
+                  <PatientCard
                     key={patient.id}
                     patient={patient}
                     onEdit={(p) => { setEditingPatient(p); setDialogOpen(true); }}
                     onDelete={handleDelete}
-                />
+                  />
                 ))}
-             </div>
-             
-             {/* Pagination Footer */}
-             <div className="flex items-center justify-between py-4 border-t mt-4">
-                <div className="text-sm text-muted-foreground">
-                    Página {page} de {totalPages || 1}
+              </div>
+
+              {/* Pagination - Integrated at bottom of list */}
+              <div className="flex items-center justify-center py-6 mt-2">
+                <div className="flex items-center gap-2 bg-white/50 dark:bg-slate-800/50 backdrop-blur-sm p-1 rounded-2xl shadow-sm border">
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    className="h-8 w-8 p-0 rounded-xl disabled:opacity-30"
+                    onClick={() => setPage(p => Math.max(1, p - 1))}
+                    disabled={!canPrev}
+                  >
+                    <ChevronLeft className="h-4 w-4" />
+                  </Button>
+                  <span className="text-xs font-medium px-4 text-muted-foreground w-28 text-center">
+                    {page} / {totalPages || 1}
+                  </span>
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    className="h-8 w-8 p-0 rounded-xl disabled:opacity-30"
+                    onClick={() => setPage(p => Math.min(totalPages, p + 1))}
+                    disabled={!canNext}
+                  >
+                    <ChevronRight className="h-4 w-4" />
+                  </Button>
                 </div>
-                <div className="flex gap-2">
-                    <Button 
-                        variant="outline" 
-                        size="sm" 
-                        onClick={() => setPage(p => Math.max(1, p - 1))}
-                        disabled={!canPrev}
-                    >
-                        <ChevronLeft className="h-4 w-4 mr-1" /> Anterior
-                    </Button>
-                    <Button 
-                        variant="outline" 
-                        size="sm" 
-                        onClick={() => setPage(p => Math.min(totalPages, p + 1))}
-                        disabled={!canNext}
-                    >
-                        Próximo <ChevronRight className="h-4 w-4 ml-1" />
-                    </Button>
-                </div>
-             </div>
-           </>
-        ) : (
-            <motion.div 
-                initial={{ opacity: 0 }} animate={{ opacity: 1 }}
-                className="flex flex-col items-center justify-center py-20 text-center border-2 border-dashed rounded-xl"
+              </div>
+            </>
+          ) : (
+            <motion.div
+              initial={{ opacity: 0, scale: 0.95 }}
+              animate={{ opacity: 1, scale: 1 }}
+              className="flex flex-col items-center justify-center h-[400px] text-center"
             >
-                <div className="bg-muted p-4 rounded-full mb-4">
-                    <Search className="h-8 w-8 text-muted-foreground" />
-                </div>
-                <h3 className="text-lg font-semibold">Nenhum paciente encontrado</h3>
-                <p className="text-muted-foreground max-w-sm mt-1 mb-4">
-                    {!profile?.profile?.clinic_id
-                        ? "Não foi possível identificar a clínica. Tente recarregar a página."
-                        : "Não encontramos registros com os filtros atuais."}
-                </p>
-                <Button onClick={() => { setSearchTerm(''); setPage(1); }}>Limpar Filtros</Button>
+              <div className="bg-slate-50 dark:bg-slate-800/50 p-6 rounded-full mb-4">
+                <Search className="h-10 w-10 text-slate-300 dark:text-slate-600" />
+              </div>
+              <h3 className="text-lg font-semibold text-slate-900 dark:text-slate-100">Nenhum paciente encontrado</h3>
+              <p className="text-muted-foreground max-w-sm mt-1 mb-6 text-sm">
+                {!profile?.profile?.clinic_id
+                  ? "Não foi possível identificar a clínica. Tente recarregar a página."
+                  : "Não encontramos registros com os filtros atuais."}
+              </p>
+              <Button variant="outline" onClick={() => { setSearchTerm(''); setPage(1); }} className="rounded-xl">
+                Limpar Filtros
+              </Button>
             </motion.div>
-        )}
+          )}
+        </div>
 
         {/* Create/Edit Dialog */}
         <PatientDialog

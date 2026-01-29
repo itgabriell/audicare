@@ -1,10 +1,4 @@
-import axios from 'axios';
 import { supabase } from '@/lib/customSupabaseClient';
-
-import { API_BASE_URL } from '@/config/apiConfig';
-
-// Endpoint base para WhatsApp (Backend VPS)
-const WA_BASE_URL = `${API_BASE_URL}/api/wa`;
 
 // Cache de mensagens processadas para evitar duplicação
 // Usa Map para armazenar timestamp e permitir limpeza mais eficiente
@@ -21,14 +15,14 @@ const loadCacheFromStorage = () => {
       const data = JSON.parse(stored);
       const now = Date.now();
       const cache = new Map();
-      
+
       // Filtrar apenas entradas válidas (dentro do TTL)
       Object.entries(data).forEach(([id, timestamp]) => {
         if (now - timestamp < CACHE_TTL) {
           cache.set(id, timestamp);
         }
       });
-      
+
       return cache;
     }
   } catch (error) {
@@ -61,7 +55,7 @@ const saveCacheToStorage = () => {
 setInterval(() => {
   const now = Date.now();
   const toDelete = [];
-  
+
   // Remover entradas antigas (mais de 30 minutos)
   processedMessagesCache.forEach((timestamp, id) => {
     if (now - timestamp > CACHE_TTL) {
@@ -69,7 +63,7 @@ setInterval(() => {
     }
   });
   toDelete.forEach(id => processedMessagesCache.delete(id));
-  
+
   // Se ainda estiver muito grande, remover as mais antigas
   if (processedMessagesCache.size > CACHE_SIZE_LIMIT) {
     const entries = Array.from(processedMessagesCache.entries())
@@ -77,7 +71,7 @@ setInterval(() => {
       .slice(0, processedMessagesCache.size - CACHE_SIZE_LIMIT / 2);
     entries.forEach(([id]) => processedMessagesCache.delete(id));
   }
-  
+
   // Salvar no localStorage
   saveCacheToStorage();
 }, 60000); // A cada 1 minuto
@@ -96,16 +90,16 @@ const originalMarkMessageProcessed = (messageId) => {
 const getAuthHeaders = async () => {
   try {
     const { data: { session }, error } = await supabase.auth.getSession();
-    
+
     if (error) {
       console.error('Erro ao obter sessão:', error);
       throw new Error('Erro ao verificar autenticação');
     }
-    
+
     if (!session || !session.access_token) {
       throw new Error('Não autenticado. Por favor, faça login novamente.');
     }
-    
+
     // Verificar se o token está expirado
     const now = Math.floor(Date.now() / 1000);
     if (session.expires_at && session.expires_at < now) {
@@ -119,7 +113,7 @@ const getAuthHeaders = async () => {
         'Content-Type': 'application/json'
       };
     }
-    
+
     return {
       'Authorization': `Bearer ${session.access_token}`,
       'Content-Type': 'application/json'
@@ -133,70 +127,45 @@ const getAuthHeaders = async () => {
 const service = {
   sendMessage: async (phone, message) => {
     try {
-      // 1. Pega a sessão atual para extrair o Token JWT
-      const { data: { session } } = await supabase.auth.getSession();
-      
-      if (!session) {
-          throw new Error('Usuário não autenticado. Faça login novamente.');
-      }
+      // 1. Pega a sessão atual (necessário para validação no Edge Function se implementado com RLS ou Auth)
+      // O Edge Function vai verificar o Header Authorization automaticamente se passarmos.
 
       const cleanPhone = String(phone).replace(/\D/g, '');
-      
-      // 2. Envia para a VPS com o Cabeçalho de Autorização
-      // Formato conforme backend: { "phone": "...", "message": "..." }
-      const response = await axios.post(
-        `${WA_BASE_URL}/send-text`,
-        {
-          phone: cleanPhone,
-          message: message
-        },
-        {
-          headers: {
-              'Authorization': `Bearer ${session.access_token}`, // Token JWT do Supabase
-              'Content-Type': 'application/json'
-          },
-          timeout: 30000 // 30 segundos de timeout
-        }
-      );
 
-      return response.data;
-    } catch (error) {
-      console.error('Erro VPS:', error.response?.data || error.message);
-      
-      // Melhorar mensagens de erro
-      if (error.response) {
-        const status = error.response.status;
-        const data = error.response.data;
-        
-        if (status === 403) {
-          throw new Error('Acesso negado. Verifique se você está autenticado corretamente.');
-        } else if (status === 401) {
-          throw new Error('Sessão expirada. Por favor, faça login novamente.');
-        } else if (status === 500) {
-          throw new Error('Erro interno do servidor. Tente novamente em alguns instantes.');
-        } else if (status === 404) {
-          throw new Error('Endpoint não encontrado. Verifique a configuração do backend.');
-        } else {
-          throw new Error(data?.message || data?.error || `Erro ao enviar mensagem (${status})`);
+      // 2. Chama a Edge Function 'whatsapp-proxy'
+      const { data, error } = await supabase.functions.invoke('whatsapp-proxy', {
+        body: {
+          endpoint: '/send-text', // Rota do VPS
+          method: 'POST',
+          body: {
+            phone: cleanPhone,
+            message: message
+          }
         }
-      } else if (error.request) {
-        throw new Error('Não foi possível conectar ao servidor. Verifique sua conexão com a internet.');
-      } else {
-        throw new Error(error.message || 'Erro desconhecido ao enviar mensagem');
+      });
+
+      if (error) {
+        console.error('Erro Edge Function:', error);
+        throw error;
       }
+
+      return data;
+    } catch (error) {
+      console.error('Erro VPS (via Proxy):', error);
+      throw new Error(error.message || 'Erro ao enviar mensagem via Proxy');
     }
   },
 
   sendMedia: async (phone, fileBlob, type = 'audio', caption = '') => {
     try {
       const cleanPhone = String(phone).replace(/\D/g, '');
-      
+
       // Verificar autenticação
       const { data: { session } } = await supabase.auth.getSession();
       if (!session) {
         throw new Error('Usuário não autenticado. Faça login novamente.');
       }
-      
+
       // Upload para Supabase Storage primeiro
       const fileExt = type === 'audio' ? 'ogg' : fileBlob.type.split('/')[1] || 'bin';
       const fileName = `${Date.now()}_${Math.random().toString(36).substring(7)}.${fileExt}`;
@@ -269,14 +238,14 @@ const service = {
     const id = String(messageId);
     const timestamp = processedMessagesCache.get(id);
     if (!timestamp) return false;
-    
+
     // Verificar se ainda está válido (dentro do TTL)
     const now = Date.now();
     if (now - timestamp > CACHE_TTL) {
       processedMessagesCache.delete(id);
       return false;
     }
-    
+
     return true;
   },
 
@@ -291,13 +260,13 @@ const service = {
       }
     }
   },
-  
+
   // Limpar cache manualmente (útil para debug)
   clearProcessedCache: () => {
     processedMessagesCache.clear();
     localStorage.removeItem(STORAGE_KEY);
   },
-  
+
   // Obter estatísticas do cache
   getCacheStats: () => {
     return {

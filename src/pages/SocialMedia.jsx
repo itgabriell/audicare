@@ -52,8 +52,8 @@ const SocialMedia = () => {
     // Realtime subscription para posts
     const channel = supabase
       .channel('social_posts_realtime')
-      .on('postgres_changes', 
-        { event: '*', schema: 'public', table: 'social_posts' }, 
+      .on('postgres_changes',
+        { event: '*', schema: 'public', table: 'social_posts' },
         () => {
           loadData();
         }
@@ -185,111 +185,107 @@ const SocialMedia = () => {
         <meta name="description" content="Esteira de produção para posts em redes sociais" />
       </Helmet>
 
-      <div className="space-y-6">
-        {/* Header */}
-        <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
-          <div>
-            <h1 className="text-3xl font-bold text-foreground">
-              Gestão de Social Media
-            </h1>
-            <p className="text-muted-foreground mt-1 text-sm">
-              Esteira de produção para manter a constância nas postagens
-            </p>
+      <div className="h-full flex flex-col space-y-4 overflow-hidden pr-1 relative">
+        {/* Floating Header & Command Center */}
+        <div className="flex flex-col gap-4 bg-white/60 dark:bg-slate-900/60 backdrop-blur-md p-4 rounded-3xl border border-slate-200/50 dark:border-slate-800/50 shadow-sm z-10 shrink-0">
+          <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
+            <div>
+              <h1 className="text-2xl font-bold tracking-tight text-slate-900 dark:text-slate-100 font-sans flex items-center gap-2">
+                <LayoutGrid className="h-6 w-6 text-primary" />
+                Gestão de Social Media
+              </h1>
+              <p className="text-muted-foreground text-sm">
+                Esteira de produção para manter a constância nas postagens
+              </p>
+            </div>
+            <Button
+              onClick={() => {
+                setEditingPost(null);
+                setDialogOpen(true);
+              }}
+              className="rounded-xl h-10 shadow-lg shadow-primary/20 hover:shadow-primary/30 transition-all"
+            >
+              <Plus className="h-4 w-4 mr-2" />
+              Novo Post
+            </Button>
           </div>
-          <Button
-            onClick={() => {
-              setEditingPost(null);
-              setDialogOpen(true);
-            }}
-          >
-            <Plus className="h-4 w-4 mr-2" />
-            Novo Post
-          </Button>
+
+          {/* Compact Mini Metrics Bar - Horizontal Scroll */}
+          <div className="flex items-center gap-3 overflow-x-auto pb-2 scrollbar-thin scrollbar-thumb-slate-200 dark:scrollbar-thumb-slate-700">
+            <div className="min-w-[100px] bg-slate-50 dark:bg-slate-800/50 rounded-2xl p-2.5 border border-slate-200 dark:border-slate-700 flex flex-col justify-between shrink-0">
+              <span className="text-[10px] font-bold text-slate-500 uppercase tracking-wider">Total</span>
+              <div className="text-2xl font-black text-slate-700 dark:text-slate-200">{metrics.total}</div>
+            </div>
+
+            <div className="min-w-[100px] bg-amber-50 dark:bg-amber-900/10 rounded-2xl p-2.5 border border-amber-100 dark:border-amber-900/30 flex flex-col justify-between shrink-0">
+              <span className="text-[10px] font-bold text-amber-600 uppercase tracking-wider">💡 Ideias</span>
+              <div className="text-2xl font-black text-amber-700 dark:text-amber-400">{metrics.byStatus.idea}</div>
+            </div>
+
+            <div className="min-w-[100px] bg-blue-50 dark:bg-blue-900/10 rounded-2xl p-2.5 border border-blue-100 dark:border-blue-900/30 flex flex-col justify-between shrink-0">
+              <span className="text-[10px] font-bold text-blue-600 uppercase tracking-wider">📝 Roteiro</span>
+              <div className="text-2xl font-black text-blue-700 dark:text-blue-400">{metrics.byStatus.scripting}</div>
+            </div>
+
+            <div className="min-w-[100px] bg-sky-50 dark:bg-sky-900/10 rounded-2xl p-2.5 border border-sky-100 dark:border-sky-900/30 flex flex-col justify-between shrink-0">
+              <span className="text-[10px] font-bold text-sky-600 uppercase tracking-wider">🎬 Gravar</span>
+              <div className="text-2xl font-black text-sky-700 dark:text-sky-400">{metrics.byStatus.to_record}</div>
+            </div>
+
+            <div className="min-w-[100px] bg-pink-50 dark:bg-pink-900/10 rounded-2xl p-2.5 border border-pink-100 dark:border-pink-900/30 flex flex-col justify-between shrink-0">
+              <span className="text-[10px] font-bold text-pink-600 uppercase tracking-wider">✂️ Edição</span>
+              <div className="text-2xl font-black text-pink-700 dark:text-pink-400">{metrics.byStatus.editing}</div>
+            </div>
+
+            <div className="min-w-[100px] bg-green-50 dark:bg-green-900/10 rounded-2xl p-2.5 border border-green-100 dark:border-green-900/30 flex flex-col justify-between shrink-0">
+              <span className="text-[10px] font-bold text-green-600 uppercase tracking-wider">✅ Prontos</span>
+              <div className="text-2xl font-black text-green-700 dark:text-green-400">{metrics.byStatus.ready}</div>
+            </div>
+
+            <div className="min-w-[120px] bg-cyan-50 dark:bg-cyan-900/10 rounded-2xl p-2.5 border border-cyan-100 dark:border-cyan-900/30 flex flex-col justify-between shrink-0">
+              <span className="text-[10px] font-bold text-cyan-600 uppercase tracking-wider">📅 Agendados</span>
+              <div className="text-2xl font-black text-cyan-700 dark:text-cyan-400">{metrics.scheduled}</div>
+            </div>
+          </div>
         </div>
 
         {/* Card de Campanha Ativa */}
         {activeCampaign && (
-          <Card className="bg-gradient-to-r from-primary/10 to-primary/5 border-primary/20">
-            <CardHeader>
+          <Card className="rounded-3xl border-primary/20 bg-gradient-to-r from-primary/5 via-transparent to-transparent shadow-sm shrink-0">
+            <CardHeader className="pb-3">
               <div className="flex items-start justify-between">
                 <div className="flex-1">
                   <div className="flex items-center gap-2 mb-2">
-                    <Target className="h-5 w-5 text-primary" />
-                    <CardTitle className="text-lg">Campanha Ativa</CardTitle>
-                    <Badge variant="default" className="bg-primary/20 text-primary border-primary/30">
+                    <Target className="h-4 w-4 text-primary" />
+                    <span className="text-xs font-bold text-primary tracking-widest uppercase">Campanha Ativa</span>
+                    <Badge variant="default" className="bg-primary/20 text-primary border-primary/30 h-5 px-2 text-[10px]">
                       {activeCampaign.status}
                     </Badge>
                   </div>
-                  <CardDescription className="text-base font-semibold text-foreground">
+                  <h3 className="text-xl font-bold text-foreground tracking-tight">
                     {activeCampaign.title}
-                  </CardDescription>
+                  </h3>
                   {activeCampaign.description && (
-                    <p className="text-sm text-muted-foreground mt-2">
+                    <p className="text-sm text-muted-foreground mt-1 max-w-2xl line-clamp-1">
                       {activeCampaign.description}
                     </p>
                   )}
-                  {activeCampaign.start_date && activeCampaign.end_date && (
-                    <p className="text-xs text-muted-foreground mt-2">
-                      {format(new Date(activeCampaign.start_date), 'dd/MM/yyyy', { locale: ptBR })} - {format(new Date(activeCampaign.end_date), 'dd/MM/yyyy', { locale: ptBR })}
-                    </p>
-                  )}
                 </div>
-                <Sparkles className="h-8 w-8 text-primary/30" />
+                <div className="bg-primary/10 p-2.5 rounded-2xl">
+                  <Sparkles className="h-5 w-5 text-primary" />
+                </div>
               </div>
             </CardHeader>
+            {activeCampaign.start_date && activeCampaign.end_date && (
+              <CardContent className="pt-0">
+                <div className="flex items-center gap-2 text-xs font-medium text-slate-500 bg-slate-100 dark:bg-slate-800/50 w-fit px-3 py-1 rounded-full">
+                  <CalendarIcon className="h-3 w-3" />
+                  {format(new Date(activeCampaign.start_date), 'dd/MM/yyyy', { locale: ptBR })} - {format(new Date(activeCampaign.end_date), 'dd/MM/yyyy', { locale: ptBR })}
+                </div>
+              </CardContent>
+            )}
           </Card>
         )}
-
-        {/* Métricas Rápidas */}
-        <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-7 gap-4">
-          <Card>
-            <CardContent className="p-4">
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-xs text-muted-foreground">Total de Posts</p>
-                  <p className="text-2xl font-bold text-foreground mt-1">{metrics.total}</p>
-                </div>
-                <TrendingUp className="h-8 w-8 text-muted-foreground/50" />
-              </div>
-            </CardContent>
-          </Card>
-          <Card>
-            <CardContent className="p-4">
-              <p className="text-xs text-muted-foreground">💡 Ideias</p>
-              <p className="text-2xl font-bold text-foreground mt-1">{metrics.byStatus.idea}</p>
-            </CardContent>
-          </Card>
-          <Card>
-            <CardContent className="p-4">
-              <p className="text-xs text-muted-foreground">📝 Roteiro</p>
-              <p className="text-2xl font-bold text-foreground mt-1">{metrics.byStatus.scripting}</p>
-            </CardContent>
-          </Card>
-          <Card>
-            <CardContent className="p-4">
-              <p className="text-xs text-muted-foreground">🎬 Gravação</p>
-              <p className="text-2xl font-bold text-foreground mt-1">{metrics.byStatus.to_record}</p>
-            </CardContent>
-          </Card>
-          <Card>
-            <CardContent className="p-4">
-              <p className="text-xs text-muted-foreground">✂️ Edição</p>
-              <p className="text-2xl font-bold text-foreground mt-1">{metrics.byStatus.editing}</p>
-            </CardContent>
-          </Card>
-          <Card>
-            <CardContent className="p-4">
-              <p className="text-xs text-muted-foreground">✅ Prontos</p>
-              <p className="text-2xl font-bold text-foreground mt-1">{metrics.byStatus.ready}</p>
-            </CardContent>
-          </Card>
-          <Card>
-            <CardContent className="p-4">
-              <p className="text-xs text-muted-foreground">📅 Agendados</p>
-              <p className="text-2xl font-bold text-foreground mt-1">{metrics.scheduled}</p>
-            </CardContent>
-          </Card>
-        </div>
 
         {/* Tabs: Kanban e Calendário */}
         <Tabs defaultValue="kanban" className="space-y-4">
@@ -385,31 +381,29 @@ const SocialMedia = () => {
                       {day}
                     </div>
                   ))}
-                  
+
                   {/* Dias do mês */}
                   {monthDays.map((day, idx) => {
                     const dayPosts = getPostsForDate(day);
                     const isToday = isSameDay(day, new Date());
                     const isCurrentMonth = isSameMonth(day, currentMonth);
-                    
+
                     return (
                       <div
                         key={idx}
-                        className={`min-h-[80px] p-2 border rounded-lg ${
-                          isToday 
-                            ? 'bg-primary/10 border-primary' 
-                            : isCurrentMonth 
-                            ? 'bg-card border-border' 
+                        className={`min-h-[80px] p-2 border rounded-lg ${isToday
+                          ? 'bg-primary/10 border-primary'
+                          : isCurrentMonth
+                            ? 'bg-card border-border'
                             : 'bg-muted/30 border-transparent'
-                        }`}
+                          }`}
                       >
-                        <div className={`text-xs font-medium mb-1 ${
-                          isToday 
-                            ? 'text-primary font-bold' 
-                            : isCurrentMonth 
-                            ? 'text-foreground' 
+                        <div className={`text-xs font-medium mb-1 ${isToday
+                          ? 'text-primary font-bold'
+                          : isCurrentMonth
+                            ? 'text-foreground'
                             : 'text-muted-foreground'
-                        }`}>
+                          }`}>
                           {format(day, 'd')}
                         </div>
                         <div className="space-y-1">

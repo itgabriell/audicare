@@ -145,22 +145,24 @@ const AppointmentDialog = ({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-[500px]">
-        <DialogHeader className="pb-2 border-b mb-4">
-          <DialogTitle className="text-xl font-semibold">
-            {appointment ? 'Editar Agendamento' : 'Novo Agendamento'}
-          </DialogTitle>
-          <DialogDescription>
-            Preencha os dados abaixo para {appointment ? 'editar o' : 'criar um novo'} agendamento.
-          </DialogDescription>
-        </DialogHeader>
+      <DialogContent className="sm:max-w-[500px] rounded-3xl p-0 overflow-hidden bg-white dark:bg-slate-900 border-none shadow-2xl">
+        <div className="px-6 py-6 border-b border-slate-100 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-900/50">
+          <DialogHeader>
+            <DialogTitle className="text-xl font-bold text-slate-900 dark:text-slate-100 flex items-center gap-2">
+              <Calendar className="w-5 h-5 text-primary" />
+              {appointment ? 'Editar Agendamento' : 'Novo Agendamento'}
+            </DialogTitle>
+            <DialogDescription className="text-slate-500 dark:text-slate-400">
+              Preencha os detalhes da consulta abaixo.
+            </DialogDescription>
+          </DialogHeader>
+        </div>
 
-        <form onSubmit={handleSubmit(onSubmit)} className="space-y-5">
+        <form onSubmit={handleSubmit(onSubmit)} className="p-6 space-y-5">
 
           {/* PACIENTE COM COMBOBOX */}
-          <div className="space-y-1.5">
-            <Label className="flex items-center gap-2 text-primary font-medium">
-              <User className="w-4 h-4" />
+          <div className="space-y-2">
+            <Label className="text-xs font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400 ml-1">
               Paciente
             </Label>
             <Controller
@@ -168,38 +170,42 @@ const AppointmentDialog = ({
               control={control}
               rules={{ required: true }}
               render={({ field }) => (
-                <PatientCombobox
-                  patients={patients}
-                  value={field.value}
-                  onChange={field.onChange}
-                />
+                <div className="p-1 border rounded-xl focus-within:ring-2 focus-within:ring-primary/20 transition-all bg-white dark:bg-slate-800">
+                  <PatientCombobox
+                    patients={patients}
+                    value={field.value}
+                    onChange={field.onChange}
+                    className="border-none shadow-none focus:ring-0"
+                  />
+                </div>
               )}
             />
           </div>
 
           <div className="grid grid-cols-2 gap-4">
             {/* DATA E HORA */}
-            <div className="space-y-1.5">
-              <Label className="flex items-center gap-2">
-                <Calendar className="w-4 h-4 text-muted-foreground" />
+            <div className="space-y-2">
+              <Label className="text-xs font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400 ml-1">
                 Data e Hora
               </Label>
               <Input
                 type="datetime-local"
                 {...register('start_time', { required: true })}
-                className="font-medium"
+                className="rounded-xl h-11 border-slate-200 dark:border-slate-700 bg-slate-50/50 dark:bg-slate-800/50 focus:bg-white transition-all font-medium"
               />
             </div>
 
             {/* TIPO */}
-            <div className="space-y-1.5">
-              <Label>Tipo</Label>
+            <div className="space-y-2">
+              <Label className="text-xs font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400 ml-1">
+                Tipo
+              </Label>
               <Controller
                 name="type"
                 control={control}
                 render={({ field }) => (
                   <Select onValueChange={field.onChange} value={field.value}>
-                    <SelectTrigger>
+                    <SelectTrigger className="rounded-xl h-11 border-slate-200 dark:border-slate-700 bg-slate-50/50 dark:bg-slate-800/50">
                       <SelectValue />
                     </SelectTrigger>
                     <SelectContent>
@@ -220,9 +226,8 @@ const AppointmentDialog = ({
 
           <div className="grid grid-cols-2 gap-4">
             {/* LOCAL */}
-            <div className="space-y-1.5">
-              <Label className="flex items-center gap-2">
-                <MapPin className="w-4 h-4 text-muted-foreground" />
+            <div className="space-y-2">
+              <Label className="text-xs font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400 ml-1">
                 Local
               </Label>
               <Controller
@@ -230,7 +235,7 @@ const AppointmentDialog = ({
                 control={control}
                 render={({ field }) => (
                   <Select onValueChange={field.onChange} value={field.value}>
-                    <SelectTrigger>
+                    <SelectTrigger className="rounded-xl h-11 border-slate-200 dark:border-slate-700 bg-slate-50/50 dark:bg-slate-800/50">
                       <SelectValue />
                     </SelectTrigger>
                     <SelectContent>
@@ -244,14 +249,16 @@ const AppointmentDialog = ({
             </div>
 
             {/* STATUS */}
-            <div className="space-y-1.5">
-              <Label>Status</Label>
+            <div className="space-y-2">
+              <Label className="text-xs font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400 ml-1">
+                Status
+              </Label>
               <Controller
                 name="status"
                 control={control}
                 render={({ field }) => (
                   <Select onValueChange={field.onChange} value={field.value}>
-                    <SelectTrigger>
+                    <SelectTrigger className="rounded-xl h-11 border-slate-200 dark:border-slate-700 bg-slate-50/50 dark:bg-slate-800/50">
                       <SelectValue />
                     </SelectTrigger>
                     <SelectContent>
@@ -268,41 +275,40 @@ const AppointmentDialog = ({
           </div>
 
           {/* OBSERVAÇÕES */}
-          <div className="space-y-1.5">
-            <Label className="flex items-center gap-2">
-              <FileText className="w-4 h-4 text-muted-foreground" />
+          <div className="space-y-2">
+            <Label className="text-xs font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400 ml-1">
               Observações
             </Label>
             <Textarea
               {...register('notes')}
-              placeholder="Ex: Queixa principal, observações..."
-              className="resize-none h-20"
+              placeholder="Queixa principal, detalhes do atendimento..."
+              className="resize-none h-24 rounded-xl border-slate-200 dark:border-slate-700 bg-slate-50/50 dark:bg-slate-800/50 focus:bg-white transition-all"
             />
           </div>
 
           {/* RODAPÉ */}
-          <DialogFooter className="flex items-center justify-between sm:justify-between pt-2 border-t mt-4">
+          <div className="flex items-center justify-between pt-4 mt-2">
             {appointment?.id ? (
               <Button
                 type="button"
                 variant="ghost"
                 onClick={handleDelete}
-                className="text-red-500 hover:text-red-700 hover:bg-red-50 px-2"
+                className="text-red-500 hover:text-red-700 hover:bg-red-50 px-2 rounded-xl h-11"
               >
                 <Trash2 className="h-4 w-4 mr-2" />
                 Excluir
               </Button>
             ) : <div />}
 
-            <div className="flex gap-2">
-              <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>
+            <div className="flex gap-3">
+              <Button type="button" variant="ghost" onClick={() => onOpenChange(false)} className="rounded-xl h-11">
                 Cancelar
               </Button>
-              <Button type="submit">
-                Salvar
+              <Button type="submit" className="rounded-xl h-11 px-6 shadow-lg shadow-primary/20">
+                Salvar Agendamento
               </Button>
             </div>
-          </DialogFooter>
+          </div>
         </form>
       </DialogContent>
     </Dialog>

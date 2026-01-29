@@ -14,41 +14,38 @@ const SocialPostColumn = ({
   });
 
   const colorClasses = {
-    idea: 'bg-purple-500/10 border-purple-500/20',
+    idea: 'bg-slate-500/10 border-slate-500/20',
     scripting: 'bg-blue-500/10 border-blue-500/20',
     to_record: 'bg-yellow-500/10 border-yellow-500/20',
     editing: 'bg-orange-500/10 border-orange-500/20',
     ready: 'bg-green-500/10 border-green-500/20',
-    scheduled: 'bg-indigo-500/10 border-indigo-500/20',
+    scheduled: 'bg-sky-500/10 border-sky-500/20',
     published: 'bg-emerald-500/10 border-emerald-500/20',
   };
 
   const headerColorClasses = {
-    idea: 'bg-purple-500',
+    idea: 'bg-slate-500',
     scripting: 'bg-blue-500',
     to_record: 'bg-yellow-500',
     editing: 'bg-orange-500',
     ready: 'bg-green-500',
-    scheduled: 'bg-indigo-500',
+    scheduled: 'bg-sky-500',
     published: 'bg-emerald-500',
   };
 
   return (
     <div
       ref={setNodeRef}
-      className={`rounded-xl border ${
-        colorClasses[column.id] || 'bg-muted/50 border-border'
-      } flex flex-col min-h-[500px] transition-all ${
-        isOver ? 'ring-2 ring-primary ring-offset-2 bg-primary/5' : ''
-      }`}
+      className={`rounded-xl border ${colorClasses[column.id] || 'bg-muted/50 border-border'
+        } flex flex-col min-h-[500px] transition-all ${isOver ? 'ring-2 ring-primary ring-offset-2 bg-primary/5' : ''
+        }`}
     >
       <div className="p-4 border-b border-border">
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-2">
             <div
-              className={`w-2 h-2 rounded-full ${
-                headerColorClasses[column.id] || 'bg-muted-foreground'
-              }`}
+              className={`w-2 h-2 rounded-full ${headerColorClasses[column.id] || 'bg-muted-foreground'
+                }`}
             />
             <h3 className="font-semibold text-foreground">{column.title}</h3>
           </div>

@@ -1,4 +1,5 @@
-import axios from 'axios';
+// Axios replace by native fetch
+
 
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:4000';
 
@@ -14,17 +15,29 @@ export const uazapiService = {
             if (!message) throw new Error('Mensagem não fornecida');
 
             // Usa a rota do backend que criamos para mascarar a API Key
-            const response = await axios.post(`${API_BASE_URL}/api/messages/send`, {
-                phone,
-                message
+            const response = await fetch(`${API_BASE_URL}/api/messages/send`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({
+                    phone,
+                    message
+                })
             });
 
-            return { success: true, data: response.data };
+            const data = await response.json();
+
+            if (!response.ok) {
+                throw new Error(data.error || `Erro HTTP: ${response.status}`);
+            }
+
+            return { success: true, data };
         } catch (error) {
             console.error('❌ Erro no envio Uazapi:', error);
             return {
                 success: false,
-                error: error.response?.data?.error || error.message
+                error: error.message
             };
         }
     }

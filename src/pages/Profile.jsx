@@ -87,7 +87,7 @@ const Profile = () => {
       if (updateError) {
         throw updateError;
       }
-      
+
       setFormData(prev => ({ ...prev, avatar_url: publicUrl }));
       toast({ title: "Sucesso!", description: "Avatar atualizado." });
     } catch (error) {
@@ -104,48 +104,85 @@ const Profile = () => {
         <meta name="description" content="Edite suas informações de perfil." />
       </Helmet>
 
-      <div className="max-w-2xl mx-auto">
-        <h1 className="text-3xl font-bold text-foreground">Meu Perfil</h1>
-        <p className="text-muted-foreground mt-1">Atualize suas informações pessoais e foto.</p>
+      <div className="max-w-3xl mx-auto space-y-8">
+        <div>
+          <h2 className="text-2xl font-bold tracking-tight text-slate-800 dark:text-slate-100">Meu Perfil</h2>
+          <p className="text-slate-500 dark:text-slate-400 mt-1">Gerencie suas informações pessoais e de exibição.</p>
+        </div>
 
-        <div className="bg-card rounded-xl shadow-sm border p-8 mt-6">
-            <form onSubmit={handleUpdate} className="space-y-6">
-                <div className="flex items-center gap-6">
-                    <div className="relative">
-                        <div className="w-24 h-24 bg-secondary rounded-full flex items-center justify-center overflow-hidden">
-                            {formData.avatar_url ? (
-                                <img src={formData.avatar_url} alt="Avatar" className="w-full h-full object-cover" />
-                            ) : (
-                                <User className="w-12 h-12 text-primary" />
-                            )}
-                        </div>
-                        <Button asChild type="button" size="icon" className="absolute bottom-0 right-0 w-8 h-8">
-                           <Label htmlFor="avatar-upload" className="cursor-pointer flex items-center justify-center">
-                                <Upload className="w-4 h-4" />
-                                <input id="avatar-upload" type="file" accept="image/*" className="hidden" onChange={uploadAvatar} disabled={uploading} />
-                           </Label>
-                        </Button>
+        <div className="bg-white dark:bg-slate-900 rounded-3xl border border-slate-200 dark:border-slate-800 p-8 shadow-sm">
+          <form onSubmit={handleUpdate} className="space-y-8">
+            <div className="flex flex-col sm:flex-row items-center sm:items-start gap-8 border-b border-slate-100 dark:border-slate-800 pb-8">
+              <div className="relative group">
+                <div className="w-32 h-32 bg-slate-50 dark:bg-slate-800 rounded-full flex items-center justify-center overflow-hidden ring-4 ring-white dark:ring-slate-900 shadow-xl transition-all group-hover:shadow-2xl">
+                  {formData.avatar_url ? (
+                    <img src={formData.avatar_url} alt="Avatar" className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-110" />
+                  ) : (
+                    <User className="w-12 h-12 text-slate-300 dark:text-slate-600" />
+                  )}
+
+                  {/* Overlay Loading State */}
+                  {uploading && (
+                    <div className="absolute inset-0 bg-black/50 flex items-center justify-center backdrop-blur-sm">
+                      <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-white"></div>
                     </div>
-                    <div className='flex-1'>
-                        <h2 className='text-xl font-semibold text-foreground'>{formData.full_name || 'Usuário'}</h2>
-                        <p className='text-muted-foreground'>{formData.email}</p>
-                    </div>
+                  )}
                 </div>
 
-                <div className="space-y-2">
-                    <Label htmlFor="name">Nome</Label>
-                    <Input id="name" value={formData.full_name} onChange={e => setFormData({...formData, full_name: e.target.value})} disabled={loading} />
-                </div>
-                <div className="space-y-2">
-                    <Label htmlFor="email">Email</Label>
-                    <Input id="email" type="email" value={formData.email} disabled />
-                </div>
-                <div className="flex justify-end">
-                    <Button type="submit" disabled={loading || uploading}>
-                        {loading || uploading ? 'Salvando...' : 'Salvar Alterações'}
-                    </Button>
-                </div>
-            </form>
+                <label
+                  htmlFor="avatar-upload"
+                  className={`absolute bottom-0 right-0 p-2.5 rounded-2xl cursor-pointer shadow-lg transition-all duration-200
+                                ${uploading ? 'opacity-0 scale-90' : 'opacity-100 scale-100 hover:scale-105 active:scale-95'}
+                                bg-primary text-white hover:bg-primary/90 ring-4 ring-white dark:ring-slate-900`}
+                >
+                  <Upload className="w-5 h-5" />
+                  <input id="avatar-upload" type="file" accept="image/*" className="hidden" onChange={uploadAvatar} disabled={uploading} />
+                </label>
+              </div>
+
+              <div className='flex-1 space-y-2 text-center sm:text-left pt-2'>
+                <h3 className='text-xl font-bold text-slate-900 dark:text-slate-100'>{formData.full_name || 'Usuário'}</h3>
+                <p className='text-slate-500 dark:text-slate-400 font-medium'>{formData.email}</p>
+                <p className="text-xs text-slate-400 dark:text-slate-500 max-w-sm mt-2 leading-relaxed">
+                  Sua foto de perfil será visível para outros administradores e na sua identificação no sistema.
+                </p>
+              </div>
+            </div>
+
+            <div className="grid gap-6">
+              <div className="space-y-2">
+                <Label htmlFor="name" className="text-slate-700 dark:text-slate-300">Nome Completo</Label>
+                <Input
+                  id="name"
+                  value={formData.full_name}
+                  onChange={e => setFormData({ ...formData, full_name: e.target.value })}
+                  disabled={loading}
+                  className="h-12 rounded-xl bg-slate-50 dark:bg-slate-950 border-slate-200 dark:border-slate-800 focus-visible:ring-primary/20"
+                />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="email" className="text-slate-700 dark:text-slate-300">Email</Label>
+                <Input
+                  id="email"
+                  type="email"
+                  value={formData.email}
+                  disabled
+                  className="h-12 rounded-xl bg-slate-100 dark:bg-slate-900/50 text-slate-500 border-transparent cursor-not-allowed"
+                />
+                <p className="text-[10px] uppercase tracking-wider font-semibold text-slate-400">O email não pode ser alterado</p>
+              </div>
+            </div>
+
+            <div className="flex justify-end pt-4">
+              <Button
+                type="submit"
+                disabled={loading || uploading}
+                className="h-11 px-8 rounded-xl shadow-lg shadow-primary/20 hover:shadow-primary/30 transition-all font-medium"
+              >
+                {loading || uploading ? 'Salvando...' : 'Salvar Alterações'}
+              </Button>
+            </div>
+          </form>
         </div>
       </div>
     </>

@@ -120,7 +120,7 @@ const TaskDialog = ({ open, onOpenChange, onSave, task }) => {
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
+      <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto rounded-3xl bg-white dark:bg-slate-900 border-none shadow-2xl">
         <DialogHeader>
           <DialogTitle>
             {task ? 'Editar Tarefa' : 'Nova Tarefa'}
@@ -131,7 +131,7 @@ const TaskDialog = ({ open, onOpenChange, onSave, task }) => {
           {/* Informações Básicas */}
           <div className="space-y-4">
             <h3 className="text-sm font-semibold text-foreground border-b pb-2">Informações Básicas</h3>
-            
+
             <div className="space-y-2">
               <Label htmlFor="title">Título *</Label>
               <Input
@@ -190,7 +190,7 @@ const TaskDialog = ({ open, onOpenChange, onSave, task }) => {
           {/* Responsável e Prazos */}
           <div className="space-y-4">
             <h3 className="text-sm font-semibold text-foreground border-b pb-2">Responsabilidade e Prazos</h3>
-            
+
             <div className="grid grid-cols-2 gap-4">
               <div className="space-y-2">
                 <Label htmlFor="assignee">Responsável</Label>

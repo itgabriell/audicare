@@ -61,12 +61,12 @@ const SocialPostCard = ({ post, onEdit, onDelete, onUpdateStatus }) => {
 
   const getStatusColor = (status) => {
     const colors = {
-      idea: 'bg-purple-500/10 text-purple-600 border-purple-500/20',
+      idea: 'bg-slate-500/10 text-slate-600 border-slate-500/20',
       scripting: 'bg-blue-500/10 text-blue-600 border-blue-500/20',
       to_record: 'bg-yellow-500/10 text-yellow-600 border-yellow-500/20',
       editing: 'bg-orange-500/10 text-orange-600 border-orange-500/20',
       ready: 'bg-green-500/10 text-green-600 border-green-500/20',
-      scheduled: 'bg-indigo-500/10 text-indigo-600 border-indigo-500/20',
+      scheduled: 'bg-sky-500/10 text-sky-600 border-sky-500/20',
       published: 'bg-emerald-500/10 text-emerald-600 border-emerald-500/20',
     };
     return colors[status] || colors.idea;
@@ -91,9 +91,8 @@ const SocialPostCard = ({ post, onEdit, onDelete, onUpdateStatus }) => {
       style={style}
       {...attributes}
       {...listeners}
-      className={`bg-card rounded-lg p-4 shadow-sm border cursor-grab active:cursor-grabbing hover:shadow-md transition-all group hover:border-primary/20 ${
-        isDragging ? 'ring-2 ring-primary' : ''
-      }`}
+      className={`bg-card rounded-lg p-4 shadow-sm border cursor-grab active:cursor-grabbing hover:shadow-md transition-all group hover:border-primary/20 ${isDragging ? 'ring-2 ring-primary' : ''
+        }`}
     >
       <div className="flex flex-col gap-3">
         {/* Header com Título e Menu */}
@@ -117,7 +116,7 @@ const SocialPostCard = ({ post, onEdit, onDelete, onUpdateStatus }) => {
                 <Edit className="h-4 w-4 mr-2" />
                 Editar
               </DropdownMenuItem>
-              <DropdownMenuItem 
+              <DropdownMenuItem
                 onClick={(e) => { e.stopPropagation(); onDelete(post.id); }}
                 className="text-destructive"
               >

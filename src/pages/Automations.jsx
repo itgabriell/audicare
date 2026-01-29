@@ -240,128 +240,159 @@ const Automations = () => {
                 <meta name="description" content="Gerencie automações e fluxos de trabalho para otimizar processos." />
             </Helmet>
 
-            <div className="space-y-6">
-                <div className="flex items-center justify-between">
-                    <div>
-                        <h1 className="text-3xl font-bold text-foreground">🤖 Automações de Engajamento</h1>
-                        <p className="text-muted-foreground mt-1">Configure mensagens automáticas para manter o contato com seus pacientes via Chatwoot.</p>
+            <div className="h-full flex flex-col space-y-4 pr-1 relative">
+                {/* Floating Header */}
+                <div className="flex flex-col gap-4 bg-white/60 dark:bg-slate-900/60 backdrop-blur-md p-4 rounded-3xl border border-slate-200/50 dark:border-slate-800/50 shadow-sm z-10 shrink-0">
+                    <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
+                        <div>
+                            <h1 className="text-2xl font-bold tracking-tight text-slate-900 dark:text-slate-100 font-sans flex items-center gap-2">
+                                <Bot className="h-6 w-6 text-primary" />
+                                Automações de Engajamento
+                            </h1>
+                            <p className="text-muted-foreground text-sm">
+                                Configure mensagens automáticas para manter o contato com seus pacientes via Chatwoot
+                            </p>
+                        </div>
+                        <Button
+                            onClick={handleCreateAutomation}
+                            className="rounded-xl h-10 shadow-lg shadow-primary/20 hover:shadow-primary/30 transition-all"
+                        >
+                            <Plus className="mr-2 h-4 w-4" />
+                            Criar Automação
+                        </Button>
                     </div>
-                    <Button onClick={handleCreateAutomation}>
-                        <Plus className="mr-2 h-4 w-4" />
-                        Criar Automação
-                    </Button>
                 </div>
 
-                <Card>
-                    <CardHeader>
-                        <CardTitle>Fluxos de Trabalho Ativos</CardTitle>
-                        <CardDescription>
-                            Abaixo estão as automações configuradas. Cada automação pode ser executada manualmente ou disparada automaticamente por gatilhos.
-                        </CardDescription>
-                    </CardHeader>
-                    <CardContent>
-                        {loading ? (
-                            <div className="flex items-center justify-center py-8">
-                                <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
-                            </div>
-                        ) : automations.length === 0 ? (
-                            <div className="text-center py-8 text-muted-foreground">
-                                <Bot className="h-12 w-12 mx-auto mb-4 opacity-50" />
-                                <p className="text-lg font-medium">Nenhuma automação criada</p>
-                                <p className="text-sm">Crie sua primeira automação para começar a enviar mensagens automaticamente.</p>
-                            </div>
-                        ) : (
-                            <Table>
-                                <TableHeader>
-                                    <TableRow>
-                                        <TableHead>Nome da Automação</TableHead>
-                                        <TableHead>Gatilho</TableHead>
-                                        <TableHead>Ação</TableHead>
-                                        <TableHead>Status</TableHead>
-                                        <TableHead className="text-right">Ações</TableHead>
-                                    </TableRow>
-                                </TableHeader>
-                                <TableBody>
-                                    {automations.map((automation) => (
-                                        <TableRow key={automation.id}>
-                                            <TableCell className="font-medium">{automation.name}</TableCell>
-                                            <TableCell>
-                                                <div className="flex items-center gap-2">
-                                                    <Clock className="h-4 w-4 text-muted-foreground" />
-                                                    <span>{getTriggerDisplay(automation)}</span>
-                                                </div>
-                                            </TableCell>
-                                            <TableCell>
-                                                <div className="flex items-center gap-2">
-                                                    <Send className="h-4 w-4 text-green-500" />
-                                                    <span>{getActionDisplay(automation)}</span>
-                                                </div>
-                                            </TableCell>
-                                            <TableCell>
-                                                <Badge variant={automation.status === 'active' ? 'default' : 'outline'}>
-                                                    {automation.status === 'active' ? 'Ativa' : 'Pausada'}
-                                                </Badge>
-                                            </TableCell>
-                                            <TableCell className="text-right">
-                                                <Button
-                                                    variant="ghost"
-                                                    size="icon"
-                                                    onClick={() => handleExecuteAutomation(automation)}
-                                                    title="Executar automação"
-                                                >
-                                                    <Play className="h-4 w-4" />
-                                                </Button>
-                                                <Button
-                                                    variant="ghost"
-                                                    size="icon"
-                                                    onClick={() => handleEditAutomation(automation)}
-                                                    title="Editar automação"
-                                                >
-                                                    <Edit className="h-4 w-4" />
-                                                </Button>
-                                                <Button
-                                                    variant="ghost"
-                                                    size="icon"
-                                                    onClick={() => handleDeleteAutomation(automation.id)}
-                                                    title="Excluir automação"
-                                                >
-                                                    <Trash2 className="h-4 w-4 text-red-500" />
-                                                </Button>
-                                            </TableCell>
+                <div className="flex-1 overflow-auto rounded-3xl pb-10">
+
+                    <Card className="rounded-3xl border-slate-200 dark:border-slate-800 shadow-sm overflow-hidden bg-white/50 dark:bg-slate-900/50">
+                        <CardHeader className="bg-slate-50/50 dark:bg-slate-900/50 pb-4 border-b border-slate-100 dark:border-slate-800">
+                            <CardTitle className="text-lg font-bold text-slate-800 dark:text-slate-200">Fluxos de Trabalho Ativos</CardTitle>
+                            <CardDescription>
+                                Abaixo estão as automações configuradas. Cada automação pode ser executada manualmente ou disparada automaticamente.
+                            </CardDescription>
+                        </CardHeader>
+                        <CardContent className="p-0">
+                            {loading ? (
+                                <div className="flex items-center justify-center py-12">
+                                    <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
+                                </div>
+                            ) : automations.length === 0 ? (
+                                <div className="text-center py-12 text-slate-400">
+                                    <Bot className="h-12 w-12 mx-auto mb-4 opacity-20" />
+                                    <p className="text-lg font-medium text-slate-900 dark:text-slate-200">Nenhuma automação criada</p>
+                                    <p className="text-sm text-slate-500 max-w-sm mx-auto">Crie sua primeira automação para começar a enviar mensagens automaticamente.</p>
+                                </div>
+                            ) : (
+                                <Table>
+                                    <TableHeader className="bg-slate-50 dark:bg-slate-900 border-b border-slate-100 dark:border-slate-800">
+                                        <TableRow className="hover:bg-transparent">
+                                            <TableHead className="pl-6 h-12 text-xs font-semibold uppercase tracking-wider text-slate-500">Nome da Automação</TableHead>
+                                            <TableHead className="h-12 text-xs font-semibold uppercase tracking-wider text-slate-500">Gatilho</TableHead>
+                                            <TableHead className="h-12 text-xs font-semibold uppercase tracking-wider text-slate-500">Ação</TableHead>
+                                            <TableHead className="h-12 text-xs font-semibold uppercase tracking-wider text-slate-500">Status</TableHead>
+                                            <TableHead className="text-right pr-6 h-12 text-xs font-semibold uppercase tracking-wider text-slate-500">Ações</TableHead>
                                         </TableRow>
-                                    ))}
-                                </TableBody>
-                            </Table>
-                        )}
-                    </CardContent>
-                </Card>
+                                    </TableHeader>
+                                    <TableBody>
+                                        {automations.map((automation) => (
+                                            <TableRow key={automation.id} className="group hover:bg-slate-50/50 dark:hover:bg-slate-800/50 transition-colors border-slate-100 dark:border-slate-800">
+                                                <TableCell className="font-medium pl-6 py-4">
+                                                    <div className="flex items-center gap-3">
+                                                        <div className="w-8 h-8 rounded-full bg-blue-50 dark:bg-blue-900/20 flex items-center justify-center text-blue-500">
+                                                            <Bot className="w-4 h-4" />
+                                                        </div>
+                                                        <span className="text-slate-700 dark:text-slate-200 group-hover:text-primary transition-colors">{automation.name}</span>
+                                                    </div>
+                                                </TableCell>
+                                                <TableCell>
+                                                    <div className="flex items-center gap-2 text-slate-600 dark:text-slate-400">
+                                                        <Clock className="h-4 w-4 text-slate-400" />
+                                                        <span className="text-sm">{getTriggerDisplay(automation)}</span>
+                                                    </div>
+                                                </TableCell>
+                                                <TableCell>
+                                                    <div className="flex items-center gap-2 text-slate-600 dark:text-slate-400">
+                                                        <Send className="h-4 w-4 text-emerald-500" />
+                                                        <span className="text-sm">{getActionDisplay(automation)}</span>
+                                                    </div>
+                                                </TableCell>
+                                                <TableCell>
+                                                    <Badge
+                                                        variant="outline"
+                                                        className={automation.status === 'active'
+                                                            ? "bg-emerald-50 text-emerald-700 border-emerald-200 dark:bg-emerald-900/20 dark:text-emerald-400 dark:border-emerald-800"
+                                                            : "bg-slate-100 text-slate-600 border-slate-200 dark:bg-slate-800 dark:text-slate-400 dark:border-slate-700"}
+                                                    >
+                                                        {automation.status === 'active' ? 'Ativa' : 'Pausada'}
+                                                    </Badge>
+                                                </TableCell>
+                                                <TableCell className="text-right pr-6">
+                                                    <div className="flex items-center justify-end gap-1">
+                                                        <Button
+                                                            variant="ghost"
+                                                            size="icon"
+                                                            onClick={() => handleExecuteAutomation(automation)}
+                                                            title="Executar automação"
+                                                            className="h-8 w-8 rounded-full hover:bg-emerald-50 hover:text-emerald-600 dark:hover:bg-emerald-900/20 dark:hover:text-emerald-400"
+                                                        >
+                                                            <Play className="h-4 w-4" />
+                                                        </Button>
+                                                        <Button
+                                                            variant="ghost"
+                                                            size="icon"
+                                                            onClick={() => handleEditAutomation(automation)}
+                                                            title="Editar automação"
+                                                            className="h-8 w-8 rounded-full hover:bg-slate-100 dark:hover:bg-slate-800"
+                                                        >
+                                                            <Edit className="h-4 w-4" />
+                                                        </Button>
+                                                        <Button
+                                                            variant="ghost"
+                                                            size="icon"
+                                                            onClick={() => handleDeleteAutomation(automation.id)}
+                                                            title="Excluir automação"
+                                                            className="h-8 w-8 rounded-full hover:bg-red-50 hover:text-red-600 dark:hover:bg-red-900/20 dark:hover:text-red-400"
+                                                        >
+                                                            <Trash2 className="h-4 w-4" />
+                                                        </Button>
+                                                    </div>
+                                                </TableCell>
+                                            </TableRow>
+                                        ))}
+                                    </TableBody>
+                                </Table>
+                            )}
+                        </CardContent>
+                    </Card>
 
-                {/* Dialog para criar/editar automação */}
-                <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
-                    <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
-                        <DialogHeader>
-                            <DialogTitle>
-                                {editingAutomation ? 'Editar Automação' : 'Criar Nova Automação'}
-                            </DialogTitle>
-                            <DialogDescription>
-                                {editingAutomation
-                                    ? 'Edite as configurações da automação selecionada.'
-                                    : 'Configure uma nova automação para envio automático de mensagens.'
-                                }
-                            </DialogDescription>
-                        </DialogHeader>
-                        <AutomationForm
-                            automation={editingAutomation}
-                            onSave={handleSaveAutomation}
-                            onCancel={() => {
-                                setDialogOpen(false);
-                                setEditingAutomation(null);
-                            }}
-                            isLoading={saving}
-                        />
-                    </DialogContent>
-                </Dialog>
+                    {/* Dialog para criar/editar automação */}
+                    <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
+                        <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
+                            <DialogHeader>
+                                <DialogTitle>
+                                    {editingAutomation ? 'Editar Automação' : 'Criar Nova Automação'}
+                                </DialogTitle>
+                                <DialogDescription>
+                                    {editingAutomation
+                                        ? 'Edite as configurações da automação selecionada.'
+                                        : 'Configure uma nova automação para envio automático de mensagens.'
+                                    }
+                                </DialogDescription>
+                            </DialogHeader>
+                            <AutomationForm
+                                automation={editingAutomation}
+                                onSave={handleSaveAutomation}
+                                onCancel={() => {
+                                    setDialogOpen(false);
+                                    setEditingAutomation(null);
+                                }}
+                                isLoading={saving}
+                            />
+                        </DialogContent>
+                    </Dialog>
 
+                </div>
             </div>
         </>
     );

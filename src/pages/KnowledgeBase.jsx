@@ -4,7 +4,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
 // CORREÇÃO 1: Adicionado Loader2 e Download (caso precise) nos imports
-import { Search, Plus, FileText, Image as ImageIcon, Trash2, ExternalLink, Loader2, Download } from 'lucide-react';
+import { Search, Plus, FileText, Image as ImageIcon, Trash2, ExternalLink, Loader2, Download, Clock } from 'lucide-react';
 
 // CORREÇÃO 2: Caminho atualizado para a pasta UI (onde você moveu o arquivo)
 import UploadDocDialog from '@/components/ui/UploadDocDialog.jsx';
@@ -40,7 +40,7 @@ export default function KnowledgeBase() {
   }, []);
 
   const handleDelete = async (doc) => {
-    if(!confirm('Tem certeza que deseja excluir este documento?')) return;
+    if (!confirm('Tem certeza que deseja excluir este documento?')) return;
     try {
       await knowledgeBaseService.deleteDocument(doc.id, doc.file_path);
       toast({ title: 'Sucesso', description: 'Documento removido.' });
@@ -59,89 +59,109 @@ export default function KnowledgeBase() {
 
   const categories = ['Todos', ...new Set(docs.map(d => d.category))];
   const filteredDocs = docs.filter(doc => {
-    const matchSearch = doc.title.toLowerCase().includes(search.toLowerCase()) || 
-                        doc.description?.toLowerCase().includes(search.toLowerCase());
+    const matchSearch = doc.title.toLowerCase().includes(search.toLowerCase()) ||
+      doc.description?.toLowerCase().includes(search.toLowerCase());
     const matchTab = activeTab === 'Todos' || doc.category === activeTab;
     return matchSearch && matchTab;
   });
 
   return (
-    <div className="p-6 max-w-7xl mx-auto space-y-6">
+    <div className="max-w-7xl mx-auto space-y-8">
       <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
         <div>
-          <h1 className="text-3xl font-bold text-gray-900 dark:text-white">Base de Conhecimento</h1>
-          <p className="text-gray-500 mt-1">Manuais, protocolos e arquivos da clínica Audicare.</p>
+          <h2 className="text-2xl font-bold tracking-tight text-slate-800 dark:text-slate-100">Base de Conhecimento</h2>
+          <p className="text-slate-500 dark:text-slate-400 mt-1">Manuais, protocolos e arquivos da clínica Audicare.</p>
         </div>
-        <Button onClick={() => setIsUploadOpen(true)} className="bg-primary hover:bg-primary/90 text-white">
+        <Button onClick={() => setIsUploadOpen(true)} className="rounded-xl shadow-lg shadow-primary/20 hover:shadow-primary/30 h-10 px-6">
           <Plus className="mr-2 h-4 w-4" /> Novo Documento
         </Button>
       </div>
 
-      <div className="flex flex-col md:flex-row gap-4 items-center bg-white dark:bg-gray-800 p-4 rounded-lg shadow-sm border border-gray-200 dark:border-gray-700">
-        <div className="relative flex-1 w-full">
-          <Search className="absolute left-3 top-3 h-4 w-4 text-gray-400" />
-          <Input 
-            placeholder="Buscar por título ou descrição..." 
-            className="pl-10 bg-white dark:bg-gray-900"
-            value={search}
-            onChange={(e) => setSearch(e.target.value)}
-          />
+      <div className="relative group">
+        <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none">
+          <Search className="h-5 w-5 text-slate-400 group-focus-within:text-primary transition-colors" />
         </div>
+        <Input
+          placeholder="Buscar por título, descrição ou categoria..."
+          className="pl-11 h-12 bg-white/80 dark:bg-slate-900/80 backdrop-blur-sm border-slate-200 dark:border-slate-800 rounded-2xl shadow-sm focus-visible:ring-primary/20 transition-all text-base"
+          value={search}
+          onChange={(e) => setSearch(e.target.value)}
+        />
       </div>
 
-      <Tabs defaultValue="Todos" value={activeTab} onValueChange={setActiveTab} className="w-full">
-        <TabsList className="flex flex-wrap h-auto bg-transparent justify-start gap-2 p-0 mb-4">
+      <Tabs defaultValue="Todos" value={activeTab} onValueChange={setActiveTab} className="w-full space-y-6">
+        <TabsList className="flex flex-wrap h-auto bg-transparent justify-start gap-2 p-0">
           {categories.map(cat => (
-            <TabsTrigger 
-              key={cat} 
+            <TabsTrigger
+              key={cat}
               value={cat}
-              className="data-[state=active]:bg-primary data-[state=active]:text-white border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 px-4 py-2"
+              className="rounded-xl px-4 py-2 text-sm font-medium border border-transparent data-[state=active]:bg-white dark:data-[state=active]:bg-slate-800 data-[state=active]:text-primary data-[state=active]:shadow-sm data-[state=active]:border-slate-200 dark:data-[state=active]:border-slate-700 bg-slate-100/50 dark:bg-slate-900/50 text-slate-600 dark:text-slate-400 hover:bg-white hover:text-slate-900 transition-all"
             >
               {cat}
             </TabsTrigger>
           ))}
         </TabsList>
 
-        <TabsContent value={activeTab}>
+        <TabsContent value={activeTab} className="mt-0">
           {loading ? (
-            <div className="text-center py-10 text-gray-500">
-              <Loader2 className="h-8 w-8 animate-spin mx-auto mb-2 text-primary"/>
-              Carregando documentos...
+            <div className="flex flex-col items-center justify-center py-20 text-slate-400">
+              <Loader2 className="h-10 w-10 animate-spin mb-4 text-primary/50" />
+              <p>Carregando documentos...</p>
             </div>
           ) : filteredDocs.length === 0 ? (
-            <div className="text-center py-10 text-gray-500 border-2 border-dashed border-gray-200 dark:border-gray-700 rounded-lg">
-              Nenhum documento encontrado.
+            <div className="flex flex-col items-center justify-center py-20 text-slate-400 border-2 border-dashed border-slate-200 dark:border-slate-800 rounded-3xl bg-slate-50/50 dark:bg-slate-900/50">
+              <FileText className="h-12 w-12 opacity-20 mb-4" />
+              <p>Nenhum documento encontrado.</p>
             </div>
           ) : (
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
               {filteredDocs.map((doc) => (
-                <Card key={doc.id} className="hover:shadow-md transition-shadow group flex flex-col justify-between border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800">
-                  <CardHeader className="flex flex-row items-start gap-4 space-y-0 pb-2">
-                    <div className="p-2 bg-gray-100 dark:bg-gray-700 rounded-lg">
+                <Card key={doc.id} className="group flex flex-col justify-between border-slate-200/60 dark:border-slate-800/60 bg-white/80 dark:bg-slate-900/80 backdrop-blur-sm rounded-3xl shadow-sm hover:shadow-lg hover:-translate-y-1 transition-all duration-300 overflow-hidden">
+                  <CardHeader className="flex flex-row items-start gap-4 space-y-0 pb-3">
+                    <div className="p-3 bg-slate-50 dark:bg-slate-800 rounded-2xl group-hover:scale-105 transition-transform duration-300">
                       {getIcon(doc.file_type)}
                     </div>
-                    <div className="flex-1 overflow-hidden">
-                      <CardTitle className="text-lg truncate font-semibold" title={doc.title}>{doc.title}</CardTitle>
-                      <CardDescription className="text-xs mt-1">
+                    <div className="flex-1 overflow-hidden pt-1">
+                      <CardTitle className="text-base font-bold text-slate-800 dark:text-slate-100 truncate leading-tight" title={doc.title}>{doc.title}</CardTitle>
+                      <CardDescription className="text-xs text-slate-500 mt-1.5 flex items-center gap-1">
+                        <Clock className="w-3 h-3" />
                         {format(new Date(doc.created_at), "d 'de' MMMM, yyyy", { locale: ptBR })}
                       </CardDescription>
                     </div>
                   </CardHeader>
-                  <CardContent>
-                    <p className="text-sm text-gray-600 dark:text-gray-300 line-clamp-3 min-h-[60px]">
-                      {doc.description || "Sem descrição."}
+                  <CardContent className="pb-3">
+                    <p className="text-sm text-slate-600 dark:text-slate-400 line-clamp-2 min-h-[40px] leading-relaxed">
+                      {doc.description || "Sem descrição disponível para este documento."}
                     </p>
-                    <span className="inline-block mt-3 px-2 py-1 text-xs rounded-full bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-200 font-medium">
-                      {doc.category}
-                    </span>
+                    <div className="mt-4 flex flex-wrap gap-2">
+                      <span className="inline-flex items-center px-2.5 py-0.5 rounded-md text-xs font-medium bg-slate-100 text-slate-600 dark:bg-slate-800 dark:text-slate-300 border border-slate-200 dark:border-slate-700">
+                        {doc.category}
+                      </span>
+                      {doc.file_type && (
+                        <span className="inline-flex items-center px-2.5 py-0.5 rounded-lg text-xs font-medium bg-slate-100 text-slate-500 dark:bg-slate-800 dark:text-slate-400 border border-slate-200 dark:border-slate-700 uppercase">
+                          {doc.file_type}
+                        </span>
+                      )}
+                    </div>
                   </CardContent>
-                  <CardFooter className="pt-3 border-t border-gray-100 dark:border-gray-700 flex justify-end gap-2">
-                    <Button variant="ghost" size="sm" onClick={() => handleDelete(doc)} className="text-red-500 hover:text-red-700 hover:bg-red-50 dark:hover:bg-red-900/20">
+                  <CardFooter className="pt-3 pb-4 px-6 border-t border-slate-100 dark:border-slate-800/50 bg-slate-50/30 dark:bg-slate-900/30 flex justify-between items-center gap-3">
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => handleDelete(doc)}
+                      className="text-slate-400 hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-xl h-9 w-9 p-0 transition-colors"
+                      title="Excluir documento"
+                    >
                       <Trash2 className="h-4 w-4" />
                     </Button>
-                    <Button variant="outline" size="sm" asChild className="border-primary text-primary hover:bg-primary hover:text-white">
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      asChild
+                      className="flex-1 bg-white dark:bg-slate-800 border-slate-200 dark:border-slate-700 hover:bg-primary hover:text-white hover:border-primary transition-all rounded-xl h-9 text-xs font-medium shadow-sm"
+                    >
                       <a href={doc.file_url} target="_blank" rel="noopener noreferrer">
-                        <ExternalLink className="h-4 w-4 mr-2" /> Abrir
+                        <Download className="h-3.5 w-3.5 mr-2" /> Baixar / Visualizar
                       </a>
                     </Button>
                   </CardFooter>
@@ -152,10 +172,10 @@ export default function KnowledgeBase() {
         </TabsContent>
       </Tabs>
 
-      <UploadDocDialog 
-        isOpen={isUploadOpen} 
-        onClose={() => setIsUploadOpen(false)} 
-        onSuccess={fetchDocs} 
+      <UploadDocDialog
+        isOpen={isUploadOpen}
+        onClose={() => setIsUploadOpen(false)}
+        onSuccess={fetchDocs}
       />
     </div>
   );

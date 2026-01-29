@@ -24,7 +24,7 @@ import { supabase } from '@/lib/customSupabaseClient';
 const PatientDialog = ({ open, onOpenChange, patient, onSave, initialData }) => {
   const { toast } = useToast();
   const [isSubmitting, setIsSubmitting] = useState(false);
-  
+
   const initialFormState = {
     name: '',
     cpf: '',
@@ -87,21 +87,21 @@ const PatientDialog = ({ open, onOpenChange, patient, onSave, initialData }) => 
       } else {
         // Novo paciente
         setFormData({
-            ...initialFormState,
-            name: initialData?.name || '',
-            phone: initialData?.phone || '',
+          ...initialFormState,
+          name: initialData?.name || '',
+          phone: initialData?.phone || '',
         });
-        
+
         if (initialData?.phone) {
-            setPhones([{
-                phone: initialData.phone,
-                is_primary: true,
-                is_whatsapp: true,
-                phone_type: 'mobile',
-                tempId: Date.now()
-            }]);
+          setPhones([{
+            phone: initialData.phone,
+            is_primary: true,
+            is_whatsapp: true,
+            phone_type: 'mobile',
+            tempId: Date.now()
+          }]);
         } else {
-            setPhones([]);
+          setPhones([]);
         }
       }
     }
@@ -121,15 +121,15 @@ const PatientDialog = ({ open, onOpenChange, patient, onSave, initialData }) => 
 
       // Se não tiver na tabela nova, mas tiver na antiga (legado), carrega o legado
       if ((!data || data.length === 0) && currentPatient.phone) {
-          setPhones([{
-              phone: currentPatient.phone,
-              phone_type: 'mobile',
-              is_primary: true,
-              is_whatsapp: true,
-              tempId: 'legacy-phone'
-          }]);
+        setPhones([{
+          phone: currentPatient.phone,
+          phone_type: 'mobile',
+          is_primary: true,
+          is_whatsapp: true,
+          tempId: 'legacy-phone'
+        }]);
       } else {
-          setPhones(data || []);
+        setPhones(data || []);
       }
 
     } catch (error) {
@@ -156,7 +156,7 @@ const PatientDialog = ({ open, onOpenChange, patient, onSave, initialData }) => 
 
   const handleZipCodeChange = async (value) => {
     const cleanZipCode = value.replace(/\D/g, '');
-    
+
     // Atualiza estado visual
     setFormData(prev => ({ ...prev, zip_code: value }));
 
@@ -176,15 +176,15 @@ const PatientDialog = ({ open, onOpenChange, patient, onSave, initialData }) => 
             state: data.uf || prev.state,
           }));
           toast({
-              title: "Endereço encontrado",
-              description: `${data.logradouro}, ${data.bairro} - ${data.localidade}/${data.uf}`,
+            title: "Endereço encontrado",
+            description: `${data.logradouro}, ${data.bairro} - ${data.localidade}/${data.uf}`,
           });
         } else {
-            toast({
-                variant: "destructive",
-                title: "CEP não encontrado",
-                description: "Verifique o número digitado."
-            });
+          toast({
+            variant: "destructive",
+            title: "CEP não encontrado",
+            description: "Verifique o número digitado."
+          });
         }
       } catch (error) {
         console.error('Erro ao buscar CEP:', error);
@@ -197,100 +197,100 @@ const PatientDialog = ({ open, onOpenChange, patient, onSave, initialData }) => 
   const handleSubmit = async (e) => {
     e.preventDefault();
     setIsSubmitting(true);
-    
+
     try {
-        let processedData = { ...formData };
-        
-        if (!processedData.name.trim()) {
-            throw new Error("O nome é obrigatório.");
-        }
+      let processedData = { ...formData };
 
-        // Validação de Telefones
-        const validPhones = phones.filter(p => p.phone && p.phone.trim());
-        if (validPhones.length === 0) {
-            throw new Error("Adicione pelo menos um telefone de contato.");
-        }
+      if (!processedData.name.trim()) {
+        throw new Error("O nome é obrigatório.");
+      }
 
-        // Formatação E.164 para salvar
-        for (const phone of validPhones) {
-            const rawPhone = phone.phone; 
-            const formattedPhone = formatPhoneE164(rawPhone);
-            
-            if (!validatePhoneE164(formattedPhone)) {
-                throw new Error(`Telefone inválido: ${phone.phone}. Use o formato (00) 00000-0000`);
-            }
-            phone.phone = formattedPhone;
-        }
+      // Validação de Telefones
+      const validPhones = phones.filter(p => p.phone && p.phone.trim());
+      if (validPhones.length === 0) {
+        throw new Error("Adicione pelo menos um telefone de contato.");
+      }
 
-        // Garantir Primary
-        if (!validPhones.some(p => p.is_primary)) {
-            validPhones[0].is_primary = true;
-        }
-        
-        // 1. Preparar Payload para tabela 'patients'
-        // Define o telefone principal na coluna 'phone' (string) para compatibilidade
-        const primaryPhone = validPhones.find(p => p.is_primary);
-        if (primaryPhone) {
-            processedData.phone = primaryPhone.phone;
-        }
+      // Formatação E.164 para salvar
+      for (const phone of validPhones) {
+        const rawPhone = phone.phone;
+        const formattedPhone = formatPhoneE164(rawPhone);
 
-        // Garante documentos fiscais
-        if (!processedData.document && processedData.cpf) {
-            processedData.document = processedData.cpf;
+        if (!validatePhoneE164(formattedPhone)) {
+          throw new Error(`Telefone inválido: ${phone.phone}. Use o formato (00) 00000-0000`);
         }
-        if (!processedData.fiscal_email && processedData.email) {
-            processedData.fiscal_email = processedData.email;
-        }
+        phone.phone = formattedPhone;
+      }
 
-        // CRUCIAL: Remove o array 'phones' do objeto que vai para a tabela 'patients'
-        // A tabela 'patients' não tem coluna 'phones' (array), isso causava o erro.
-        const { phones: _ignoredPhones, ...patientPayload } = { ...processedData, phones: validPhones };
-        
-        // 2. Salvar Paciente (Upsert/Update na tabela 'patients')
-        // onSave deve retornar o paciente salvo (ou o erro ser pego no catch)
-        const savedResult = await onSave(patientPayload); 
-        
-        // Se onSave não retornar o objeto (dependendo da implementação do pai), 
-        // usamos o patient.id se for edição. Se for criação e onSave não retornar ID, 
-        // não conseguiremos salvar os telefones extras agora (limitação do onSave atual).
-        const targetId = patient?.id || savedResult?.data?.id || savedResult?.id;
+      // Garantir Primary
+      if (!validPhones.some(p => p.is_primary)) {
+        validPhones[0].is_primary = true;
+      }
 
-        // 3. Salvar Telefones na tabela 'patient_phones'
-        if (targetId) {
-            const phonesToUpsert = validPhones.map(p => ({
-                patient_id: targetId,
-                phone: p.phone,
-                phone_type: p.phone_type || 'mobile',
-                contact_name: p.contact_name || null,
-                is_primary: p.is_primary || false,
-                is_whatsapp: p.is_whatsapp !== false, // Default true
-                notes: p.notes || null,
-                // Se tiver ID real (não temp/legacy), mantém para update
-                ...(p.id && !String(p.id).startsWith('temp') && !String(p.id).startsWith('legacy') ? { id: p.id } : {})
-            }));
+      // 1. Preparar Payload para tabela 'patients'
+      // Define o telefone principal na coluna 'phone' (string) para compatibilidade
+      const primaryPhone = validPhones.find(p => p.is_primary);
+      if (primaryPhone) {
+        processedData.phone = primaryPhone.phone;
+      }
 
-            const { error: phonesError } = await supabase
-                .from('patient_phones')
-                .upsert(phonesToUpsert);
+      // Garante documentos fiscais
+      if (!processedData.document && processedData.cpf) {
+        processedData.document = processedData.cpf;
+      }
+      if (!processedData.fiscal_email && processedData.email) {
+        processedData.fiscal_email = processedData.email;
+      }
 
-            if (phonesError) {
-                console.error('Erro ao salvar telefones:', phonesError);
-                toast({
-                    variant: "destructive",
-                    title: "Aviso",
-                    description: "Paciente salvo, mas houve erro ao salvar os telefones detalhados."
-                });
-            }
-        }
-        
-    } catch (error) {
-        console.error(error);
-        toast({
+      // CRUCIAL: Remove o array 'phones' do objeto que vai para a tabela 'patients'
+      // A tabela 'patients' não tem coluna 'phones' (array), isso causava o erro.
+      const { phones: _ignoredPhones, ...patientPayload } = { ...processedData, phones: validPhones };
+
+      // 2. Salvar Paciente (Upsert/Update na tabela 'patients')
+      // onSave deve retornar o paciente salvo (ou o erro ser pego no catch)
+      const savedResult = await onSave(patientPayload);
+
+      // Se onSave não retornar o objeto (dependendo da implementação do pai), 
+      // usamos o patient.id se for edição. Se for criação e onSave não retornar ID, 
+      // não conseguiremos salvar os telefones extras agora (limitação do onSave atual).
+      const targetId = patient?.id || savedResult?.data?.id || savedResult?.id;
+
+      // 3. Salvar Telefones na tabela 'patient_phones'
+      if (targetId) {
+        const phonesToUpsert = validPhones.map(p => ({
+          patient_id: targetId,
+          phone: p.phone,
+          phone_type: p.phone_type || 'mobile',
+          contact_name: p.contact_name || null,
+          is_primary: p.is_primary || false,
+          is_whatsapp: p.is_whatsapp !== false, // Default true
+          notes: p.notes || null,
+          // Se tiver ID real (não temp/legacy), mantém para update
+          ...(p.id && !String(p.id).startsWith('temp') && !String(p.id).startsWith('legacy') ? { id: p.id } : {})
+        }));
+
+        const { error: phonesError } = await supabase
+          .from('patient_phones')
+          .upsert(phonesToUpsert);
+
+        if (phonesError) {
+          console.error('Erro ao salvar telefones:', phonesError);
+          toast({
             variant: "destructive",
-            title: "Erro ao salvar",
-            description: error.message || "Verifique os dados e tente novamente.",
-        });
-        setIsSubmitting(false); 
+            title: "Aviso",
+            description: "Paciente salvo, mas houve erro ao salvar os telefones detalhados."
+          });
+        }
+      }
+
+    } catch (error) {
+      console.error(error);
+      toast({
+        variant: "destructive",
+        title: "Erro ao salvar",
+        description: error.message || "Verifique os dados e tente novamente.",
+      });
+      setIsSubmitting(false);
     }
   };
 
@@ -299,358 +299,319 @@ const PatientDialog = ({ open, onOpenChange, patient, onSave, initialData }) => 
   }, [open, patient]);
 
   return (
+
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto md:max-w-2xl md:max-h-[90vh] w-full h-full md:h-auto md:w-auto p-0 md:p-6">
-        <div className="md:hidden flex items-center justify-between p-4 border-b bg-card/95 backdrop-blur supports-[backdrop-filter]:bg-card/60 sticky top-0 z-10">
-          <DialogTitle className="text-lg font-semibold">{patient ? 'Editar Paciente' : 'Novo Paciente'}</DialogTitle>
-          <Button variant="ghost" size="sm" onClick={() => onOpenChange(false)} className="h-8 w-8 p-0">
-            <X className="h-4 w-4" />
+      <DialogContent className="max-w-3xl max-h-[90vh] overflow-hidden p-0 rounded-3xl bg-white dark:bg-slate-900 border-none shadow-2xl flex flex-col">
+
+        {/* Header - Fixed */}
+        <div className="px-6 py-4 border-b border-slate-100 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-900/50 flex-shrink-0 flex justify-between items-center">
+          <div>
+            <DialogTitle className="text-xl font-bold text-slate-900 dark:text-slate-100">
+              {patient ? 'Editar Paciente' : 'Novo Paciente'}
+            </DialogTitle>
+            <DialogDescription className="text-slate-500 dark:text-slate-400 mt-0.5">
+              {patient ? 'Atualize as informações do cadastro.' : 'Preencha os dados do novo paciente.'}
+            </DialogDescription>
+          </div>
+          <Button variant="ghost" size="icon" onClick={() => onOpenChange(false)} className="rounded-full hover:bg-slate-200/50">
+            <X className="w-5 h-5 text-slate-500" />
           </Button>
         </div>
 
-        <div className="hidden md:block">
-          <DialogHeader>
-            <DialogTitle>{patient ? 'Editar Paciente' : 'Novo Paciente'}</DialogTitle>
-            <DialogDescription>
-              {patient ? 'Atualize as informações do paciente conforme necessário.' : 'Preencha os dados para cadastrar um novo paciente.'}
-            </DialogDescription>
-          </DialogHeader>
-        </div>
+        <div className="flex-1 overflow-y-auto custom-scrollbar">
+          <form onSubmit={handleSubmit} className="p-6">
+            <TooltipProvider>
+              <Tabs defaultValue="personal" className="w-full">
+                <TabsList className="w-full grid grid-cols-3 bg-slate-100 dark:bg-slate-800/60 p-1 rounded-2xl h-12">
+                  <TabsTrigger value="personal" className="rounded-xl data-[state=active]:bg-white data-[state=active]:text-primary data-[state=active]:shadow-sm transition-all font-semibold">Dados Pessoais</TabsTrigger>
+                  <TabsTrigger value="fiscal" className="rounded-xl data-[state=active]:bg-white data-[state=active]:text-primary data-[state=active]:shadow-sm transition-all font-semibold">Fiscal & Endereço</TabsTrigger>
+                  <TabsTrigger value="medical" className="rounded-xl data-[state=active]:bg-white data-[state=active]:text-primary data-[state=active]:shadow-sm transition-all font-semibold">Médico</TabsTrigger>
+                </TabsList>
 
-        <form onSubmit={handleSubmit}>
-          <TooltipProvider>
-            <Tabs defaultValue="personal" className="w-full">
-              <TabsList className="grid w-full grid-cols-3">
-                <TabsTrigger value="personal">Dados Pessoais</TabsTrigger>
-                <TabsTrigger value="fiscal">Dados Fiscais/Endereço</TabsTrigger>
-                <TabsTrigger value="medical">Dados Médicos</TabsTrigger>
-              </TabsList>
+                <TabsContent value="personal" className="space-y-5 mt-6 animate-in slide-in-from-left-2 duration-300">
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
+                    <div className="space-y-2">
+                      <Label htmlFor="name" className="text-xs font-bold uppercase tracking-wider text-slate-500 ml-1">Nome Completo *</Label>
+                      <Input
+                        id="name"
+                        value={formData.name}
+                        onChange={(e) => setFormData({ ...formData, name: e.target.value })}
+                        required
+                        placeholder="Ex: João da Silva"
+                        className="rounded-xl h-11 bg-slate-50/50 dark:bg-slate-800/50 border-slate-200 dark:border-slate-700"
+                      />
+                    </div>
 
-              <TabsContent value="personal" className="space-y-4 mt-4">
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  <div className="space-y-2">
-                    <Label htmlFor="name">Nome Completo *</Label>
-                    <Input
-                      id="name"
-                      value={formData.name}
-                      onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-                      required
-                      placeholder="Ex: João da Silva"
-                    />
-                  </div>
-
-                  <div className="space-y-2">
-                    <Label htmlFor="cpf">CPF</Label>
-                    <Input
-                      id="cpf"
-                      value={formData.cpf}
-                      onChange={(e) => {
+                    <div className="space-y-2">
+                      <Label htmlFor="cpf" className="text-xs font-bold uppercase tracking-wider text-slate-500 ml-1">CPF</Label>
+                      <Input
+                        id="cpf"
+                        value={formData.cpf}
+                        onChange={(e) => {
                           const newCpf = e.target.value;
                           setFormData(prev => {
-                              // Se doc fiscal vazio ou igual ao antigo, atualiza junto
-                              const shouldUpdateDocument = !prev.document || prev.document === prev.cpf;
-                              return { 
-                                  ...prev, 
-                                  cpf: newCpf,
-                                  document: shouldUpdateDocument ? newCpf : prev.document 
-                              };
+                            const shouldUpdateDocument = !prev.document || prev.document === prev.cpf;
+                            return {
+                              ...prev,
+                              cpf: newCpf,
+                              document: shouldUpdateDocument ? newCpf : prev.document
+                            };
                           });
-                      }}
-                      placeholder="000.000.000-00"
-                    />
-                  </div>
+                        }}
+                        placeholder="000.000.000-00"
+                        className="rounded-xl h-11 bg-slate-50/50 dark:bg-slate-800/50 border-slate-200 dark:border-slate-700 font-mono"
+                      />
+                    </div>
 
-                  <div className="space-y-2">
-                    <Label htmlFor="email">E-mail Pessoal</Label>
-                    <Input
-                      id="email"
-                      type="email"
-                      value={formData.email}
-                      onChange={(e) => {
+                    <div className="space-y-2">
+                      <Label htmlFor="email" className="text-xs font-bold uppercase tracking-wider text-slate-500 ml-1">E-mail Pessoal</Label>
+                      <Input
+                        id="email"
+                        type="email"
+                        value={formData.email}
+                        onChange={(e) => {
                           const newEmail = e.target.value;
                           setFormData(prev => {
-                              // Se email fiscal vazio ou igual ao antigo, atualiza junto
-                              const shouldUpdateFiscal = !prev.fiscal_email || prev.fiscal_email === prev.email;
-                              return {
-                                  ...prev,
-                                  email: newEmail,
-                                  fiscal_email: shouldUpdateFiscal ? newEmail : prev.fiscal_email
-                              };
+                            const shouldUpdateFiscal = !prev.fiscal_email || prev.fiscal_email === prev.email;
+                            return {
+                              ...prev,
+                              email: newEmail,
+                              fiscal_email: shouldUpdateFiscal ? newEmail : prev.fiscal_email
+                            };
                           });
-                      }}
-                      placeholder="joao@exemplo.com"
-                    />
-                  </div>
-
-                  <div className="space-y-2">
-                    <Label htmlFor="birthdate">Data de Nascimento</Label>
-                    <Input
-                      id="birthdate"
-                      type="date"
-                      value={formData.birthdate}
-                      onChange={(e) => setFormData({ ...formData, birthdate: e.target.value })}
-                    />
-                  </div>
-
-                  <div className="space-y-2">
-                    <Label htmlFor="gender">Gênero</Label>
-                    <Select
-                      value={formData.gender}
-                      onValueChange={(value) => setFormData({ ...formData, gender: value })}
-                    >
-                      <SelectTrigger>
-                        <SelectValue placeholder="Selecione" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="male">Masculino</SelectItem>
-                        <SelectItem value="female">Feminino</SelectItem>
-                        <SelectItem value="other">Outro</SelectItem>
-                      </SelectContent>
-                    </Select>
-                  </div>
-                </div>
-
-                {/* Gerenciador de Telefones */}
-                <PatientPhonesManager
-                  phones={phones}
-                  onChange={setPhones}
-                />
-
-                {/* Gerenciador de Tags */}
-                <PatientTagsManager
-                  patientId={patient?.id}
-                  patientTags={[]} 
-                  onTagsChange={() => {}}
-                />
-              </TabsContent>
-
-              <TabsContent value="fiscal" className="space-y-4 mt-4">
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  <div className="space-y-2">
-                    <div className="flex items-center gap-2">
-                      <Label htmlFor="document">CPF/CNPJ (Nota Fiscal)</Label>
-                      <Tooltip>
-                        <TooltipTrigger>
-                          <AlertCircle className="h-4 w-4 text-amber-500" />
-                        </TooltipTrigger>
-                        <TooltipContent>
-                          <p>Usado para emissão de Nota Fiscal.</p>
-                        </TooltipContent>
-                      </Tooltip>
-                    </div>
-                    <Input
-                      id="document"
-                      value={formData.document}
-                      onChange={(e) => handleDocumentChange(e.target.value)}
-                      placeholder="000.000.000-00 ou CNPJ"
-                    />
-                  </div>
-
-                  <div className="space-y-2">
-                    <div className="flex items-center gap-2">
-                      <Label htmlFor="email_fiscal">E-mail para Nota Fiscal</Label>
-                      <Tooltip>
-                        <TooltipTrigger>
-                          <AlertCircle className="h-4 w-4 text-amber-500" />
-                        </TooltipTrigger>
-                        <TooltipContent>
-                          <p>E-mail onde a nota será enviada.</p>
-                        </TooltipContent>
-                      </Tooltip>
-                    </div>
-                    <Input
-                      id="email_fiscal"
-                      type="email"
-                      value={formData.fiscal_email} 
-                      onChange={(e) => setFormData({ ...formData, fiscal_email: e.target.value })}
-                      placeholder="email@empresa.com"
-                    />
-                  </div>
-                </div>
-
-                <div className="space-y-4">
-                  <h3 className="text-sm font-medium">Endereço Completo</h3>
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    <div className="space-y-2">
-                      <div className="flex items-center gap-2">
-                        <Label htmlFor="zip_code">CEP</Label>
-                        <Tooltip>
-                          <TooltipTrigger>
-                            <AlertCircle className="h-4 w-4 text-amber-500" />
-                          </TooltipTrigger>
-                          <TooltipContent>
-                            <p>Digite o CEP para buscar o endereço automaticamente</p>
-                          </TooltipContent>
-                        </Tooltip>
-                      </div>
-                      <div className="relative">
-                        <Input
-                          id="zip_code"
-                          value={formData.zip_code}
-                          onChange={(e) => handleZipCodeChange(e.target.value)}
-                          placeholder="00000-000"
-                          maxLength={9}
-                        />
-                        {loadingZipCode && (
-                          <Loader2 className="absolute right-3 top-3 h-4 w-4 animate-spin text-primary" />
-                        )}
-                      </div>
-                    </div>
-
-                    <div className="space-y-2">
-                      <Label htmlFor="street">Rua</Label>
-                      <Input
-                        id="street"
-                        value={formData.street}
-                        onChange={(e) => setFormData({ ...formData, street: e.target.value })}
-                        placeholder="Nome da rua"
+                        }}
+                        placeholder="joao@exemplo.com"
+                        className="rounded-xl h-11 bg-slate-50/50 dark:bg-slate-800/50 border-slate-200 dark:border-slate-700"
                       />
                     </div>
 
                     <div className="space-y-2">
-                      <Label htmlFor="number">Número</Label>
+                      <Label htmlFor="birthdate" className="text-xs font-bold uppercase tracking-wider text-slate-500 ml-1">Nascimento</Label>
                       <Input
-                        id="number"
-                        value={formData.number}
-                        onChange={(e) => setFormData({ ...formData, number: e.target.value })}
-                        placeholder="123"
+                        id="birthdate"
+                        type="date"
+                        value={formData.birthdate}
+                        onChange={(e) => setFormData({ ...formData, birthdate: e.target.value })}
+                        className="rounded-xl h-11 bg-slate-50/50 dark:bg-slate-800/50 border-slate-200 dark:border-slate-700"
                       />
                     </div>
 
                     <div className="space-y-2">
-                      <Label htmlFor="complement">Complemento</Label>
-                      <Input
-                        id="complement"
-                        value={formData.complement}
-                        onChange={(e) => setFormData({ ...formData, complement: e.target.value })}
-                        placeholder="Apto, bloco, etc."
-                      />
-                    </div>
-
-                    <div className="space-y-2">
-                      <Label htmlFor="neighborhood">Bairro</Label>
-                      <Input
-                        id="neighborhood"
-                        value={formData.neighborhood}
-                        onChange={(e) => setFormData({ ...formData, neighborhood: e.target.value })}
-                        placeholder="Nome do bairro"
-                      />
-                    </div>
-
-                    <div className="space-y-2">
-                      <Label htmlFor="city">Cidade</Label>
-                      <Input
-                        id="city"
-                        value={formData.city}
-                        onChange={(e) => setFormData({ ...formData, city: e.target.value })}
-                        placeholder="Nome da cidade"
-                      />
-                    </div>
-
-                    <div className="space-y-2">
-                      <Label htmlFor="state">Estado</Label>
+                      <Label htmlFor="gender" className="text-xs font-bold uppercase tracking-wider text-slate-500 ml-1">Gênero</Label>
                       <Select
-                        value={formData.state}
-                        onValueChange={(value) => setFormData({ ...formData, state: value })}
+                        value={formData.gender}
+                        onValueChange={(value) => setFormData({ ...formData, gender: value })}
                       >
-                        <SelectTrigger>
-                          <SelectValue placeholder="UF" />
+                        <SelectTrigger className="rounded-xl h-11 bg-slate-50/50 dark:bg-slate-800/50 border-slate-200 dark:border-slate-700">
+                          <SelectValue placeholder="Selecione" />
                         </SelectTrigger>
                         <SelectContent>
-                          <SelectItem value="AC">AC</SelectItem>
-                          <SelectItem value="AL">AL</SelectItem>
-                          <SelectItem value="AP">AP</SelectItem>
-                          <SelectItem value="AM">AM</SelectItem>
-                          <SelectItem value="BA">BA</SelectItem>
-                          <SelectItem value="CE">CE</SelectItem>
-                          <SelectItem value="DF">DF</SelectItem>
-                          <SelectItem value="ES">ES</SelectItem>
-                          <SelectItem value="GO">GO</SelectItem>
-                          <SelectItem value="MA">MA</SelectItem>
-                          <SelectItem value="MT">MT</SelectItem>
-                          <SelectItem value="MS">MS</SelectItem>
-                          <SelectItem value="MG">MG</SelectItem>
-                          <SelectItem value="PA">PA</SelectItem>
-                          <SelectItem value="PB">PB</SelectItem>
-                          <SelectItem value="PR">PR</SelectItem>
-                          <SelectItem value="PE">PE</SelectItem>
-                          <SelectItem value="PI">PI</SelectItem>
-                          <SelectItem value="RJ">RJ</SelectItem>
-                          <SelectItem value="RN">RN</SelectItem>
-                          <SelectItem value="RS">RS</SelectItem>
-                          <SelectItem value="RO">RO</SelectItem>
-                          <SelectItem value="RR">RR</SelectItem>
-                          <SelectItem value="SC">SC</SelectItem>
-                          <SelectItem value="SP">SP</SelectItem>
-                          <SelectItem value="SE">SE</SelectItem>
-                          <SelectItem value="TO">TO</SelectItem>
+                          <SelectItem value="male">Masculino</SelectItem>
+                          <SelectItem value="female">Feminino</SelectItem>
+                          <SelectItem value="other">Outro</SelectItem>
                         </SelectContent>
                       </Select>
                     </div>
                   </div>
-                </div>
-              </TabsContent>
 
-              <TabsContent value="medical" className="space-y-4 mt-4">
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  <div className="space-y-2">
-                      <Label htmlFor="allergies">Alergias</Label>
-                      <Textarea
-                      id="allergies"
-                      value={formData.allergies}
-                      onChange={(e) => setFormData({ ...formData, allergies: e.target.value })}
-                      className="min-h-[80px]"
-                      placeholder="Liste alergias conhecidas..."
+                  {/* Gerenciadores */}
+                  <div className="mt-6 space-y-6">
+                    <div className="bg-slate-50 dark:bg-slate-800/40 p-4 rounded-2xl border border-slate-100 dark:border-slate-700/50">
+                      <PatientPhonesManager phones={phones} onChange={setPhones} />
+                    </div>
+
+                    <div className="bg-slate-50 dark:bg-slate-800/40 p-4 rounded-2xl border border-slate-100 dark:border-slate-700/50">
+                      <PatientTagsManager
+                        patientId={patient?.id}
+                        patientTags={[]}
+                        onTagsChange={() => { }}
                       />
+                    </div>
+                  </div>
+                </TabsContent>
+
+                <TabsContent value="fiscal" className="space-y-5 mt-6 animate-in slide-in-from-left-2 duration-300">
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
+                    <div className="space-y-2">
+                      <div className="flex items-center gap-2">
+                        <Label htmlFor="document" className="text-xs font-bold uppercase tracking-wider text-slate-500 ml-1">CPF/CNPJ (Fiscal)</Label>
+                      </div>
+                      <Input
+                        id="document"
+                        value={formData.document}
+                        onChange={(e) => handleDocumentChange(e.target.value)}
+                        placeholder="Documento para NF"
+                        className="rounded-xl h-11 bg-slate-50/50 dark:bg-slate-800/50 border-slate-200 dark:border-slate-700 font-mono"
+                      />
+                    </div>
+
+                    <div className="space-y-2">
+                      <Label htmlFor="email_fiscal" className="text-xs font-bold uppercase tracking-wider text-slate-500 ml-1">E-mail Fiscal</Label>
+                      <Input
+                        id="email_fiscal"
+                        type="email"
+                        value={formData.fiscal_email}
+                        onChange={(e) => setFormData({ ...formData, fiscal_email: e.target.value })}
+                        placeholder="financeiro@empresa.com"
+                        className="rounded-xl h-11 bg-slate-50/50 dark:bg-slate-800/50 border-slate-200 dark:border-slate-700"
+                      />
+                    </div>
+                  </div>
+
+                  <div className="bg-slate-50 dark:bg-slate-800/30 p-5 rounded-2xl border border-slate-100 dark:border-slate-800 space-y-4">
+                    <h3 className="text-sm font-bold text-slate-700 flex items-center gap-2 border-b border-slate-200 pb-2">
+                      <div className="p-1 bg-white rounded shadow-sm"><Loader2 className="h-3 w-3 text-primary animate-spin" /></div> Endereço
+                    </h3>
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                      <div className="space-y-2">
+                        <Label htmlFor="zip_code" className="text-xs font-medium text-muted-foreground">CEP</Label>
+                        <div className="relative">
+                          <Input
+                            id="zip_code"
+                            value={formData.zip_code}
+                            onChange={(e) => handleZipCodeChange(e.target.value)}
+                            placeholder="00000-000"
+                            maxLength={9}
+                            className="rounded-xl bg-white dark:bg-slate-900 pr-9"
+                          />
+                          {loadingZipCode && (
+                            <Loader2 className="absolute right-3 top-3.5 h-4 w-4 animate-spin text-primary" />
+                          )}
+                        </div>
+                      </div>
+
+                      <div className="space-y-2">
+                        <Label htmlFor="street" className="text-xs font-medium text-muted-foreground">Rua</Label>
+                        <Input
+                          id="street"
+                          value={formData.street}
+                          onChange={(e) => setFormData({ ...formData, street: e.target.value })}
+                          className="rounded-xl bg-white dark:bg-slate-900"
+                        />
+                      </div>
+
+                      <div className="space-y-2">
+                        <Label htmlFor="number" className="text-xs font-medium text-muted-foreground">Número</Label>
+                        <Input
+                          id="number"
+                          value={formData.number}
+                          onChange={(e) => setFormData({ ...formData, number: e.target.value })}
+                          className="rounded-xl bg-white dark:bg-slate-900"
+                        />
+                      </div>
+
+                      <div className="space-y-2">
+                        <Label htmlFor="complement" className="text-xs font-medium text-muted-foreground">Complemento</Label>
+                        <Input
+                          id="complement"
+                          value={formData.complement}
+                          onChange={(e) => setFormData({ ...formData, complement: e.target.value })}
+                          className="rounded-xl bg-white dark:bg-slate-900"
+                        />
+                      </div>
+
+                      <div className="space-y-2">
+                        <Label htmlFor="neighborhood" className="text-xs font-medium text-muted-foreground">Bairro</Label>
+                        <Input
+                          id="neighborhood"
+                          value={formData.neighborhood}
+                          onChange={(e) => setFormData({ ...formData, neighborhood: e.target.value })}
+                          className="rounded-xl bg-white dark:bg-slate-900"
+                        />
+                      </div>
+
+                      <div className="grid grid-cols-2 gap-2">
+                        <div className="space-y-2">
+                          <Label htmlFor="city" className="text-xs font-medium text-muted-foreground">Cidade</Label>
+                          <Input
+                            id="city"
+                            value={formData.city}
+                            onChange={(e) => setFormData({ ...formData, city: e.target.value })}
+                            className="rounded-xl bg-white dark:bg-slate-900"
+                          />
+                        </div>
+                        <div className="space-y-2">
+                          <Label htmlFor="state" className="text-xs font-medium text-muted-foreground">UF</Label>
+                          <Select
+                            value={formData.state}
+                            onValueChange={(value) => setFormData({ ...formData, state: value })}
+                          >
+                            <SelectTrigger className="rounded-xl bg-white dark:bg-slate-900">
+                              <SelectValue placeholder="UF" />
+                            </SelectTrigger>
+                            <SelectContent>
+                              {['AC', 'AL', 'AP', 'AM', 'BA', 'CE', 'DF', 'ES', 'GO', 'MA', 'MT', 'MS', 'MG', 'PA', 'PB', 'PR', 'PE', 'PI', 'RJ', 'RN', 'RS', 'RO', 'RR', 'SC', 'SP', 'SE', 'TO'].map(uf => (
+                                <SelectItem key={uf} value={uf}>{uf}</SelectItem>
+                              ))}
+                            </SelectContent>
+                          </Select>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                </TabsContent>
+
+                <TabsContent value="medical" className="space-y-5 mt-6 animate-in slide-in-from-left-2 duration-300">
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
+                    <div className="space-y-2">
+                      <Label htmlFor="allergies" className="text-xs font-bold uppercase tracking-wider text-slate-500 ml-1">Alergias</Label>
+                      <Textarea
+                        id="allergies"
+                        value={formData.allergies}
+                        onChange={(e) => setFormData({ ...formData, allergies: e.target.value })}
+                        className="rounded-xl min-h-[100px] bg-red-50/50 dark:bg-red-900/10 border-red-100 dark:border-red-900/30"
+                        placeholder="Liste alergias conhecidas..."
+                      />
+                    </div>
+
+                    <div className="space-y-2">
+                      <Label htmlFor="medications" className="text-xs font-bold uppercase tracking-wider text-slate-500 ml-1">Medicamentos</Label>
+                      <Textarea
+                        id="medications"
+                        value={formData.medications}
+                        onChange={(e) => setFormData({ ...formData, medications: e.target.value })}
+                        className="rounded-xl min-h-[100px] bg-slate-50/50 dark:bg-slate-800/50 border-slate-200 dark:border-slate-700"
+                        placeholder="Medicamentos contínuos..."
+                      />
+                    </div>
                   </div>
 
                   <div className="space-y-2">
-                      <Label htmlFor="medications">Medicamentos em Uso</Label>
-                      <Textarea
-                      id="medications"
-                      value={formData.medications}
-                      onChange={(e) => setFormData({ ...formData, medications: e.target.value })}
-                      className="min-h-[80px]"
-                      placeholder="Medicamentos contínuos..."
-                      />
+                    <Label htmlFor="medical_history" className="text-xs font-bold uppercase tracking-wider text-slate-500 ml-1">Histórico Médico</Label>
+                    <Textarea
+                      id="medical_history"
+                      value={formData.medical_history}
+                      onChange={(e) => setFormData({ ...formData, medical_history: e.target.value })}
+                      className="rounded-xl min-h-[100px] bg-slate-50/50 dark:bg-slate-800/50 border-slate-200 dark:border-slate-700"
+                      placeholder="Histórico relevante..."
+                    />
                   </div>
-                </div>
 
-                <div className="space-y-2">
-                  <Label htmlFor="medical_history">Histórico Médico</Label>
-                  <Textarea
-                    id="medical_history"
-                    value={formData.medical_history}
-                    onChange={(e) => setFormData({ ...formData, medical_history: e.target.value })}
-                    className="min-h-[80px]"
-                    placeholder="Descreva o histórico médico relevante..."
-                  />
-                </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="notes" className="text-xs font-bold uppercase tracking-wider text-slate-500 ml-1">Observações Gerais</Label>
+                    <Textarea
+                      id="notes"
+                      value={formData.notes}
+                      onChange={(e) => setFormData({ ...formData, notes: e.target.value })}
+                      className="rounded-xl min-h-[80px]"
+                      placeholder="Outras informações..."
+                    />
+                  </div>
+                </TabsContent>
+              </Tabs>
 
-                <div className="space-y-2">
-                  <Label htmlFor="notes">Observações Gerais</Label>
-                  <Textarea
-                    id="notes"
-                    value={formData.notes}
-                    onChange={(e) => setFormData({ ...formData, notes: e.target.value })}
-                    className="min-h-[80px]"
-                    placeholder="Outras informações..."
-                  />
-                </div>
-              </TabsContent>
-            </Tabs>
-
-            <DialogFooter className="mt-6">
-              <Button type="button" variant="outline" onClick={() => onOpenChange(false)} disabled={isSubmitting}>
-                Cancelar
-              </Button>
-              <Button type="submit" disabled={isSubmitting}>
-                {isSubmitting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-                {patient ? 'Salvar Alterações' : 'Cadastrar Paciente'}
-              </Button>
-            </DialogFooter>
-          </TooltipProvider>
-        </form>
+              <div className="pt-6 mt-8 border-t border-slate-100 dark:border-slate-800 flex justify-end gap-3 sticky bottom-0 bg-white/80 dark:bg-slate-900/80 backdrop-blur-sm p-4 -mx-6 -mb-6">
+                <Button type="button" variant="outline" onClick={() => onOpenChange(false)} disabled={isSubmitting} className="rounded-xl h-11">
+                  Cancelar
+                </Button>
+                <Button type="submit" disabled={isSubmitting} className="rounded-xl h-11 shadow-lg shadow-primary/25 min-w-[140px]">
+                  {isSubmitting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                  {patient ? 'Salvar Tudo' : 'Cadastrar'}
+                </Button>
+              </div>
+            </TooltipProvider>
+          </form>
+        </div>
       </DialogContent>
     </Dialog>
   );

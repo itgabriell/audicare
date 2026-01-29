@@ -8,6 +8,8 @@ import {
   GetPatientByIdQuery
 } from '../cqrs';
 
+import { addPatient, updatePatient, getPatients, getPatientById } from '@/database';
+
 // Mock das funções do database
 vi.mock('@/database', () => ({
   addPatient: vi.fn(),
@@ -15,8 +17,6 @@ vi.mock('@/database', () => ({
   getPatients: vi.fn(),
   getPatientById: vi.fn(),
 }));
-
-import { addPatient, updatePatient, getPatients, getPatientById } from '@/database';
 
 describe('CQRS System', () => {
   beforeEach(() => {

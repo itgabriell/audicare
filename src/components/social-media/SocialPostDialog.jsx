@@ -76,14 +76,14 @@ const SocialPostDialog = ({ open, onOpenChange, onSave, post, campaigns = [] }) 
             channels = post.channels ? [post.channels] : [];
           }
         }
-        
+
         setFormData({
           title: post.title || '',
           content: post.content || '',
           channels: channels,
           media_type: post.media_type || 'none',
           status: post.status || 'idea',
-          scheduled_date: post.scheduled_date 
+          scheduled_date: post.scheduled_date
             ? new Date(post.scheduled_date).toISOString().slice(0, 16)
             : '',
           campaign_id: post.campaign_id || 'none',
@@ -131,12 +131,12 @@ const SocialPostDialog = ({ open, onOpenChange, onSave, post, campaigns = [] }) 
     const channelsArray = Array.isArray(formData.channels) ? formData.channels : [];
     // Preenche a coluna 'channel' (singular) com o primeiro canal ou 'whatsapp' como padrão
     const channelValue = channelsArray.length > 0 ? channelsArray[0] : 'whatsapp';
-    
+
     const submitData = {
       ...formData,
       channels: channelsArray,
       channel: channelValue, // Coluna singular obrigatória do banco
-      scheduled_date: formData.scheduled_date 
+      scheduled_date: formData.scheduled_date
         ? new Date(formData.scheduled_date).toISOString()
         : null,
       campaign_id: formData.campaign_id === 'none' || !formData.campaign_id ? null : formData.campaign_id,
@@ -148,7 +148,7 @@ const SocialPostDialog = ({ open, onOpenChange, onSave, post, campaigns = [] }) 
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
+      <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto rounded-3xl bg-white dark:bg-slate-900 border-none shadow-2xl">
         <DialogHeader>
           <DialogTitle>
             {post ? 'Editar Post' : 'Novo Post para Redes Sociais'}
@@ -159,7 +159,7 @@ const SocialPostDialog = ({ open, onOpenChange, onSave, post, campaigns = [] }) 
           {/* Informações Básicas */}
           <div className="space-y-4">
             <h3 className="text-sm font-semibold text-foreground border-b pb-2">Informações Básicas</h3>
-            
+
             <div className="space-y-2">
               <Label htmlFor="title">Título do Post *</Label>
               <Input
@@ -218,7 +218,7 @@ const SocialPostDialog = ({ open, onOpenChange, onSave, post, campaigns = [] }) 
           {/* Canais e Tipo de Mídia */}
           <div className="space-y-4">
             <h3 className="text-sm font-semibold text-foreground border-b pb-2">Canais e Mídia</h3>
-            
+
             <div className="space-y-2">
               <Label>Canais de Publicação *</Label>
               <div className="flex flex-wrap gap-3">
@@ -272,7 +272,7 @@ const SocialPostDialog = ({ open, onOpenChange, onSave, post, campaigns = [] }) 
           {/* Conteúdo */}
           <div className="space-y-4">
             <h3 className="text-sm font-semibold text-foreground border-b pb-2">Conteúdo</h3>
-            
+
             <div className="space-y-2">
               <Label htmlFor="content">Legenda / Roteiro</Label>
               <Textarea
@@ -290,7 +290,7 @@ const SocialPostDialog = ({ open, onOpenChange, onSave, post, campaigns = [] }) 
           {/* Agendamento e Responsável */}
           <div className="space-y-4">
             <h3 className="text-sm font-semibold text-foreground border-b pb-2">Agendamento e Responsável</h3>
-            
+
             <div className="grid grid-cols-2 gap-4">
               <div className="space-y-2">
                 <Label htmlFor="scheduled_date">Data e Hora de Publicação</Label>

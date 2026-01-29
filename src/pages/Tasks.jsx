@@ -142,7 +142,7 @@ const Tasks = () => {
     const today = new Date().toISOString().slice(0, 10);
     const overdue = filteredTasks.filter(t => t.due_date && t.due_date < today && t.status !== 'done').length;
     const dueToday = filteredTasks.filter(t => t.due_date === today && t.status !== 'done').length;
-    
+
     return {
       total: filteredTasks.length,
       done: filteredTasks.filter(t => t.status === 'done').length,
@@ -226,184 +226,165 @@ const Tasks = () => {
         <meta name="description" content="Gerenciamento de tarefas internas" />
       </Helmet>
 
-      <div className="space-y-6">
-        {/* Header */}
-        <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
-          <div>
-            <h1 className="text-3xl font-bold text-foreground">
-              Tarefas Internas
-            </h1>
-            <p className="text-muted-foreground mt-1 text-sm">
-              Organize as atividades da equipe
-            </p>
-          </div>
-          <Button
-            onClick={() => {
-              setEditingTask(null);
-              setDialogOpen(true);
-            }}
-          >
-            <Plus className="h-4 w-4 mr-2" />
-            Nova Tarefa
-          </Button>
-        </div>
+      <div className="h-full flex flex-col space-y-4 overflow-hidden pr-1 relative">
+        {/* Modern Floating Header & Controls */}
+        <div className="flex flex-col gap-4 bg-white/60 dark:bg-slate-900/60 backdrop-blur-md p-4 rounded-3xl border border-slate-200/50 dark:border-slate-800/50 shadow-sm z-10 shrink-0">
 
-        {/* Métricas Rápidas */}
-        <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-7 gap-4">
-          <div className="bg-card border rounded-lg p-3">
-            <p className="text-xs text-muted-foreground">Total</p>
-            <p className="text-xl font-bold text-foreground mt-1">{metrics.total}</p>
-          </div>
-          <div className="bg-card border rounded-lg p-3">
-            <p className="text-xs text-muted-foreground">A Fazer</p>
-            <p className="text-xl font-bold text-foreground mt-1">{metrics.todo}</p>
-          </div>
-          <div className="bg-card border rounded-lg p-3">
-            <p className="text-xs text-muted-foreground">Em Andamento</p>
-            <p className="text-xl font-bold text-foreground mt-1">{metrics.inProgress}</p>
-          </div>
-          <div className="bg-card border rounded-lg p-3">
-            <div className="flex items-center gap-2">
-              <CheckCircle2 className="h-4 w-4 text-green-500" />
-              <div>
-                <p className="text-xs text-muted-foreground">Concluídas</p>
-                <p className="text-xl font-bold text-foreground">{metrics.done}</p>
-              </div>
+          <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
+            <div>
+              <h1 className="text-2xl font-bold tracking-tight text-slate-900 dark:text-slate-100 font-sans">
+                Tarefas Internas
+              </h1>
+              <p className="text-muted-foreground text-sm">
+                Organize as atividades da equipe
+              </p>
             </div>
+            <Button
+              onClick={() => {
+                setEditingTask(null);
+                setDialogOpen(true);
+              }}
+              className="rounded-2xl h-11 px-5 shadow-lg shadow-primary/25 hover:shadow-primary/40 transition-all active:scale-95"
+            >
+              <Plus className="h-4 w-4 mr-2" />
+              Nova Tarefa
+            </Button>
           </div>
-          <div className="bg-card border rounded-lg p-3">
-            <div className="flex items-center gap-2">
-              <AlertCircle className="h-4 w-4 text-red-500" />
-              <div>
-                <p className="text-xs text-muted-foreground">Atrasadas</p>
-                <p className="text-xl font-bold text-foreground">{metrics.overdue}</p>
-              </div>
+
+          {/* Filters Row */}
+          <div className="flex flex-col lg:flex-row gap-3 items-center w-full">
+            <div className="relative w-full lg:w-96 group">
+              <Search className="absolute left-4 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400 transition-colors group-focus-within:text-primary" />
+              <Input
+                placeholder="Buscar tarefas..."
+                value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
+                className="pl-11 h-11 bg-white dark:bg-slate-800 border-slate-200 dark:border-slate-700 focus:ring-2 focus:ring-primary/20 rounded-2xl transition-all shadow-sm"
+              />
             </div>
-          </div>
-          <div className="bg-card border rounded-lg p-3">
-            <div className="flex items-center gap-2">
-              <Clock className="h-4 w-4 text-yellow-500" />
-              <div>
-                <p className="text-xs text-muted-foreground">Vencem Hoje</p>
-                <p className="text-xl font-bold text-foreground">{metrics.dueToday}</p>
-              </div>
-            </div>
-          </div>
-          <div className="bg-card border rounded-lg p-3">
-            <p className="text-xs text-muted-foreground">Alta Prioridade</p>
-            <p className="text-xl font-bold text-foreground mt-1">{metrics.highPriority}</p>
-          </div>
-        </div>
 
-        {/* Busca e Filtros */}
-        <div className="bg-card border rounded-lg p-3 flex flex-col gap-3">
-          {/* Busca */}
-          <div className="relative">
-            <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-            <Input
-              placeholder="Buscar por título, descrição ou categoria..."
-              value={searchTerm}
-              onChange={(e) => setSearchTerm(e.target.value)}
-              className="pl-10"
-            />
-          </div>
-
-          {/* Filtros */}
-          <div className="flex flex-wrap items-center gap-x-4 gap-y-2">
-            <DropdownMenu>
-              <DropdownMenuTrigger asChild>
-                <Button variant="ghost" className="text-sm font-normal text-muted-foreground gap-1 px-2">
-                  Responsável: <span className="text-foreground font-medium">
-                    {assigneeFilter === 'all' ? 'Todos' : (teamMembers.find(m => m.id === assigneeFilter)?.full_name || 'Meu usuário')}
-                  </span>
-                  <ChevronDown className="h-4 w-4" />
-                </Button>
-              </DropdownMenuTrigger>
-              <DropdownMenuContent>
-                <DropdownMenuRadioGroup value={assigneeFilter} onValueChange={setAssigneeFilter}>
-                  <DropdownMenuRadioItem value="all">Todos</DropdownMenuRadioItem>
-                  {teamMembers.map((member) => (
-                    <DropdownMenuRadioItem key={member.id} value={member.id}>
-                      {member.full_name || member.email}
-                    </DropdownMenuRadioItem>
-                  ))}
-                </DropdownMenuRadioGroup>
-              </DropdownMenuContent>
-            </DropdownMenu>
-
-            <DropdownMenu>
-              <DropdownMenuTrigger asChild>
-                <Button variant="ghost" className="text-sm font-normal text-muted-foreground gap-1 px-2">
-                  Prioridade: <span className="text-foreground font-medium">
-                    {priorityFilter === 'all' ? 'Todas' : (priorityFilter === 'high' ? 'Alta' : priorityFilter === 'medium' ? 'Média' : 'Baixa')}
-                  </span>
-                  <ChevronDown className="h-4 w-4" />
-                </Button>
-              </DropdownMenuTrigger>
-              <DropdownMenuContent>
-                <DropdownMenuRadioGroup value={priorityFilter} onValueChange={setPriorityFilter}>
-                  <DropdownMenuRadioItem value="all">Todas</DropdownMenuRadioItem>
-                  <DropdownMenuRadioItem value="high">Alta</DropdownMenuRadioItem>
-                  <DropdownMenuRadioItem value="medium">Média</DropdownMenuRadioItem>
-                  <DropdownMenuRadioItem value="low">Baixa</DropdownMenuRadioItem>
-                </DropdownMenuRadioGroup>
-              </DropdownMenuContent>
-            </DropdownMenu>
-
-            {categories.length > 0 && (
+            <div className="flex-1 flex flex-wrap items-center gap-2 w-full">
               <DropdownMenu>
                 <DropdownMenuTrigger asChild>
-                  <Button variant="ghost" className="text-sm font-normal text-muted-foreground gap-1 px-2">
-                    Categoria: <span className="text-foreground font-medium">
-                      {categoryFilter === 'all' ? 'Todas' : categoryFilter}
-                    </span>
-                    <ChevronDown className="h-4 w-4" />
+                  <Button variant="outline" className="rounded-xl h-10 border-dashed border-slate-300 dark:border-slate-700 text-slate-600 dark:text-slate-400">
+                    Responsável: <span className="text-slate-900 dark:text-slate-200 ml-1 font-medium">{assigneeFilter === 'all' ? 'Todos' : (teamMembers.find(m => m.id === assigneeFilter)?.full_name || 'Meu usuário')}</span>
+                    <ChevronDown className="h-3 w-3 ml-2 opacity-50" />
                   </Button>
                 </DropdownMenuTrigger>
                 <DropdownMenuContent>
-                  <DropdownMenuRadioGroup value={categoryFilter} onValueChange={setCategoryFilter}>
-                    <DropdownMenuRadioItem value="all">Todas</DropdownMenuRadioItem>
-                    {categories.map((cat) => (
-                      <DropdownMenuRadioItem key={cat} value={cat}>{cat}</DropdownMenuRadioItem>
+                  <DropdownMenuRadioGroup value={assigneeFilter} onValueChange={setAssigneeFilter}>
+                    <DropdownMenuRadioItem value="all">Todos</DropdownMenuRadioItem>
+                    {teamMembers.map((member) => (
+                      <DropdownMenuRadioItem key={member.id} value={member.id}>{member.full_name || member.email}</DropdownMenuRadioItem>
                     ))}
                   </DropdownMenuRadioGroup>
                 </DropdownMenuContent>
               </DropdownMenu>
-            )}
 
-            <div className="flex items-center gap-2 ml-auto">
-              <input
-                id="overdueOnly"
-                type="checkbox"
-                checked={overdueOnly}
-                onChange={(e) => setOverdueOnly(e.target.checked)}
-                className="h-4 w-4"
-              />
-              <label
-                htmlFor="overdueOnly"
-                className="text-sm text-muted-foreground cursor-pointer"
-              >
-                Apenas atrasadas
-              </label>
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <Button variant="outline" className="rounded-xl h-10 border-dashed border-slate-300 dark:border-slate-700 text-slate-600 dark:text-slate-400">
+                    Prioridade: <span className="text-slate-900 dark:text-slate-200 ml-1 font-medium">{priorityFilter === 'all' ? 'Todas' : (priorityFilter === 'high' ? 'Alta' : priorityFilter === 'medium' ? 'Média' : 'Baixa')}</span>
+                    <ChevronDown className="h-3 w-3 ml-2 opacity-50" />
+                  </Button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent>
+                  <DropdownMenuRadioGroup value={priorityFilter} onValueChange={setPriorityFilter}>
+                    <DropdownMenuRadioItem value="all">Todas</DropdownMenuRadioItem>
+                    <DropdownMenuRadioItem value="high">Alta</DropdownMenuRadioItem>
+                    <DropdownMenuRadioItem value="medium">Média</DropdownMenuRadioItem>
+                    <DropdownMenuRadioItem value="low">Baixa</DropdownMenuRadioItem>
+                  </DropdownMenuRadioGroup>
+                </DropdownMenuContent>
+              </DropdownMenu>
+
+              {categories.length > 0 && (
+                <DropdownMenu>
+                  <DropdownMenuTrigger asChild>
+                    <Button variant="outline" className="rounded-xl h-10 border-dashed border-slate-300 dark:border-slate-700 text-slate-600 dark:text-slate-400">
+                      Categoria: <span className="text-slate-900 dark:text-slate-200 ml-1 font-medium">{categoryFilter === 'all' ? 'Todas' : categoryFilter}</span>
+                      <ChevronDown className="h-3 w-3 ml-2 opacity-50" />
+                    </Button>
+                  </DropdownMenuTrigger>
+                  <DropdownMenuContent>
+                    <DropdownMenuRadioGroup value={categoryFilter} onValueChange={setCategoryFilter}>
+                      <DropdownMenuRadioItem value="all">Todas</DropdownMenuRadioItem>
+                      {categories.map((cat) => (
+                        <DropdownMenuRadioItem key={cat} value={cat}>{cat}</DropdownMenuRadioItem>
+                      ))}
+                    </DropdownMenuRadioGroup>
+                  </DropdownMenuContent>
+                </DropdownMenu>
+              )}
+
+              <div className="flex items-center gap-2 ml-auto px-2">
+                <input
+                  id="overdueOnly"
+                  type="checkbox"
+                  checked={overdueOnly}
+                  onChange={(e) => setOverdueOnly(e.target.checked)}
+                  className="h-4 w-4 rounded-lg border-slate-300 text-primary focus:ring-primary/20 cursor-pointer"
+                />
+                <label
+                  htmlFor="overdueOnly"
+                  className="text-sm font-medium text-slate-600 dark:text-slate-400 cursor-pointer select-none"
+                >
+                  Atrasadas
+                </label>
+              </div>
+            </div>
+          </div>
+
+          {/* Mini Metrics Bar - Horizontal Scroll */}
+          <div className="flex gap-3 overflow-x-auto scrollbar-thin pb-2">
+            <div className="min-w-[120px] bg-slate-50 dark:bg-slate-800/50 rounded-2xl p-3 border border-slate-100 dark:border-slate-800/50 flex flex-col justify-between">
+              <p className="text-[10px] uppercase font-bold text-slate-400 tracking-wider">Total</p>
+              <p className="text-2xl font-black text-slate-700 dark:text-slate-200">{metrics.total}</p>
+            </div>
+            <div className="min-w-[120px] bg-blue-50/50 dark:bg-blue-900/10 rounded-2xl p-3 border border-blue-100 dark:border-blue-900/30 flex flex-col justify-between">
+              <p className="text-[10px] uppercase font-bold text-blue-500 tracking-wider">A Fazer</p>
+              <p className="text-2xl font-black text-blue-700 dark:text-blue-300">{metrics.todo}</p>
+            </div>
+            <div className="min-w-[120px] bg-amber-50/50 dark:bg-amber-900/10 rounded-2xl p-3 border border-amber-100 dark:border-amber-900/30 flex flex-col justify-between">
+              <p className="text-[10px] uppercase font-bold text-amber-500 tracking-wider">Andamento</p>
+              <p className="text-2xl font-black text-amber-700 dark:text-amber-300">{metrics.inProgress}</p>
+            </div>
+            <div className="min-w-[120px] bg-emerald-50/50 dark:bg-emerald-900/10 rounded-2xl p-3 border border-emerald-100 dark:border-emerald-900/30 flex flex-col justify-between">
+              <p className="text-[10px] uppercase font-bold text-emerald-500 tracking-wider">Concluídas</p>
+              <p className="text-2xl font-black text-emerald-700 dark:text-emerald-300">{metrics.done}</p>
+            </div>
+            <div className="min-w-[120px] bg-red-50/50 dark:bg-red-900/10 rounded-2xl p-3 border border-red-100 dark:border-red-900/30 flex flex-col justify-between">
+              <p className="text-[10px] uppercase font-bold text-red-500 tracking-wider flex items-center gap-1"><AlertCircle className="w-3 h-3" /> Atrasadas</p>
+              <p className="text-2xl font-black text-red-700 dark:text-red-300">{metrics.overdue}</p>
+            </div>
+            <div className="min-w-[120px] bg-orange-50/50 dark:bg-orange-900/10 rounded-2xl p-3 border border-orange-100 dark:border-orange-900/30 flex flex-col justify-between">
+              <p className="text-[10px] uppercase font-bold text-orange-500 tracking-wider flex items-center gap-1"><Clock className="w-3 h-3" /> Hoje</p>
+              <p className="text-2xl font-black text-orange-700 dark:text-orange-300">{metrics.dueToday}</p>
+            </div>
+            <div className="min-w-[120px] bg-rose-50/50 dark:bg-rose-900/10 rounded-2xl p-3 border border-rose-100 dark:border-rose-900/30 flex flex-col justify-between">
+              <p className="text-[10px] uppercase font-bold text-rose-500 tracking-wider">Alta Prior.</p>
+              <p className="text-2xl font-black text-rose-700 dark:text-rose-300">{metrics.highPriority}</p>
             </div>
           </div>
         </div>
 
         {/* Kanban Board */}
-        {loading ? (
-          <div className="flex justify-center items-center h-64">
-            <div className="w-8 h-8 border-2 border-primary border-t-transparent rounded-full animate-spin" />
-          </div>
-        ) : (
-          <DraggableKanbanBoard
-            tasks={filteredTasks}
-            onTaskMove={handleTaskMove}
-            onTaskClick={handleEditTask}
-            onTaskEdit={handleEditTask}
-            onTaskDelete={handleDeleteTask}
-            onAddTask={handleAddTask}
-          />
-        )}
+        <div className="flex-1 overflow-x-auto scrollbar-thin pb-4">
+          {loading ? (
+            <div className="flex justify-center items-center h-64">
+              <div className="w-8 h-8 border-2 border-primary border-t-transparent rounded-full animate-spin" />
+            </div>
+          ) : (
+            <DraggableKanbanBoard
+              tasks={filteredTasks}
+              onTaskMove={handleTaskMove}
+              onTaskClick={handleEditTask}
+              onTaskEdit={handleEditTask}
+              onTaskDelete={handleDeleteTask}
+              onAddTask={handleAddTask}
+            />
+          )}
+        </div>
 
         <TaskDialog
           open={dialogOpen}

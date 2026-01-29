@@ -56,6 +56,10 @@ module.exports = {
 				md: 'calc(var(--radius) - 2px)',
 				sm: 'calc(var(--radius) - 4px)',
 			},
+			fontFamily: {
+				sans: ['"Plus Jakarta Sans"', 'sans-serif'],
+				body: ['"Inter"', 'sans-serif'],
+			},
 			keyframes: {
 				'accordion-down': {
 					from: { height: 0 },

@@ -43,16 +43,16 @@ import {
   TableHeader,
   TableRow,
 } from '@/components/ui/table';
-import { 
-  Plus, 
-  Mail, 
-  Users, 
-  FileText, 
-  Calendar, 
-  Send, 
-  Loader2, 
-  Play, 
-  MoreHorizontal, 
+import {
+  Plus,
+  Mail,
+  Users,
+  FileText,
+  Calendar,
+  Send,
+  Loader2,
+  Play,
+  MoreHorizontal,
   Trash2,
   AlertCircle
 } from 'lucide-react';
@@ -79,7 +79,7 @@ const EmailCampaigns = () => {
   const [isCampaignDialogOpen, setIsCampaignDialogOpen] = useState(false);
   const [isListDialogOpen, setIsListDialogOpen] = useState(false);
   const [isTemplateDialogOpen, setIsTemplateDialogOpen] = useState(false);
-  
+
   // Alert Dialog State
   const [deleteCampaignId, setDeleteCampaignId] = useState(null);
 
@@ -159,17 +159,17 @@ const EmailCampaigns = () => {
 
       if (error) throw error;
 
-      toast({ 
-        title: 'Envio iniciado!', 
-        description: 'A campanha está sendo processada e os e-mails serão enviados em breve.' 
+      toast({
+        title: 'Envio iniciado!',
+        description: 'A campanha está sendo processada e os e-mails serão enviados em breve.'
       });
       fetchData();
     } catch (error) {
       console.error('Error running campaign:', error);
-      toast({ 
-        title: 'Erro ao iniciar envio', 
-        description: error.message || 'Verifique se a Edge Function está implantada corretamente.', 
-        variant: 'destructive' 
+      toast({
+        title: 'Erro ao iniciar envio',
+        description: error.message || 'Verifique se a Edge Function está implantada corretamente.',
+        variant: 'destructive'
       });
     } finally {
       setActionLoading(false);
@@ -182,7 +182,7 @@ const EmailCampaigns = () => {
 
   const handleDeleteCampaign = async () => {
     if (!deleteCampaignId) return;
-    
+
     setActionLoading(true);
     try {
       const { error } = await supabase.from('email_campaigns').delete().eq('id', deleteCampaignId);
@@ -249,7 +249,7 @@ const EmailCampaigns = () => {
       failed: 'bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-400 border-red-200 dark:border-red-800',
       processing: 'bg-amber-100 text-amber-800 dark:bg-amber-900/30 dark:text-amber-400 border-amber-200 dark:border-amber-800',
     };
-    
+
     const labels = {
       sent: 'Enviado',
       scheduled: 'Agendado',
@@ -280,12 +280,18 @@ const EmailCampaigns = () => {
         <meta name="description" content="Gerencie suas campanhas de e-mail marketing, listas de contatos e modelos." />
       </Helmet>
 
-      <div className="flex flex-col gap-2 md:flex-row md:items-center md:justify-between">
-        <div>
-          <h1 className="text-3xl font-bold tracking-tight">E-mail Marketing</h1>
-          <p className="text-muted-foreground">
-            Crie e gerencie campanhas para engajar seus pacientes.
-          </p>
+      <div className="flex flex-col gap-4 bg-white/60 dark:bg-slate-900/60 backdrop-blur-md p-4 rounded-3xl border border-slate-200/50 dark:border-slate-800/50 shadow-sm z-10 shrink-0">
+        <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
+          <div>
+            <h1 className="text-2xl font-bold tracking-tight text-slate-900 dark:text-slate-100 font-sans flex items-center gap-2">
+              <Mail className="h-6 w-6 text-primary" />
+              E-mail Marketing
+            </h1>
+            <p className="text-muted-foreground text-sm">
+              Crie e gerencie campanhas para engajar seus pacientes
+            </p>
+          </div>
+          {/* Action buttons could go here if global, but they are per-tab */}
         </div>
       </div>
 
@@ -317,19 +323,19 @@ const EmailCampaigns = () => {
                 <div className="space-y-4 py-4">
                   <div className="space-y-2">
                     <Label htmlFor="camp-name">Nome da Campanha</Label>
-                    <Input 
+                    <Input
                       id="camp-name"
-                      value={newCampaign.name} 
-                      onChange={(e) => setNewCampaign({...newCampaign, name: e.target.value})} 
-                      placeholder="Ex: Newsletter Mensal" 
+                      value={newCampaign.name}
+                      onChange={(e) => setNewCampaign({ ...newCampaign, name: e.target.value })}
+                      placeholder="Ex: Newsletter Mensal"
                     />
                   </div>
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                     <div className="space-y-2">
                       <Label>Lista de Destinatários</Label>
-                      <Select 
-                        value={newCampaign.list_id} 
-                        onValueChange={(val) => setNewCampaign({...newCampaign, list_id: val})}
+                      <Select
+                        value={newCampaign.list_id}
+                        onValueChange={(val) => setNewCampaign({ ...newCampaign, list_id: val })}
                       >
                         <SelectTrigger>
                           <SelectValue placeholder="Selecione..." />
@@ -343,9 +349,9 @@ const EmailCampaigns = () => {
                     </div>
                     <div className="space-y-2">
                       <Label>Modelo de E-mail</Label>
-                      <Select 
-                        value={newCampaign.template_id} 
-                        onValueChange={(val) => setNewCampaign({...newCampaign, template_id: val})}
+                      <Select
+                        value={newCampaign.template_id}
+                        onValueChange={(val) => setNewCampaign({ ...newCampaign, template_id: val })}
                       >
                         <SelectTrigger>
                           <SelectValue placeholder="Selecione..." />
@@ -360,11 +366,11 @@ const EmailCampaigns = () => {
                   </div>
                   <div className="space-y-2">
                     <Label htmlFor="camp-date">Data de Envio (Opcional)</Label>
-                    <Input 
+                    <Input
                       id="camp-date"
-                      type="datetime-local" 
-                      value={newCampaign.scheduled_at} 
-                      onChange={(e) => setNewCampaign({...newCampaign, scheduled_at: e.target.value})} 
+                      type="datetime-local"
+                      value={newCampaign.scheduled_at}
+                      onChange={(e) => setNewCampaign({ ...newCampaign, scheduled_at: e.target.value })}
                     />
                     <p className="text-xs text-muted-foreground">Deixe em branco para enviar manualmente depois.</p>
                   </div>
@@ -380,64 +386,82 @@ const EmailCampaigns = () => {
             </Dialog>
           </div>
 
-          <Card>
-            <CardHeader>
-              <CardTitle>Campanhas Recentes</CardTitle>
-              <CardDescription>Visualize e gerencie o status dos seus envios.</CardDescription>
+          <Card className="rounded-3xl border-slate-200 dark:border-slate-800 shadow-sm overflow-hidden">
+            <CardHeader className="bg-slate-50/50 dark:bg-slate-900/50 pb-4 border-b border-slate-100 dark:border-slate-800">
+              <div className="flex items-center justify-between">
+                <div>
+                  <CardTitle className="text-lg font-bold text-slate-800 dark:text-slate-200">Campanhas Recentes</CardTitle>
+                  <CardDescription>Visualize e gerencie o status dos seus envios.</CardDescription>
+                </div>
+                <div className="bg-white dark:bg-slate-800 p-2 rounded-xl border border-slate-100 dark:border-slate-700">
+                  <Send className="w-4 h-4 text-slate-400" />
+                </div>
+              </div>
             </CardHeader>
             <CardContent className="p-0">
               <Table>
-                <TableHeader>
-                  <TableRow>
-                    <TableHead className="pl-6">Nome</TableHead>
-                    <TableHead className="hidden md:table-cell">Lista</TableHead>
-                    <TableHead className="hidden md:table-cell">Modelo</TableHead>
-                    <TableHead>Status</TableHead>
-                    <TableHead className="hidden md:table-cell">Agendado</TableHead>
-                    <TableHead className="text-right pr-6">Ações</TableHead>
+                <TableHeader className="bg-slate-50 dark:bg-slate-900 border-b border-slate-100 dark:border-slate-800">
+                  <TableRow className="hover:bg-transparent">
+                    <TableHead className="pl-6 h-12 text-xs font-semibold uppercase tracking-wider text-slate-500">Nome</TableHead>
+                    <TableHead className="hidden md:table-cell h-12 text-xs font-semibold uppercase tracking-wider text-slate-500">Lista</TableHead>
+                    <TableHead className="hidden md:table-cell h-12 text-xs font-semibold uppercase tracking-wider text-slate-500">Modelo</TableHead>
+                    <TableHead className="h-12 text-xs font-semibold uppercase tracking-wider text-slate-500">Status</TableHead>
+                    <TableHead className="hidden md:table-cell h-12 text-xs font-semibold uppercase tracking-wider text-slate-500">Agendado</TableHead>
+                    <TableHead className="text-right pr-6 h-12 text-xs font-semibold uppercase tracking-wider text-slate-500">Ações</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
                   {campaigns.length === 0 ? (
                     <TableRow>
                       <TableCell colSpan={6} className="text-center py-12 text-muted-foreground">
-                        <div className="flex flex-col items-center gap-2">
-                          <Mail className="h-8 w-8 text-muted-foreground/50" />
-                          <p>Nenhuma campanha encontrada.</p>
+                        <div className="flex flex-col items-center gap-3">
+                          <div className="bg-slate-50 dark:bg-slate-800/50 p-4 rounded-full">
+                            <Mail className="h-8 w-8 text-slate-300 dark:text-slate-600" />
+                          </div>
+                          <p className="font-medium text-slate-900 dark:text-slate-200">Nenhuma campanha encontrada</p>
+                          <p className="text-sm text-slate-500 max-w-sm">Comece criando sua primeira campanha de e-mail marketing.</p>
                         </div>
                       </TableCell>
                     </TableRow>
                   ) : (
                     campaigns.map((campaign) => (
-                      <TableRow key={campaign.id}>
-                        <TableCell className="font-medium pl-6">{campaign.name}</TableCell>
-                        <TableCell className="hidden md:table-cell">{campaign.email_lists?.name || 'N/A'}</TableCell>
-                        <TableCell className="hidden md:table-cell">{campaign.email_templates?.name || 'N/A'}</TableCell>
+                      <TableRow key={campaign.id} className="group hover:bg-slate-50/50 dark:hover:bg-slate-800/50 transition-colors border-slate-100 dark:border-slate-800">
+                        <TableCell className="font-medium pl-6 py-4">
+                          <div className="flex items-center gap-3">
+                            <div className="w-8 h-8 rounded-full bg-primary/10 flex items-center justify-center text-primary">
+                              <Send className="w-4 h-4" />
+                            </div>
+                            <span className="text-slate-700 dark:text-slate-200 group-hover:text-primary transition-colors">{campaign.name}</span>
+                          </div>
+                        </TableCell>
+                        <TableCell className="hidden md:table-cell text-slate-500">{campaign.email_lists?.name || 'N/A'}</TableCell>
+                        <TableCell className="hidden md:table-cell text-slate-500">{campaign.email_templates?.name || 'N/A'}</TableCell>
                         <TableCell>
                           {getStatusBadge(campaign.status)}
                         </TableCell>
-                        <TableCell className="hidden md:table-cell">
+                        <TableCell className="hidden md:table-cell text-slate-500 font-mono text-xs">
                           {campaign.scheduled_at ? format(new Date(campaign.scheduled_at), "dd/MM/yyyy HH:mm", { locale: ptBR }) : '-'}
                         </TableCell>
                         <TableCell className="text-right pr-6">
                           <DropdownMenu>
                             <DropdownMenuTrigger asChild>
-                              <Button variant="ghost" className="h-8 w-8 p-0">
+                              <Button variant="ghost" className="h-8 w-8 p-0 rounded-full hover:bg-slate-200/50 dark:hover:bg-slate-700/50">
                                 <span className="sr-only">Abrir menu</span>
-                                <MoreHorizontal className="h-4 w-4" />
+                                <MoreHorizontal className="h-4 w-4 text-slate-500" />
                               </Button>
                             </DropdownMenuTrigger>
-                            <DropdownMenuContent align="end">
+                            <DropdownMenuContent align="end" className="rounded-xl border-slate-200 dark:border-slate-800">
                               <DropdownMenuLabel>Ações</DropdownMenuLabel>
-                              <DropdownMenuItem 
+                              <DropdownMenuItem
                                 onClick={() => handleRunCampaign(campaign.id)}
                                 disabled={campaign.status === 'sent' || campaign.status === 'processing'}
+                                className="cursor-pointer"
                               >
-                                <Play className="mr-2 h-4 w-4" /> Enviar Agora
+                                <Play className="mr-2 h-4 w-4 text-emerald-500" /> Enviar Agora
                               </DropdownMenuItem>
                               <DropdownMenuSeparator />
-                              <DropdownMenuItem 
-                                className="text-destructive focus:text-destructive"
+                              <DropdownMenuItem
+                                className="text-destructive focus:text-destructive cursor-pointer"
                                 onClick={() => confirmDeleteCampaign(campaign.id)}
                               >
                                 <Trash2 className="mr-2 h-4 w-4" /> Excluir
@@ -469,20 +493,20 @@ const EmailCampaigns = () => {
                 <div className="space-y-4 py-4">
                   <div className="space-y-2">
                     <Label htmlFor="list-name">Nome da Lista</Label>
-                    <Input 
+                    <Input
                       id="list-name"
-                      value={newList.name} 
-                      onChange={(e) => setNewList({...newList, name: e.target.value})} 
-                      placeholder="Ex: Pacientes Ativos" 
+                      value={newList.name}
+                      onChange={(e) => setNewList({ ...newList, name: e.target.value })}
+                      placeholder="Ex: Pacientes Ativos"
                     />
                   </div>
                   <div className="space-y-2">
                     <Label htmlFor="list-desc">Descrição</Label>
-                    <Textarea 
+                    <Textarea
                       id="list-desc"
-                      value={newList.description} 
-                      onChange={(e) => setNewList({...newList, description: e.target.value})} 
-                      placeholder="Descrição opcional..." 
+                      value={newList.description}
+                      onChange={(e) => setNewList({ ...newList, description: e.target.value })}
+                      placeholder="Descrição opcional..."
                     />
                   </div>
                 </div>
@@ -499,26 +523,30 @@ const EmailCampaigns = () => {
 
           <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
             {lists.map((list) => (
-              <Card key={list.id} className="hover:shadow-md transition-shadow">
+              <Card key={list.id} className="group hover:shadow-lg transition-all duration-300 rounded-3xl border-slate-200 dark:border-slate-800 hover:-translate-y-1">
                 <CardHeader>
-                  <CardTitle className="text-lg flex items-center justify-between">
+                  <CardTitle className="text-lg flex items-center justify-between font-bold text-slate-800 dark:text-slate-100">
                     {list.name}
-                    <Users className="h-4 w-4 text-muted-foreground" />
+                    <div className="bg-primary/10 p-2 rounded-full">
+                      <Users className="h-4 w-4 text-primary" />
+                    </div>
                   </CardTitle>
-                  <CardDescription className="line-clamp-2">{list.description || 'Sem descrição'}</CardDescription>
+                  <CardDescription className="line-clamp-2 pt-2">{list.description || 'Sem descrição'}</CardDescription>
                 </CardHeader>
                 <CardContent>
-                  <div className="text-sm text-muted-foreground flex items-center gap-2">
+                  <div className="text-xs font-medium text-slate-500 flex items-center gap-2 bg-slate-50 dark:bg-slate-800/50 p-2 rounded-lg w-fit">
                     <Calendar className="h-3 w-3" />
-                    Criado em: {format(new Date(list.created_at), "dd/MM/yyyy", { locale: ptBR })}
+                    {format(new Date(list.created_at), "dd/MM/yyyy", { locale: ptBR })}
                   </div>
                 </CardContent>
               </Card>
             ))}
             {lists.length === 0 && (
-              <div className="col-span-full flex flex-col items-center justify-center py-12 text-muted-foreground border rounded-lg border-dashed bg-muted/10">
-                <Users className="h-10 w-10 mb-3 opacity-20" />
-                <p>Nenhuma lista criada ainda.</p>
+              <div className="col-span-full flex flex-col items-center justify-center py-12 text-slate-400 border border-dashed border-slate-200 dark:border-slate-800 rounded-3xl bg-slate-50/50 dark:bg-slate-900/50">
+                <div className="bg-white dark:bg-slate-800 p-4 rounded-full shadow-sm mb-3">
+                  <Users className="h-8 w-8 text-slate-300" />
+                </div>
+                <p className="font-medium">Nenhuma lista criada ainda</p>
               </div>
             )}
           </div>
@@ -539,30 +567,30 @@ const EmailCampaigns = () => {
                 <div className="space-y-4 py-4">
                   <div className="space-y-2">
                     <Label htmlFor="tpl-name">Nome do Modelo</Label>
-                    <Input 
+                    <Input
                       id="tpl-name"
-                      value={newTemplate.name} 
-                      onChange={(e) => setNewTemplate({...newTemplate, name: e.target.value})} 
-                      placeholder="Ex: Boas-vindas" 
+                      value={newTemplate.name}
+                      onChange={(e) => setNewTemplate({ ...newTemplate, name: e.target.value })}
+                      placeholder="Ex: Boas-vindas"
                     />
                   </div>
                   <div className="space-y-2">
                     <Label htmlFor="tpl-subject">Assunto do E-mail</Label>
-                    <Input 
+                    <Input
                       id="tpl-subject"
-                      value={newTemplate.subject} 
-                      onChange={(e) => setNewTemplate({...newTemplate, subject: e.target.value})} 
-                      placeholder="Assunto que aparecerá para o cliente" 
+                      value={newTemplate.subject}
+                      onChange={(e) => setNewTemplate({ ...newTemplate, subject: e.target.value })}
+                      placeholder="Assunto que aparecerá para o cliente"
                     />
                   </div>
                   <div className="space-y-2">
                     <Label htmlFor="tpl-body">Conteúdo HTML</Label>
-                    <Textarea 
+                    <Textarea
                       id="tpl-body"
                       className="min-h-[200px] font-mono text-sm"
-                      value={newTemplate.body_html} 
-                      onChange={(e) => setNewTemplate({...newTemplate, body_html: e.target.value})} 
-                      placeholder="<div>Olá, ...</div>" 
+                      value={newTemplate.body_html}
+                      onChange={(e) => setNewTemplate({ ...newTemplate, body_html: e.target.value })}
+                      placeholder="<div>Olá, ...</div>"
                     />
                     <p className="text-xs text-muted-foreground">Use HTML para formatar o corpo do e-mail.</p>
                   </div>
@@ -580,28 +608,32 @@ const EmailCampaigns = () => {
 
           <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
             {templates.map((template) => (
-              <Card key={template.id} className="hover:shadow-md transition-shadow">
-                <CardHeader>
-                  <CardTitle className="text-lg flex items-center justify-between">
-                    {template.name}
-                    <FileText className="h-4 w-4 text-muted-foreground" />
+              <Card key={template.id} className="group hover:shadow-lg transition-all duration-300 rounded-3xl border-slate-200 dark:border-slate-800 hover:-translate-y-1 overflow-hidden">
+                <CardHeader className="bg-slate-50/50 dark:bg-slate-900/50 pb-3 border-b border-slate-100 dark:border-slate-800/50">
+                  <CardTitle className="text-lg flex items-center justify-between font-bold text-slate-800 dark:text-slate-100">
+                    <span className="truncate">{template.name}</span>
+                    <div className="bg-blue-50 dark:bg-blue-900/20 p-2 rounded-full">
+                      <FileText className="h-4 w-4 text-blue-500" />
+                    </div>
                   </CardTitle>
-                  <CardDescription className="truncate">Assunto: {template.subject}</CardDescription>
+                  <CardDescription className="truncate text-xs font-medium">Assunto: {template.subject}</CardDescription>
                 </CardHeader>
-                <CardContent>
-                  <div className="text-xs text-muted-foreground line-clamp-3 font-mono bg-muted p-3 rounded-md border">
+                <CardContent className="pt-4">
+                  <div className="text-xs text-slate-500 line-clamp-4 font-mono bg-white dark:bg-slate-950 p-3 rounded-xl border border-slate-100 dark:border-slate-800 shadow-sm leading-relaxed">
                     {template.body_html}
                   </div>
                 </CardContent>
-                <CardFooter className="text-xs text-muted-foreground pt-0">
-                  Atualizado em: {format(new Date(template.created_at), "dd/MM/yyyy", { locale: ptBR })}
+                <CardFooter className="text-[10px] font-semibold uppercase tracking-wider text-slate-400 pt-0 pb-4">
+                  Atualizado: {format(new Date(template.created_at), "dd/MM/yyyy", { locale: ptBR })}
                 </CardFooter>
               </Card>
             ))}
             {templates.length === 0 && (
-              <div className="col-span-full flex flex-col items-center justify-center py-12 text-muted-foreground border rounded-lg border-dashed bg-muted/10">
-                <FileText className="h-10 w-10 mb-3 opacity-20" />
-                <p>Nenhum modelo criado ainda.</p>
+              <div className="col-span-full flex flex-col items-center justify-center py-12 text-slate-400 border border-dashed border-slate-200 dark:border-slate-800 rounded-3xl bg-slate-50/50 dark:bg-slate-900/50">
+                <div className="bg-white dark:bg-slate-800 p-4 rounded-full shadow-sm mb-3">
+                  <FileText className="h-8 w-8 text-slate-300" />
+                </div>
+                <p className="font-medium">Nenhum modelo criado ainda</p>
               </div>
             )}
           </div>

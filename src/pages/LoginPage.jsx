@@ -24,7 +24,7 @@ const LoginPage = () => {
     try {
       console.log("[LoginPage:handleSubmit] Form submitted.");
       console.log("[LoginPage:handleSubmit] Checking if signIn function exists:", typeof signIn);
-      
+
       if (typeof signIn !== 'function') {
         throw new TypeError("A função de login (signIn) não está disponível. Verifique o AuthContext.");
       }
@@ -65,34 +65,37 @@ const LoginPage = () => {
       </Helmet>
 
       <div className="min-h-screen flex items-center justify-center bg-background p-4 relative overflow-hidden">
-        <div 
-          className="absolute inset-0 bg-no-repeat bg-cover bg-center opacity-20"
-          style={{backgroundImage: "url('https://horizons-cdn.hostinger.com/1bbc4272-c963-40da-a72d-73cd033c2e2e/9899872ae90135d41d939ce5c9b17370.jpg')"}}
+        {/* Abstract Background Gradient Overlay */}
+        <div className="absolute inset-0 bg-primary/5 mix-blend-multiply z-0" />
+        <div
+          className="absolute inset-0 bg-no-repeat bg-cover bg-center opacity-10 blur-sm pointer-events-none"
+          style={{ backgroundImage: "url('https://horizons-cdn.hostinger.com/1bbc4272-c963-40da-a72d-73cd033c2e2e/9899872ae90135d41d939ce5c9b17370.jpg')" }}
         ></div>
+
         <motion.div
-          initial={{ opacity: 0, scale: 0.95 }}
-          animate={{ opacity: 1, scale: 1 }}
-          transition={{ duration: 0.5 }}
+          initial={{ opacity: 0, scale: 0.95, y: 20 }}
+          animate={{ opacity: 1, scale: 1, y: 0 }}
+          transition={{ duration: 0.6, ease: "easeOut" }}
           className="w-full max-w-md z-10"
         >
-          <div className="bg-white/80 dark:bg-card/80 backdrop-blur-sm rounded-2xl shadow-xl p-8 border dark:border-border">
-            <div className="text-center mb-8">
-               <img src="https://horizons-cdn.hostinger.com/1bbc4272-c963-40da-a72d-73cd033c2e2e/3094f61e7d1e0cf6f6f83d903bbd089c.png" alt="Audicare Logo" className="h-10 mx-auto mb-4" />
-              <p className="text-muted-foreground">Audicare Aparelhos Auditivos</p>
+          <div className="bg-white/70 dark:bg-card/60 backdrop-blur-xl rounded-3xl shadow-2xl shadow-primary/5 p-10 border border-white/20 dark:border-white/5">
+            <div className="text-center mb-10">
+              <img src="https://horizons-cdn.hostinger.com/1bbc4272-c963-40da-a72d-73cd033c2e2e/3094f61e7d1e0cf6f6f83d903bbd089c.png" alt="Audicare Logo" className="h-12 mx-auto mb-6 drop-shadow-sm" />
+              <p className="text-muted-foreground font-medium tracking-wide">Bem-vindo ao Audicare</p>
             </div>
 
             <form onSubmit={handleSubmit} className="space-y-6">
               <div className="space-y-2">
-                <Label htmlFor="email">E-mail</Label>
-                <div className="relative">
-                  <Mail className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-muted-foreground" />
+                <Label htmlFor="email" className="text-foreground/80">E-mail</Label>
+                <div className="relative group">
+                  <Mail className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-muted-foreground transition-colors group-focus-within:text-primary" />
                   <Input
                     id="email"
                     type="email"
                     placeholder="seu@email.com"
                     value={email}
                     onChange={(e) => setEmail(e.target.value)}
-                    className="pl-10"
+                    className="pl-10 h-12 bg-white/50 dark:bg-black/20 border-transparent focus:border-primary/30 focus:ring-4 focus:ring-primary/10 transition-all rounded-xl"
                     required
                     disabled={loading}
                   />
@@ -100,31 +103,31 @@ const LoginPage = () => {
               </div>
 
               <div className="space-y-2">
-                <Label htmlFor="password">Senha</Label>
-                <div className="relative">
-                  <Lock className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-muted-foreground" />
+                <Label htmlFor="password" className="text-foreground/80">Senha</Label>
+                <div className="relative group">
+                  <Lock className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-muted-foreground transition-colors group-focus-within:text-primary" />
                   <Input
                     id="password"
                     type="password"
                     placeholder="••••••••"
                     value={password}
                     onChange={(e) => setPassword(e.target.value)}
-                    className="pl-10"
+                    className="pl-10 h-12 bg-white/50 dark:bg-black/20 border-transparent focus:border-primary/30 focus:ring-4 focus:ring-primary/10 transition-all rounded-xl"
                     required
                     disabled={loading}
                   />
                 </div>
               </div>
 
-              <Button type="submit" className="w-full" disabled={loading}>
-                {loading ? 'Entrando...' : 'Entrar'}
+              <Button type="submit" className="w-full h-12 rounded-xl text-base font-semibold shadow-lg shadow-primary/20 hover:shadow-primary/40 transition-all hover:-translate-y-0.5" disabled={loading}>
+                {loading ? 'Entrando...' : 'Acessar Sistema'}
               </Button>
             </form>
-            
-            <div className="text-center mt-6">
-              <p className="text-sm text-muted-foreground">
+
+            <div className="text-center mt-8">
+              <p className="text-sm text-muted-foreground hover:text-foreground transition-colors">
                 Não tem uma conta?{' '}
-                <Link to="/register" className="font-semibold text-primary hover:underline">
+                <Link to="/register" className="font-bold text-primary hover:text-primary/80 hover:underline decoration-2 underline-offset-4">
                   Cadastre-se
                 </Link>
               </p>

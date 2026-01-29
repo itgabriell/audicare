@@ -36,10 +36,10 @@ const mainNavItems = [
   { href: '/inbox', icon: MessageSquare, label: 'Inbox' },
   { href: '/crm', icon: BarChart3, label: 'CRM' },
   { href: '/tasks', icon: Briefcase, label: 'Tarefas' },
-  
+
   // ✅ O botão de Reparos está aqui
   { href: '/repairs', icon: Wrench, label: 'Reparos' },
-  
+
   { href: '/invoices', icon: Receipt, label: 'Notas Fiscais' },
 ];
 
@@ -67,27 +67,24 @@ const NavItem = ({ item, isCollapsed }) => {
         <NavLink
           to={item.href}
           className={cn(
-            "group flex items-center gap-3 rounded-xl px-3.5 py-2.5 text-sm font-medium transition-all duration-200 relative z-10",
-            "hover:scale-[1.02] active:scale-[0.98]",
+            "group flex items-center gap-3 rounded-2xl px-4 py-3 text-sm font-medium transition-all duration-300 relative z-10",
+            "hover:bg-muted/50 hover:text-foreground hover:translate-x-1",
             isActive
-              ? "bg-primary text-primary-foreground shadow-sm shadow-primary/20"
-              : "text-muted-foreground hover:bg-muted/80 hover:text-foreground"
+              ? "bg-primary text-primary-foreground shadow-md shadow-primary/25"
+              : "text-muted-foreground"
           )}
         >
           <item.icon className={cn(
-            "h-5 w-5 transition-transform duration-200",
+            "h-5 w-5 transition-transform duration-300",
             isActive ? "scale-110" : "group-hover:scale-110"
           )} />
           {!isCollapsed && (
             <span className={cn(
-              "transition-opacity duration-200",
-              isActive ? "font-semibold" : "font-medium"
+              "transition-opacity duration-300",
+              isActive ? "font-semibold tracking-wide" : "font-medium"
             )}>
               {item.label}
             </span>
-          )}
-          {isActive && !isCollapsed && (
-            <div className="absolute left-0 top-1/2 -translate-y-1/2 w-1 h-6 bg-primary-foreground/30 rounded-r-full z-0" />
           )}
         </NavLink>
       </TooltipTrigger>

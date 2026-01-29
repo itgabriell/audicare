@@ -1,5 +1,6 @@
 import React from 'react';
-import { Droppable } from 'react-beautiful-dnd';
+import { useDroppable } from '@dnd-kit/core';
+import { SortableContext, verticalListSortingStrategy } from '@dnd-kit/sortable';
 import KanbanCard from './KanbanCard';
 
 const KanbanColumn = ({
@@ -9,10 +10,15 @@ const KanbanColumn = ({
   onOpenConversation,
   onScheduleFromLead,
 }) => {
+  // Config Droppable para a coluna (para receber itens quando vazia ou entre itens)
+  const { setNodeRef, isOver } = useDroppable({
+    id: column.id,
+  });
+
   const colorClasses = {
     blue: 'bg-blue-500/10 border-blue-500/20',
     yellow: 'bg-yellow-500/10 border-yellow-500/20',
-    purple: 'bg-purple-500/10 border-purple-500/20',
+    purple: 'bg-slate-500/10 border-slate-500/20',
     orange: 'bg-orange-500/10 border-orange-500/20',
     green: 'bg-green-500/10 border-green-500/20',
     red: 'bg-red-500/10 border-red-500/20',
@@ -22,12 +28,15 @@ const KanbanColumn = ({
   const headerColorClasses = {
     blue: 'bg-blue-500',
     yellow: 'bg-yellow-500',
-    purple: 'bg-purple-500',
+    purple: 'bg-slate-500',
     orange: 'bg-orange-500',
     green: 'bg-green-500',
     red: 'bg-red-500',
     gray: 'bg-gray-500', // Header para 'Parou de Responder'
   };
+
+  // IDs para o SortableContext (necessário para o dnd-kit saber a ordem)
+  const leadIds = leads.map(l => l.id);
 
   return (
     <div
@@ -48,30 +57,25 @@ const KanbanColumn = ({
         </div>
       </div>
 
-      {/* Área onde os cards caem (Droppable) */}
-      <Droppable droppableId={column.id}>
-        {(provided, snapshot) => (
-          <div
-            ref={provided.innerRef}
-            {...provided.droppableProps}
-            className={`
-              p-2 space-y-2 overflow-y-auto flex-1 transition-colors scrollbar-thin scrollbar-thumb-gray-200
-              ${snapshot.isDraggingOver ? 'bg-muted/30' : ''}
-            `}
-            style={{ minHeight: '100px' }} 
-          >
-            {leads.map((lead, index) => (
-              <KanbanCard
-                key={lead.id}
-                lead={lead}
-                index={index}
-                onClick={onEditLead}
-              />
-            ))}
-            {provided.placeholder}
-          </div>
-        )}
-      </Droppable>
+      {/* Área onde os cards caem (Droppable + Sortable) */}
+      <div
+        ref={setNodeRef}
+        className={`
+          p-2 space-y-2 overflow-y-auto flex-1 transition-colors scrollbar-thin scrollbar-thumb-gray-200
+          ${isOver ? 'bg-muted/30' : ''}
+        `}
+        style={{ minHeight: '100px' }}
+      >
+        <SortableContext items={leadIds} strategy={verticalListSortingStrategy}>
+          {leads.map((lead) => (
+            <KanbanCard
+              key={lead.id}
+              lead={lead}
+              onClick={onEditLead}
+            />
+          ))}
+        </SortableContext>
+      </div>
     </div>
   );
 };

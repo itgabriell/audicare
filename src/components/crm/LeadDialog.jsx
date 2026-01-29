@@ -39,12 +39,12 @@ const LeadDialog = ({ open, onOpenChange, lead, onSave, onDelete }) => {
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-[425px]">
+      <DialogContent className="sm:max-w-[425px] rounded-3xl bg-white dark:bg-slate-900 border-none shadow-2xl">
         <DialogHeader>
           <DialogTitle>{lead ? 'Editar Lead' : 'Novo Lead'}</DialogTitle>
         </DialogHeader>
         <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
-          
+
           <div className="space-y-2">
             <Label htmlFor="name">Nome</Label>
             <Input id="name" {...register('name', { required: true })} />
@@ -108,19 +108,19 @@ const LeadDialog = ({ open, onOpenChange, lead, onSave, onDelete }) => {
           </div>
 
           <DialogFooter className="flex justify-between items-center sm:justify-between">
-             {lead?.id ? (
-                <Button 
-                    type="button" 
-                    variant="ghost" 
-                    onClick={() => onDelete(lead.id)}
-                    className="text-red-500 hover:text-red-700 hover:bg-red-50"
-                >
-                    <Trash2 className="h-4 w-4 mr-2" /> Excluir
-                </Button>
-             ) : <div></div>}
+            {lead?.id ? (
+              <Button
+                type="button"
+                variant="ghost"
+                onClick={() => onDelete(lead.id)}
+                className="text-red-500 hover:text-red-700 hover:bg-red-50"
+              >
+                <Trash2 className="h-4 w-4 mr-2" /> Excluir
+              </Button>
+            ) : <div></div>}
             <div className="flex gap-2">
-                <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>Cancelar</Button>
-                <Button type="submit">Salvar</Button>
+              <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>Cancelar</Button>
+              <Button type="submit">Salvar</Button>
             </div>
           </DialogFooter>
         </form>

@@ -253,27 +253,62 @@ const Invoices = () => {
 
   return (
     <div className="space-y-6">
-      {/* Header */}
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-3xl font-bold tracking-tight flex items-center gap-3">
-            <Receipt className="h-8 w-8 text-primary" />
-            Notas Fiscais
-          </h1>
-          <p className="text-muted-foreground">
-            Gerencie todas as notas fiscais emitidas
-          </p>
+      {/* Header Floating */}
+      <div className="flex flex-col gap-4 bg-white/60 dark:bg-slate-900/60 backdrop-blur-md p-4 rounded-3xl border border-slate-200/50 dark:border-slate-800/50 shadow-sm z-10 shrink-0">
+        <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
+          <div>
+            <h1 className="text-2xl font-bold tracking-tight text-slate-900 dark:text-slate-100 font-sans flex items-center gap-2">
+              <Receipt className="h-6 w-6 text-primary" />
+              Notas Fiscais
+            </h1>
+            <p className="text-muted-foreground text-sm">
+              Gerencie todas as notas fiscais emitidas
+            </p>
+          </div>
+
+          <div className="flex items-center gap-2 w-full md:w-auto">
+            <Badge variant="secondary" className="px-3 py-1.5 rounded-xl text-xs font-medium bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300">
+              {filteredInvoices.length} nota{filteredInvoices.length !== 1 ? 's' : ''}
+            </Badge>
+
+            {selectedInvoices.length > 0 && (
+              <Button onClick={handleBulkDownload} variant="outline" className="rounded-xl h-9">
+                <Download className="h-3.5 w-3.5 mr-2" />
+                Baixar Selecionadas ({selectedInvoices.length})
+              </Button>
+            )}
+          </div>
         </div>
-        <div className="flex items-center gap-3">
-          <Badge variant="outline" className="px-3 py-1">
-            {filteredInvoices.length} nota{filteredInvoices.length !== 1 ? 's' : ''}
-          </Badge>
-          {selectedInvoices.length > 0 && (
-            <Button onClick={handleBulkDownload} variant="outline">
-              <Download className="h-4 w-4 mr-2" />
-              Baixar Selecionadas ({selectedInvoices.length})
-            </Button>
-          )}
+
+        {/* Top Stats Row */}
+        <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 pt-2 border-t border-slate-100 dark:border-slate-800/50">
+          <div className="bg-slate-50 dark:bg-slate-800/50 rounded-2xl p-3 border border-slate-200 dark:border-slate-700">
+            <span className="text-xs font-semibold text-slate-500 uppercase tracking-wider flex items-center gap-1"><FileText className="w-3 h-3" /> Total</span>
+            <div className="text-xl font-black text-slate-700 dark:text-slate-200 mt-1">{filteredInvoices.length}</div>
+          </div>
+          <div className="bg-green-50 dark:bg-green-900/10 rounded-2xl p-3 border border-green-100 dark:border-green-900/30">
+            <span className="text-xs font-semibold text-green-600 uppercase tracking-wider flex items-center gap-1"><DollarSign className="w-3 h-3" /> Receita</span>
+            <div className="text-xl font-black text-green-700 dark:text-green-400 mt-1 truncate">
+              {formatCurrency(filteredInvoices.reduce((sum, inv) => sum + (inv.amount || 0), 0))}
+            </div>
+          </div>
+          <div className="bg-yellow-50 dark:bg-yellow-900/10 rounded-2xl p-3 border border-yellow-100 dark:border-yellow-900/30">
+            <span className="text-xs font-semibold text-yellow-600 uppercase tracking-wider flex items-center gap-1"><Receipt className="w-3 h-3" /> Autorizadas</span>
+            <div className="text-xl font-black text-yellow-700 dark:text-yellow-400 mt-1">
+              {filteredInvoices.filter(inv => inv.status === 'authorized').length}
+            </div>
+          </div>
+          <div className="bg-cyan-50/50 dark:bg-cyan-900/10 rounded-2xl p-3 border border-cyan-100 dark:border-cyan-900/30">
+            <span className="text-xs font-semibold text-cyan-600 uppercase tracking-wider flex items-center gap-1"><Calendar className="w-3 h-3" /> Este Mês</span>
+            <div className="text-xl font-black text-cyan-700 dark:text-cyan-400 mt-1">
+              {filteredInvoices.filter(inv => {
+                const invoiceDate = new Date(inv.issued_at);
+                const now = new Date();
+                return invoiceDate.getMonth() === now.getMonth() &&
+                  invoiceDate.getFullYear() === now.getFullYear();
+              }).length}
+            </div>
+          </div>
         </div>
       </div>
 
@@ -357,102 +392,107 @@ const Invoices = () => {
       </Card>
 
       {/* Tabela */}
-      <Card>
+      <Card className="rounded-3xl shadow-sm border-slate-200 dark:border-slate-800 overflow-hidden">
         <CardContent className="p-0">
           <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead className="w-12">
+            <TableHeader className="bg-slate-50 dark:bg-slate-900 border-b border-slate-100 dark:border-slate-800">
+              <TableRow className="hover:bg-transparent">
+                <TableHead className="w-12 pl-4">
                   <input
                     type="checkbox"
                     checked={selectedInvoices.length === filteredInvoices.length && filteredInvoices.length > 0}
                     onChange={handleSelectAll}
-                    className="rounded border-gray-300"
+                    className="rounded border-slate-300 dark:border-slate-600 text-primary focus:ring-primary/20"
                   />
                 </TableHead>
-                <TableHead>Número</TableHead>
-                <TableHead>Data</TableHead>
-                <TableHead>Paciente</TableHead>
-                <TableHead>Tipo</TableHead>
-                <TableHead>Valor</TableHead>
-                <TableHead>Pagamento</TableHead>
-                <TableHead>Status</TableHead>
-                <TableHead className="text-right">Ações</TableHead>
+                <TableHead className="font-semibold text-slate-700 dark:text-slate-200">Número</TableHead>
+                <TableHead className="font-semibold text-slate-700 dark:text-slate-200">Data</TableHead>
+                <TableHead className="font-semibold text-slate-700 dark:text-slate-200">Paciente</TableHead>
+                <TableHead className="font-semibold text-slate-700 dark:text-slate-200">Tipo</TableHead>
+                <TableHead className="font-semibold text-slate-700 dark:text-slate-200">Valor</TableHead>
+                <TableHead className="font-semibold text-slate-700 dark:text-slate-200">Pagamento</TableHead>
+                <TableHead className="font-semibold text-slate-700 dark:text-slate-200">Status</TableHead>
+                <TableHead className="text-right pr-4 font-semibold text-slate-700 dark:text-slate-200">Ações</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
               {filteredInvoices.length === 0 ? (
                 <TableRow>
-                  <TableCell colSpan={9} className="text-center py-12">
-                    <FileText className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
-                    <p className="text-muted-foreground">
-                      {searchTerm || Object.values(filters).some(f => f !== 'all')
-                        ? 'Nenhuma nota fiscal encontrada com os filtros aplicados.'
-                        : 'Nenhuma nota fiscal emitida ainda.'}
-                    </p>
+                  <TableCell colSpan={9} className="text-center py-16">
+                    <div className="flex flex-col items-center justify-center opacity-60">
+                      <FileText className="h-12 w-12 text-slate-300 dark:text-slate-600 mb-4" />
+                      <p className="text-lg font-medium text-slate-900 dark:text-slate-100">Nenhum registro encontrado</p>
+                      <p className="text-sm text-slate-500 max-w-xs mt-1">
+                        {searchTerm || Object.values(filters).some(f => f !== 'all')
+                          ? 'Tente ajustar os filtros ou a busca para encontrar o que procura.'
+                          : 'Você ainda não emitiu nenhuma nota fiscal.'}
+                      </p>
+                    </div>
                   </TableCell>
                 </TableRow>
               ) : (
                 filteredInvoices.map((invoice) => (
-                  <TableRow key={invoice.id}>
-                    <TableCell>
+                  <TableRow key={invoice.id} className="hover:bg-slate-50/50 dark:hover:bg-slate-800/50 transition-colors border-slate-100 dark:border-slate-800">
+                    <TableCell className="pl-4">
                       <input
                         type="checkbox"
                         checked={selectedInvoices.includes(invoice.id)}
                         onChange={() => handleSelectInvoice(invoice.id)}
-                        className="rounded border-gray-300"
+                        className="rounded border-slate-300 dark:border-slate-600 text-primary focus:ring-primary/20"
                       />
                     </TableCell>
-                    <TableCell className="font-medium">
+                    <TableCell className="font-medium text-slate-700 dark:text-slate-200">
                       {invoice.numero || `NF-${invoice.id}`}
                     </TableCell>
                     <TableCell>
-                      <div className="flex items-center gap-2">
-                        <Calendar className="h-4 w-4 text-muted-foreground" />
+                      <div className="flex items-center gap-2 text-slate-600 dark:text-slate-400">
                         {formatDate(invoice.issued_at)}
                       </div>
                     </TableCell>
                     <TableCell>
-                      <div className="flex items-center gap-2">
-                        <User className="h-4 w-4 text-muted-foreground" />
+                      <div className="flex items-center gap-3">
+                        <div className="w-8 h-8 rounded-full bg-slate-100 dark:bg-slate-800 flex items-center justify-center text-slate-500">
+                          <User className="h-4 w-4" />
+                        </div>
                         <div>
-                          <p className="font-medium">{invoice.patients?.name || 'N/A'}</p>
-                          <p className="text-sm text-muted-foreground">
+                          <p className="font-medium text-slate-900 dark:text-slate-100">{invoice.patients?.name || 'N/A'}</p>
+                          <p className="text-xs text-muted-foreground line-clamp-1">
                             {invoice.patients?.document || invoice.patients?.cpf || invoice.patients?.phone || ''}
                           </p>
                         </div>
                       </div>
                     </TableCell>
                     <TableCell>
-                      <Badge variant="outline">
+                      <Badge variant="outline" className="text-xs font-normal border-slate-200 dark:border-slate-700 text-slate-600 dark:text-slate-400">
                         {getInvoiceTypeLabel(invoice.type)}
                       </Badge>
                     </TableCell>
                     <TableCell>
                       <div className="flex items-center gap-2">
-                        <DollarSign className="h-4 w-4 text-green-600" />
-                        <span className="font-medium text-green-600">
+                        <span className="font-bold text-slate-900 dark:text-slate-100">
                           {formatCurrency(invoice.amount)}
                         </span>
                         {invoice.installments > 1 && (
-                          <Badge variant="secondary" className="text-xs">
+                          <Badge variant="secondary" className="text-[10px] h-5 px-1.5 bg-slate-100 dark:bg-slate-800 text-slate-500">
                             {invoice.installments}x
                           </Badge>
                         )}
                       </div>
                     </TableCell>
-                    <TableCell>
+                    <TableCell className="text-slate-600 dark:text-slate-400 text-sm">
                       {getPaymentMethodLabel(invoice.payment_method)}
                     </TableCell>
                     <TableCell>
                       {getStatusBadge(invoice.status)}
                     </TableCell>
-                    <TableCell className="text-right">
+                    <TableCell className="text-right pr-4">
                       <Button
-                        variant="outline"
-                        size="sm"
+                        variant="ghost"
+                        size="icon"
+                        className="h-8 w-8 rounded-full text-slate-400 hover:text-primary hover:bg-primary/10"
                         onClick={() => handleDownloadInvoice(invoice)}
                         disabled={!invoice.link}
+                        title="Baixar PDF"
                       >
                         <Download className="h-4 w-4" />
                       </Button>
@@ -464,78 +504,6 @@ const Invoices = () => {
           </Table>
         </CardContent>
       </Card>
-
-      {/* Estatísticas */}
-      {filteredInvoices.length > 0 && (
-        <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-          <Card>
-            <CardContent className="p-4">
-              <div className="flex items-center gap-3">
-                <div className="p-2 bg-blue-100 rounded-lg">
-                  <FileText className="h-6 w-6 text-blue-600" />
-                </div>
-                <div>
-                  <p className="text-sm text-muted-foreground">Total de Notas</p>
-                  <p className="text-2xl font-bold">{filteredInvoices.length}</p>
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-
-          <Card>
-            <CardContent className="p-4">
-              <div className="flex items-center gap-3">
-                <div className="p-2 bg-green-100 rounded-lg">
-                  <DollarSign className="h-6 w-6 text-green-600" />
-                </div>
-                <div>
-                  <p className="text-sm text-muted-foreground">Valor Total</p>
-                  <p className="text-2xl font-bold text-green-600">
-                    {formatCurrency(filteredInvoices.reduce((sum, inv) => sum + (inv.amount || 0), 0))}
-                  </p>
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-
-          <Card>
-            <CardContent className="p-4">
-              <div className="flex items-center gap-3">
-                <div className="p-2 bg-yellow-100 rounded-lg">
-                  <Receipt className="h-6 w-6 text-yellow-600" />
-                </div>
-                <div>
-                  <p className="text-sm text-muted-foreground">Autorizadas</p>
-                  <p className="text-2xl font-bold">
-                    {filteredInvoices.filter(inv => inv.status === 'authorized').length}
-                  </p>
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-
-          <Card>
-            <CardContent className="p-4">
-              <div className="flex items-center gap-3">
-                <div className="p-2 bg-purple-100 rounded-lg">
-                  <Calendar className="h-6 w-6 text-purple-600" />
-                </div>
-                <div>
-                  <p className="text-sm text-muted-foreground">Este Mês</p>
-                  <p className="text-2xl font-bold">
-                    {filteredInvoices.filter(inv => {
-                      const invoiceDate = new Date(inv.issued_at);
-                      const now = new Date();
-                      return invoiceDate.getMonth() === now.getMonth() &&
-                             invoiceDate.getFullYear() === now.getFullYear();
-                    }).length}
-                  </p>
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-        </div>
-      )}
     </div>
   );
 };

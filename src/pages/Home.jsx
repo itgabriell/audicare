@@ -1,12 +1,12 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { Helmet } from 'react-helmet';
 import { motion } from 'framer-motion';
-import { 
-  Newspaper, 
-  Activity, 
-  Users, 
-  Calendar, 
-  TrendingUp, 
+import {
+  Newspaper,
+  Activity,
+  Users,
+  Calendar,
+  TrendingUp,
   Clock,
   ExternalLink,
   Loader2,
@@ -41,12 +41,12 @@ const Home = () => {
   const { user } = useAuth();
   const { toast } = useToast();
   const isMounted = useRef(true);
-  
+
   // State
   const [news, setNews] = useState([]);
   const [loadingNews, setLoadingNews] = useState(true);
   const [newsSource, setNewsSource] = useState('loading'); // 'fresh', 'cache', 'fallback', 'error'
-  
+
   const [stats, setStats] = useState({
     patients: null,
     appointments: null,
@@ -77,7 +77,7 @@ const Home = () => {
   const fetchAllData = async () => {
     if (!isMounted.current) return;
     setIsRefreshing(true);
-    
+
     try {
       await Promise.allSettled([
         fetchNews(),
@@ -93,7 +93,7 @@ const Home = () => {
   const fetchNews = async (forceRefresh = false) => {
     if (!isMounted.current) return;
     setLoadingNews(true);
-    
+
     try {
       // 1. Try Cache first (if not forced)
       if (!forceRefresh) {
@@ -125,15 +125,15 @@ const Home = () => {
       };
 
       const data = await fetchWithRetry(fetchFunction);
-      
+
       const articles = data?.articles || data || [];
       const topArticles = Array.isArray(articles) ? articles.slice(0, 3) : [];
-      
+
       if (topArticles.length > 0) {
         if (isMounted.current) {
           setNews(topArticles);
           setNewsSource('fresh');
-          
+
           // Update Cache
           localStorage.setItem(NEWS_CACHE_KEY, JSON.stringify({
             timestamp: Date.now(),
@@ -146,7 +146,7 @@ const Home = () => {
 
     } catch (error) {
       console.error('Error fetching news:', error);
-      
+
       if (isMounted.current) {
         // 3. Fallback Data
         setNewsSource('fallback');
@@ -191,12 +191,12 @@ const Home = () => {
       const fetchCount = async (table, queryModifier) => {
         let query = supabase.from(table).select('id', { count: 'exact', head: true });
         if (queryModifier) query = queryModifier(query);
-        
+
         // Add a timeout to the promise
-        const timeoutPromise = new Promise((_, reject) => 
+        const timeoutPromise = new Promise((_, reject) =>
           setTimeout(() => reject(new Error('Request timeout')), 10000)
         );
-        
+
         const { count, error } = await Promise.race([query, timeoutPromise]);
         if (error) throw error;
         return count;
@@ -272,15 +272,15 @@ const Home = () => {
             Acompanhe o desempenho da sua clínica e as últimas novidades.
           </p>
         </div>
-        <Button 
-          variant="outline" 
-          size="sm" 
+        <Button
+          variant="outline"
+          size="sm"
           onClick={() => {
             setIsRefreshing(true);
             Promise.all([fetchNews(true), fetchQuickStats()]).then(() => {
               if (isMounted.current) setIsRefreshing(false);
             });
-          }} 
+          }}
           disabled={isRefreshing}
           className="w-full md:w-auto"
         >
@@ -290,7 +290,7 @@ const Home = () => {
       </div>
 
       {/* Quick Stats Grid */}
-      <motion.div 
+      <motion.div
         variants={containerVariants}
         initial="hidden"
         animate="visible"
@@ -359,7 +359,7 @@ const Home = () => {
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
         {/* News Section */}
-        <motion.div 
+        <motion.div
           initial={{ opacity: 0, x: -20 }}
           animate={{ opacity: 1, x: 0 }}
           transition={{ delay: 0.4 }}
@@ -370,7 +370,7 @@ const Home = () => {
               <Newspaper className="h-5 w-5 text-primary" />
               Notícias de Audiologia
             </h2>
-            
+
             {/* Data Source Indicator */}
             <div className="flex items-center gap-2">
               {newsSource === 'cache' && (
@@ -420,8 +420,8 @@ const Home = () => {
                       {/* Image Section */}
                       <div className="relative h-48 sm:h-auto sm:w-48 shrink-0 overflow-hidden bg-muted">
                         {article.urlToImage ? (
-                          <img 
-                            src={article.urlToImage} 
+                          <img
+                            src={article.urlToImage}
                             alt={article.title}
                             className="h-full w-full object-cover transition-transform duration-500 group-hover:scale-110"
                             onError={(e) => {
@@ -431,7 +431,7 @@ const Home = () => {
                             }}
                           />
                         ) : null}
-                        <div 
+                        <div
                           className="absolute inset-0 flex items-center justify-center bg-muted text-muted-foreground"
                           style={{ display: article.urlToImage ? 'none' : 'flex' }}
                         >
@@ -451,11 +451,11 @@ const Home = () => {
                               {article.publishedAt ? format(new Date(article.publishedAt), "d MMM", { locale: ptBR }) : 'Recente'}
                             </span>
                           </div>
-                          
+
                           <h3 className="text-lg font-bold group-hover:text-primary transition-colors line-clamp-2 leading-tight">
                             {article.title}
                           </h3>
-                          
+
                           <p className="text-sm text-muted-foreground line-clamp-2">
                             {article.description}
                           </p>
@@ -474,7 +474,7 @@ const Home = () => {
         </motion.div>
 
         {/* Quick Actions / Sidebar Widgets */}
-        <motion.div 
+        <motion.div
           initial={{ opacity: 0, x: 20 }}
           animate={{ opacity: 1, x: 0 }}
           transition={{ delay: 0.5 }}
@@ -493,7 +493,7 @@ const Home = () => {
             <CardContent className="grid gap-2">
               <Button variant="ghost" className="w-full justify-start h-12 hover:bg-muted/50" asChild>
                 <Link to="/crm">
-                  <div className="p-2 bg-blue-100 dark:bg-blue-900/30 rounded-md mr-3">
+                  <div className="p-2 bg-blue-100 dark:bg-blue-900/30 rounded-2xl mr-3">
                     <TrendingUp className="h-4 w-4 text-blue-600 dark:text-blue-400" />
                   </div>
                   CRM & Vendas
@@ -501,7 +501,7 @@ const Home = () => {
               </Button>
               <Button variant="ghost" className="w-full justify-start h-12 hover:bg-muted/50" asChild>
                 <Link to="/tasks">
-                  <div className="p-2 bg-amber-100 dark:bg-amber-900/30 rounded-md mr-3">
+                  <div className="p-2 bg-amber-100 dark:bg-amber-900/30 rounded-2xl mr-3">
                     <Activity className="h-4 w-4 text-amber-600 dark:text-amber-400" />
                   </div>
                   Minhas Tarefas
@@ -509,8 +509,8 @@ const Home = () => {
               </Button>
               <Button variant="ghost" className="w-full justify-start h-12 hover:bg-muted/50" asChild>
                 <Link to="/email-campaigns">
-                  <div className="p-2 bg-purple-100 dark:bg-purple-900/30 rounded-md mr-3">
-                    <Users className="h-4 w-4 text-purple-600 dark:text-purple-400" />
+                  <div className="p-2 bg-rose-100 dark:bg-rose-900/30 rounded-2xl mr-3">
+                    <Users className="h-4 w-4 text-rose-600 dark:text-rose-400" />
                   </div>
                   Campanhas de E-mail
                 </Link>

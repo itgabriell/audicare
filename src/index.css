@@ -4,49 +4,76 @@
 
 @layer base {
   :root {
-    --background: 220 13% 98%;
-    --foreground: 28 9% 20%;
+    /* Refined Professional - Light Mode */
+    --background: 210 20% 98%;
+    /* Softer off-white */
+    --foreground: 220 15% 15%;
+    /* Deep charcoal */
+
     --card: 0 0% 100%;
-    --card-foreground: 28 9% 20%;
+    --card-foreground: 220 15% 15%;
+
     --popover: 0 0% 100%;
-    --popover-foreground: 28 9% 20%;
-    --primary: 157 37% 33%;
-    --primary-foreground: 40 100% 98%;
-    --secondary: 39 42% 91%;
-    --secondary-foreground: 157 37% 33%;
-    --muted: 210 40% 96.1%;
-    --muted-foreground: 215.4 16.3% 46.9%;
-    --accent: 14 78% 60%;
+    --popover-foreground: 220 15% 15%;
+
+    /* Deep Emerald Primary */
+    --primary: 165 50% 25%;
+    --primary-foreground: 0 0% 100%;
+
+    --secondary: 165 20% 96%;
+    --secondary-foreground: 165 50% 25%;
+
+    --muted: 220 10% 96%;
+    --muted-foreground: 220 10% 45%;
+
+    --accent: 25 85% 55%;
+    /* Warm Terracotta */
     --accent-foreground: 0 0% 100%;
-    --destructive: 0 84.2% 60.2%;
-    --destructive-foreground: 210 40% 98%;
-    --border: 214.3 31.8% 91.4%;
-    --input: 214.3 31.8% 91.4%;
-    --ring: 157 37% 33%;
-    --radius: 0.75rem;
+
+    --destructive: 0 85% 60%;
+    --destructive-foreground: 0 0% 100%;
+
+    --border: 220 15% 90%;
+    --input: 220 15% 90%;
+    --ring: 165 50% 25%;
+
+    --radius: 1rem;
+    /* Softer, friendlier radius */
   }
 
   .dark {
-    --background: 220 13% 10%; /* Darker background */
-    --foreground: 210 40% 98%; /* Light text */
-    --card: 220 13% 15%; /* Darker card background */
-    --card-foreground: 210 40% 98%;
-    --popover: 220 13% 10%;
-    --popover-foreground: 210 40% 98%;
-    --primary: 157 37% 43%; /* Main accent green */
-    --primary-foreground: 40 100% 98%;
-    --secondary: 220 13% 25%; /* Dark secondary color for backgrounds/highlights */
-    --secondary-foreground: 210 40% 98%;
-    --muted: 217.2 32.6% 17.5%; /* Muted dark background */
-    --muted-foreground: 215 20.2% 65.1%; /* Grayish text */
-    --accent: 14 78% 50%; /* Orange accent */
+    /* Refined Professional - Dark Mode */
+    --background: 222 15% 10%;
+    /* Rich dark gray */
+    --foreground: 210 20% 98%;
+
+    --card: 222 15% 13%;
+    --card-foreground: 210 20% 98%;
+
+    --popover: 222 15% 13%;
+    --popover-foreground: 210 20% 98%;
+
+    --primary: 165 45% 45%;
+    /* Lighter emerald for visibility */
+    --primary-foreground: 222 15% 10%;
+
+    --secondary: 222 15% 20%;
+    --secondary-foreground: 210 20% 98%;
+
+    --muted: 222 15% 20%;
+    --muted-foreground: 215 15% 65%;
+
+    --accent: 25 80% 60%;
     --accent-foreground: 0 0% 100%;
-    --destructive: 0 62.8% 30.6%; /* Red for errors/destructive actions */
-    --destructive-foreground: 210 40% 98%;
-    --border: 217.2 32.6% 22.5%; /* Dark border color */
-    --input: 217.2 32.6% 22.5%;
-    --ring: 157 37% 43%;
-    --radius: 0.75rem;
+
+    --destructive: 0 65% 50%;
+    --destructive-foreground: 210 20% 98%;
+
+    --border: 222 15% 20%;
+    --input: 222 15% 20%;
+    --ring: 165 45% 45%;
+
+    --radius: 1rem;
   }
 }
 
@@ -54,10 +81,12 @@
   * {
     @apply border-border;
   }
+
   body {
     @apply bg-background text-foreground;
     font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
   }
+
   .dark .dark\:invert {
     filter: invert(1);
   }
@@ -67,8 +96,44 @@
   .scrollbar-hide::-webkit-scrollbar {
     display: none;
   }
+
   .scrollbar-hide {
     -ms-overflow-style: none;
     scrollbar-width: none;
   }
+
+  /* Modern Subtle Scrollbar */
+  .scrollbar-thin::-webkit-scrollbar {
+    width: 6px;
+    height: 6px;
+  }
+
+  .scrollbar-thin::-webkit-scrollbar-track {
+    background: transparent;
+  }
+
+  .scrollbar-thin::-webkit-scrollbar-thumb {
+    @apply bg-slate-200 dark:bg-slate-700 rounded-full hover:bg-slate-300 dark:hover:bg-slate-600 transition-colors;
+  }
+}
+
+/* Apply subtle scrollbar globally but allow override */
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+::-webkit-scrollbar-thumb {
+  background-color: transparent;
+  border-radius: 9999px;
+  border: 4px solid transparent;
+  background-clip: content-box;
+}
+
+:hover::-webkit-scrollbar-thumb {
+  background-color: hsl(var(--muted-foreground) / 0.3);
 }

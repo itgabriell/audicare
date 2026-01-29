@@ -14,6 +14,8 @@ import { getRoleConfig, getAvailableRoles, ROLES, hasPermission } from '@/lib/pe
 import { Badge } from '@/components/ui/badge';
 import { motion } from 'framer-motion';
 
+import { StatCard } from '@/components/ui/StatCard';
+
 const Users = () => {
   const [users, setUsers] = useState([]);
   const [dialogOpen, setDialogOpen] = useState(false);
@@ -60,35 +62,35 @@ const Users = () => {
   }, [loadUsers]);
 
   const callManageUsers = async (payload) => {
-  const resp = await fetch('/functions/v1/manage-users', {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-    },
-    body: JSON.stringify(payload),
-  });
+    const resp = await fetch('/functions/v1/manage-users', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify(payload),
+    });
 
-  let data = null;
-  const text = await resp.text(); // lê como texto primeiro
+    let data = null;
+    const text = await resp.text(); // lê como texto primeiro
 
-  if (text) {
-    try {
-      data = JSON.parse(text);
-    } catch {
-      // se não for JSON válido, mantém data = null
+    if (text) {
+      try {
+        data = JSON.parse(text);
+      } catch {
+        // se não for JSON válido, mantém data = null
+      }
     }
-  }
 
-  if (!resp.ok) {
-    const message =
-      (data && data.error) ||
-      text ||
-      'Erro na função manage-users';
-    throw new Error(message);
-  }
+    if (!resp.ok) {
+      const message =
+        (data && data.error) ||
+        text ||
+        'Erro na função manage-users';
+      throw new Error(message);
+    }
 
-  return data;
-};
+    return data;
+  };
 
 
   const handleSaveUser = async (userData) => {
@@ -195,8 +197,8 @@ const Users = () => {
       const userRole = currentUser?.profile?.role;
       if (userRole !== ROLES.ADMIN) {
         const userToDelete = users.find(u => u.id === id);
-        if (userToDelete && currentUser?.profile?.clinic_id && 
-            userToDelete.clinic_id !== currentUser.profile.clinic_id) {
+        if (userToDelete && currentUser?.profile?.clinic_id &&
+          userToDelete.clinic_id !== currentUser.profile.clinic_id) {
           throw new Error('Você não tem permissão para remover usuários de outras clínicas.');
         }
       }
@@ -218,7 +220,7 @@ const Users = () => {
         // Se a função manage-users não existir ou não suportar delete,
         // tentar deletar diretamente do profile
         console.warn('[Users] Função manage-users não disponível, tentando exclusão direta:', manageUsersError);
-        
+
         const { data: deleteData, error: deleteError, count } = await supabase
           .from('profiles')
           .delete()
@@ -241,7 +243,7 @@ const Users = () => {
             .select('id')
             .eq('id', id)
             .single();
-          
+
           if (checkData) {
             // Usuário ainda existe, restaurar lista
             console.error('[Users] Usuário ainda existe após tentativa de exclusão');
@@ -257,17 +259,17 @@ const Users = () => {
 
       // Aguardar um pouco para garantir que a exclusão foi processada
       await new Promise(resolve => setTimeout(resolve, 500));
-      
+
       // Aguardar um pouco para garantir que a exclusão foi processada
       await new Promise(resolve => setTimeout(resolve, 500));
-      
+
       // Verificar ANTES de recarregar se o usuário foi realmente removido
       const { data: verifyBeforeReload } = await supabase
         .from('profiles')
         .select('id')
         .eq('id', id)
         .maybeSingle(); // maybeSingle retorna null se não encontrar, ao invés de erro
-      
+
       if (verifyBeforeReload) {
         // Usuário ainda existe após tentativa de exclusão
         console.error('[Users] CRÍTICO: Usuário ainda existe após exclusão:', id);
@@ -280,17 +282,17 @@ const Users = () => {
         });
         return; // Sair da função sem recarregar
       }
-      
+
       // Recarregar a lista de usuários do servidor para garantir sincronização
       await loadUsers();
-      
+
       // Verificação final após reload
       const { data: verifyAfterReload } = await supabase
         .from('profiles')
         .select('id')
         .eq('id', id)
         .maybeSingle();
-      
+
       if (verifyAfterReload) {
         // Usuário apareceu novamente após reload (muito raro, mas possível)
         console.error('[Users] AVISO: Usuário reapareceu após reload:', id);
@@ -329,7 +331,7 @@ const Users = () => {
     // Busca por nome ou telefone
     if (searchTerm) {
       const term = searchTerm.toLowerCase();
-      filtered = filtered.filter(user => 
+      filtered = filtered.filter(user =>
         user.full_name?.toLowerCase().includes(term) ||
         user.phone?.toLowerCase().includes(term)
       );
@@ -359,12 +361,12 @@ const Users = () => {
         />
       </Helmet>
 
-      <div className="space-y-6">
-        {/* Header */}
-        <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+      <div className="h-full flex flex-col space-y-6 overflow-hidden pr-2">
+        {/* Header Floating */}
+        <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 py-1">
           <div>
-            <h1 className="text-3xl font-bold text-foreground">Usuários</h1>
-            <p className="text-muted-foreground mt-1">
+            <h1 className="text-2xl font-bold tracking-tight text-slate-900 dark:text-slate-100 font-sans">Usuários</h1>
+            <p className="text-muted-foreground text-sm">
               Gerenciamento de colaboradores e permissões
             </p>
           </div>
@@ -374,6 +376,7 @@ const Users = () => {
                 setEditingUser(null);
                 setDialogOpen(true);
               }}
+              className="rounded-2xl h-11 px-5 shadow-lg shadow-primary/25 hover:shadow-primary/40 transition-all active:scale-95"
             >
               <Plus className="h-4 w-4 mr-2" />
               Novo Usuário
@@ -381,106 +384,74 @@ const Users = () => {
           )}
         </div>
 
-        {/* Estatísticas por Role */}
+        {/* Estatísticas com StatCard */}
         {!loading && users.length > 0 && (
-          <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-            <motion.div
-              initial={{ opacity: 0, y: 20 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ delay: 0 }}
-            >
-              <Card>
-                <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                  <CardTitle className="text-sm font-medium">Total</CardTitle>
-                  <UsersIcon className="h-4 w-4 text-muted-foreground" />
-                </CardHeader>
-                <CardContent>
-                  <div className="text-2xl font-bold">{roleStats.total}</div>
-                </CardContent>
-              </Card>
-            </motion.div>
-            <motion.div
-              initial={{ opacity: 0, y: 20 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ delay: 0.1 }}
-            >
-              <Card>
-                <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                  <CardTitle className="text-sm font-medium">Administradores</CardTitle>
-                  <Shield className="h-4 w-4 text-purple-600" />
-                </CardHeader>
-                <CardContent>
-                  <div className="text-2xl font-bold">{roleStats.admin}</div>
-                </CardContent>
-              </Card>
-            </motion.div>
-            <motion.div
-              initial={{ opacity: 0, y: 20 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ delay: 0.2 }}
-            >
-              <Card>
-                <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                  <CardTitle className="text-sm font-medium">Médicos</CardTitle>
-                  <Stethoscope className="h-4 w-4 text-green-600" />
-                </CardHeader>
-                <CardContent>
-                  <div className="text-2xl font-bold">{roleStats.medico}</div>
-                </CardContent>
-              </Card>
-            </motion.div>
-            <motion.div
-              initial={{ opacity: 0, y: 20 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ delay: 0.3 }}
-            >
-              <Card>
-                <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                  <CardTitle className="text-sm font-medium">Atendimento</CardTitle>
-                  <User className="h-4 w-4 text-blue-600" />
-                </CardHeader>
-                <CardContent>
-                  <div className="text-2xl font-bold">{roleStats.atendimento}</div>
-                </CardContent>
-              </Card>
-            </motion.div>
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+            <StatCard
+              title="Total de Usuários"
+              value={roleStats.total}
+              icon={UsersIcon}
+              colorClass={{ bg: 'bg-slate-100 dark:bg-slate-800', text: 'text-slate-600 dark:text-slate-400', border: 'border-slate-200 dark:border-slate-700' }}
+              delay={0}
+            />
+            <StatCard
+              title="Administradores"
+              value={roleStats.admin}
+              subtitle="Acesso total"
+              icon={Shield}
+              // Purple Ban Fix: Using Slate (Black/Dark Grey) for Admin authority
+              colorClass={{ bg: 'bg-slate-900/5 dark:bg-white/5', text: 'text-slate-900 dark:text-slate-100', border: 'border-slate-200 dark:border-slate-700' }}
+              delay={100}
+            />
+            <StatCard
+              title="Médicos"
+              value={roleStats.medico}
+              subtitle="Corpo clínico"
+              icon={Stethoscope}
+              colorClass={{ bg: 'bg-emerald-500/5', text: 'text-emerald-600', border: 'border-emerald-100 dark:border-emerald-900/30' }}
+              delay={200}
+            />
+            <StatCard
+              title="Atendimento"
+              value={roleStats.atendimento}
+              subtitle="Recepção"
+              icon={User}
+              colorClass={{ bg: 'bg-blue-500/5', text: 'text-blue-600', border: 'border-blue-100 dark:border-blue-900/30' }}
+              delay={300}
+            />
           </div>
         )}
 
-        {/* Filtros e Busca */}
-        {!loading && users.length > 0 && (
-          <Card>
-            <CardContent className="pt-6">
-              <div className="flex flex-col sm:flex-row gap-4">
-                <div className="flex-1 relative">
-                  <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                  <Input
-                    placeholder="Buscar por nome ou telefone..."
-                    value={searchTerm}
-                    onChange={(e) => setSearchTerm(e.target.value)}
-                    className="pl-10"
-                  />
+        {/* Filtros e Busca Modernizados */}
+        <div className="flex flex-col md:flex-row gap-4 items-center bg-white/60 dark:bg-slate-900/60 backdrop-blur-md p-3 rounded-3xl border border-slate-200/50 dark:border-slate-800/50 shadow-sm z-10 shrink-0">
+          <div className="relative w-full group">
+            <Search className="absolute left-4 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400 transition-colors group-focus-within:text-primary" />
+            <Input
+              placeholder="Buscar por nome ou telefone..."
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+              className="pl-11 h-11 bg-white dark:bg-slate-800 border-slate-200 dark:border-slate-700 focus:ring-2 focus:ring-primary/20 rounded-2xl transition-all shadow-sm"
+            />
+          </div>
+          <div className="w-full md:w-64 shrink-0">
+            <Select value={roleFilter} onValueChange={setRoleFilter}>
+              <SelectTrigger className="h-11 rounded-2xl border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 hover:bg-slate-50 dark:hover:bg-slate-700/50 shadow-sm">
+                <div className="flex items-center gap-2 text-slate-600 dark:text-slate-300">
+                  <Filter className="h-3.5 w-3.5" />
+                  <SelectValue placeholder="Todos os perfis" />
                 </div>
-                <div className="w-full sm:w-48">
-                  <Select value={roleFilter} onValueChange={setRoleFilter}>
-                    <SelectTrigger>
-                      <Filter className="h-4 w-4 mr-2" />
-                      <SelectValue placeholder="Todos os perfis" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="all">Todos os perfis</SelectItem>
-                      {getAvailableRoles().map((role) => (
-                        <SelectItem key={role.value} value={role.value}>
-                          {role.label}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-        )}
+              </SelectTrigger>
+              <SelectContent className="rounded-xl border-slate-100 dark:border-slate-800 shadow-xl">
+                <SelectItem value="all">Todos os perfis</SelectItem>
+                {getAvailableRoles().map((role) => (
+                  <SelectItem key={role.value} value={role.value}>
+                    {role.label}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+        </div>
 
         {/* Lista de Usuários */}
         {loading ? (
@@ -490,10 +461,10 @@ const Users = () => {
         ) : filteredUsers.length > 0 ? (
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
             {filteredUsers.map((user) => (
-              <UserCard 
-                key={user.id} 
-                user={user} 
-                onEdit={handleEdit} 
+              <UserCard
+                key={user.id}
+                user={user}
+                onEdit={handleEdit}
                 onDelete={handleDelete}
                 currentUserId={currentUser?.id}
               />

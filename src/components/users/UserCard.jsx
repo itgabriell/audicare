@@ -42,7 +42,7 @@ const UserCard = ({ user, onEdit, onDelete, currentUserId }) => {
         boxShadow:
           '0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05)',
       }}
-      className={`bg-card rounded-xl shadow-sm border p-6 relative ${!isActive ? 'opacity-60' : ''}`}
+      className={`bg-white dark:bg-card rounded-3xl shadow-sm border border-slate-100 dark:border-slate-800 p-6 relative transition-all duration-300 ${!isActive ? 'opacity-60 grayscale' : 'hover:-translate-y-1 hover:shadow-xl hover:shadow-slate-200/50 dark:hover:shadow-none'}`}
     >
       {/* Status Badge */}
       {isActive && (

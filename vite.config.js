@@ -60,7 +60,7 @@ export default defineConfig(({ mode }) => {
             'vendor-utils': ['date-fns', 'clsx', 'tailwind-merge'],
             'vendor-supabase': ['@supabase/supabase-js'],
             // Garante que o Kanban fique em um arquivo separado
-            'vendor-kanban': ['react-beautiful-dnd'] 
+            // REMOVED: 'vendor-kanban': ['react-beautiful-dnd'] (Library uninstalled) 
           }
         }
       }

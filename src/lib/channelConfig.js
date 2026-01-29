@@ -27,13 +27,13 @@ export const CHANNEL_COLORS = {
   [CHANNEL_TYPES.TELEGRAM]: 'bg-sky-500',
   [CHANNEL_TYPES.EMAIL]: 'bg-gray-500',
   [CHANNEL_TYPES.SMS]: 'bg-blue-400',
-  [CHANNEL_TYPES.VOICE]: 'bg-purple-500',
+  [CHANNEL_TYPES.VOICE]: 'bg-rose-500',
 };
 
 export const CHANNEL_STATUS = {
-    CONNECTED: 'connected',
-    DISCONNECTED: 'disconnected',
-    ERROR: 'error'
+  CONNECTED: 'connected',
+  DISCONNECTED: 'disconnected',
+  ERROR: 'error'
 };
 
 export const getChannelLabel = (channelType) => {

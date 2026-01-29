@@ -304,101 +304,102 @@ const Appointments = () => {
         <title>Agenda - Audicare</title>
       </Helmet>
 
-      <div className="space-y-6">
-        <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
-          <div>
-            <h1 className="text-3xl font-bold text-foreground">Agenda</h1>
-            <p className="text-muted-foreground mt-1 text-sm">
-              Gerenciamento de consultas
-            </p>
+      <div className="h-full flex flex-col space-y-4 overflow-hidden pr-1 relative">
+        {/* Modern Floating Header & Controls */}
+        <div className="flex flex-col gap-4 bg-white/60 dark:bg-slate-900/60 backdrop-blur-md p-4 rounded-3xl border border-slate-200/50 dark:border-slate-800/50 shadow-sm z-10 shrink-0">
+
+          <div className="flex flex-col lg:flex-row justify-between items-start lg:items-center gap-4">
+            <div>
+              <h1 className="text-2xl font-bold tracking-tight text-slate-900 dark:text-slate-100 font-sans">
+                Agenda
+              </h1>
+              <p className="text-muted-foreground text-sm">
+                Gerencie suas consultas e atendimentos.
+              </p>
+            </div>
+
+            <div className="flex flex-wrap items-center gap-2 w-full lg:w-auto">
+              {/* Navegação de Data */}
+              <div className="flex items-center bg-slate-100/80 dark:bg-slate-800/80 rounded-2xl p-1 border border-slate-200/50 dark:border-slate-700/50">
+                <Button variant="ghost" size="icon" onClick={() => changePeriod('prev')} className="h-8 w-8 rounded-xl hover:bg-white dark:hover:bg-slate-700">
+                  <ChevronLeft className="h-4 w-4" />
+                </Button>
+                <div className="flex items-center justify-center min-w-[140px] px-2 font-semibold text-sm text-slate-700 dark:text-slate-200">
+                  {viewMode === 'day'
+                    ? format(currentDate, "EEEE, dd 'de' MMMM", { locale: ptBR })
+                    : viewMode === 'week'
+                      ? `Semana ${format(currentDate, "dd/MM", { locale: ptBR })}`
+                      : monthLabel
+                  }
+                </div>
+                <Button variant="ghost" size="icon" onClick={() => changePeriod('next')} className="h-8 w-8 rounded-xl hover:bg-white dark:hover:bg-slate-700">
+                  <ChevronRight className="h-4 w-4" />
+                </Button>
+              </div>
+
+              <div className="h-6 w-px bg-slate-200 dark:bg-slate-700 mx-1 hidden sm:block" />
+
+              <Button variant="outline" onClick={handleToday} className="rounded-xl h-10 border-slate-200 dark:border-slate-700">
+                Hoje
+              </Button>
+
+              <Button onClick={handleOpenDialog} className="rounded-xl h-10 shadow-lg shadow-primary/20 hover:shadow-primary/30 transition-all">
+                <Plus className="h-4 w-4 mr-2" />
+                Nova Consulta
+              </Button>
+            </div>
           </div>
-          <div className="flex gap-2">
-            <Button variant="outline" onClick={handleToday}>
-              Hoje
-            </Button>
-            <Button onClick={handleOpenDialog}>
-              <Plus className="h-4 w-4 mr-2" />
-              Nova Consulta
+
+          <div className="flex flex-col sm:flex-row gap-3 items-center justify-between w-full pt-1 border-t border-slate-100 dark:border-slate-800/50">
+            {/* View Switcher */}
+            <div className="flex bg-slate-100/50 dark:bg-slate-800/50 rounded-xl p-1">
+              {['day', 'week', 'month'].map((mode) => (
+                <Button
+                  key={mode}
+                  variant={viewMode === mode ? 'default' : 'ghost'}
+                  size="sm"
+                  onClick={() => setViewMode(mode)}
+                  className={`text-xs h-8 px-4 rounded-lg capitalize transition-all ${viewMode === mode ? 'shadow-sm' : 'text-muted-foreground hover:bg-white/50 dark:hover:bg-slate-700/50'}`}
+                >
+                  {mode === 'day' ? 'Dia' : mode === 'week' ? 'Semana' : 'Mês'}
+                </Button>
+              ))}
+            </div>
+
+            {/* Quick Actions */}
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => handleBulkAction('confirm_tomorrow')}
+              disabled={!!processingAction}
+              className="rounded-xl h-9 border-dashed border-green-300 text-green-700 hover:bg-green-50 dark:border-green-800 dark:text-green-400 dark:hover:bg-green-900/20 w-full sm:w-auto ml-auto"
+            >
+              {processingAction === 'confirm_tomorrow' ? <Loader2 className="h-3.5 w-3.5 animate-spin mr-2" /> : <Send className="h-3.5 w-3.5 mr-2" />}
+              Confirmar p/ Amanhã
             </Button>
           </div>
         </div>
 
-        <div className="bg-card rounded-xl shadow-sm border p-4">
-          <h3 className="text-lg font-semibold text-foreground mb-4 flex items-center gap-2">
-            <MessageSquare className="h-5 w-5" />
-            Ações Rápidas
-          </h3>
-          <div className="flex flex-wrap gap-3">
-            <Button variant="outline" onClick={() => handleBulkAction('confirm_tomorrow')} disabled={!!processingAction} className="flex items-center gap-2">
-              {processingAction === 'confirm_tomorrow' ? <Loader2 className="h-4 w-4 animate-spin" /> : <Send className="h-4 w-4" />}
-              Confirmar Amanhã
-            </Button>
-          </div>
-        </div>
-
-        <div className="bg-card rounded-xl shadow-sm border p-4">
-          <div className="flex flex-col sm:flex-row items-center justify-between gap-4 mb-6">
-            <div className="flex items-center gap-2">
-              <Button variant="outline" size="icon" onClick={() => changePeriod('prev')}>
-                <ChevronLeft className="h-4 w-4" />
-              </Button>
-
-              <h2 className="text-lg font-semibold text-foreground capitalize min-w-[200px] text-center">
-                {viewMode === 'day'
-                  ? format(currentDate, "EEEE, dd 'de' MMMM", { locale: ptBR })
-                  : viewMode === 'week'
-                    ? `Semana de ${format(currentDate, "dd/MM", { locale: ptBR })}`
-                    : monthLabel
-                }
-              </h2>
-
-              <Button variant="outline" size="icon" onClick={() => changePeriod('next')}>
-                <ChevronRight className="h-4 w-4" />
-              </Button>
-            </div>
-
-            <div className="flex bg-muted rounded-lg p-1">
-              <Button
-                variant={viewMode === 'day' ? 'default' : 'ghost'}
-                size="sm"
-                onClick={() => setViewMode('day')}
-                className="flex items-center gap-1 text-xs px-3"
-              >
-                Dia
-              </Button>
-              <Button
-                variant={viewMode === 'week' ? 'default' : 'ghost'}
-                size="sm"
-                onClick={() => setViewMode('week')}
-                className="flex items-center gap-1 text-xs px-3"
-              >
-                Semana
-              </Button>
-              <Button
-                variant={viewMode === 'month' ? 'default' : 'ghost'}
-                size="sm"
-                onClick={() => setViewMode('month')}
-                className="flex items-center gap-1 text-xs px-3"
-              >
-                Mês
-              </Button>
-            </div>
-          </div>
+        {/* Content Area - Flex-1 Scrollable */}
+        <div className="flex-1 overflow-y-auto scrollbar-hide bg-white/30 dark:bg-slate-900/30 rounded-2xl border border-slate-100 dark:border-slate-800/50 p-1 relative">
 
           {loading ? (
-            <div className="flex justify-center items-center h-96">
-              <div className="w-8 h-8 border-2 border-primary border-t-transparent rounded-full animate-spin" />
+            <div className="absolute inset-0 flex flex-col items-center justify-center space-y-4">
+              <div className="w-10 h-10 border-4 border-primary/20 border-t-primary rounded-full animate-spin" />
+              <p className="text-sm text-muted-foreground animate-pulse">Carregando agenda...</p>
             </div>
           ) : viewMode === 'week' ? (
-            <DraggableAppointmentCalendar
-              currentDate={currentDate}
-              appointments={appointments}
-              onSlotClick={handleSlotClick}
-              onAppointmentClick={handleAppointmentClick}
-              onAppointmentMove={handleAppointmentMove}
-            />
+            <div className="h-full">
+              <DraggableAppointmentCalendar
+                currentDate={currentDate}
+                appointments={appointments}
+                onSlotClick={handleSlotClick}
+                onAppointmentClick={handleAppointmentClick}
+                onAppointmentMove={handleAppointmentMove}
+              />
+            </div>
           ) : viewMode === 'day' ? (
-            <div className="space-y-4 min-h-[400px]">
+            <div className="p-4 h-full overflow-y-auto scrollbar-hide">
               {(() => {
                 const dayAppointments = appointments.filter(app => {
                   if (!app.start_time) return false;
@@ -408,75 +409,94 @@ const Appointments = () => {
 
                 if (dayAppointments.length === 0) {
                   return (
-                    <div className="text-center py-16 text-muted-foreground flex flex-col items-center gap-3">
-                      <Calendar className="h-12 w-12 opacity-20" />
-                      <p>Nenhum agendamento para este dia.</p>
-                      <Button variant="outline" onClick={handleOpenDialog}>Agendar agora</Button>
+                    <div className="h-full flex flex-col items-center justify-center text-muted-foreground space-y-4 opacity-60">
+                      <Calendar className="h-16 w-16 stroke-1" />
+                      <p className="text-lg font-medium">Agenda livre hoje</p>
+                      <Button variant="outline" onClick={handleOpenDialog} className="rounded-xl">Agendar agora</Button>
                     </div>
                   );
                 }
 
                 return (
-                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
                     {dayAppointments.map(app => {
                       const isDomiciliar = app.appointment_type === 'domiciliar' || app.location?.toLowerCase() === 'domiciliar';
                       const patientName = app.contact?.name || app.contact_name || 'Paciente sem nome';
+                      const isConfirmed = !!app.reminder_sent_at; // Simplificando para visual
 
                       return (
                         <div
                           key={app.id}
                           onClick={() => handleAppointmentClick(app)}
                           className={`
-                                        group relative overflow-hidden rounded-xl border p-4 shadow-sm transition-all hover:shadow-md cursor-pointer
-                                        ${isDomiciliar ? 'bg-blue-50/50 border-blue-200 hover:border-blue-300' : 'bg-card hover:border-primary/50'}
-                                    `}
+                                group relative overflow-hidden rounded-2xl border p-5 shadow-sm transition-all duration-300 hover:-translate-y-1 hover:shadow-md cursor-pointer
+                                ${isDomiciliar
+                              ? 'bg-blue-50/80 dark:bg-blue-900/10 border-blue-100 dark:border-blue-900/30'
+                              : 'bg-white dark:bg-card border-slate-100 dark:border-slate-800'
+                            }
+                          `}
                         >
-                          <div className={`absolute left-0 top-0 bottom-0 w-1 ${isDomiciliar ? 'bg-blue-500' : 'bg-primary'}`} />
+                          {/* Accent Line */}
+                          <div className={`absolute left-0 top-0 bottom-0 w-1.5 ${isDomiciliar ? 'bg-blue-500' : 'bg-primary'}`} />
 
-                          <div className="flex justify-between items-start mb-2 pl-2">
-                            <div className="flex flex-col">
-                              <span className="text-lg font-bold text-foreground flex items-center gap-2">
-                                {new Date(app.start_time).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })}
+                          <div className="flex flex-col h-full justify-between gap-3">
+                            <div>
+                              <div className="flex justify-between items-start">
+                                <span className="text-2xl font-bold text-slate-800 dark:text-slate-100 tracking-tight font-sans">
+                                  {new Date(app.start_time).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })}
+                                </span>
                                 {isDomiciliar && (
-                                  <span className="bg-blue-100 text-blue-700 text-[10px] px-2 py-0.5 rounded-full font-medium flex items-center gap-1">
-                                    <Home className="h-3 w-3" /> Domiciliar
+                                  <span className="bg-blue-100 dark:bg-blue-900/40 text-blue-700 dark:text-blue-300 text-[10px] px-2 py-1 rounded-full font-bold flex items-center gap-1 shadow-sm">
+                                    <Home className="h-3 w-3" /> DOM
                                   </span>
                                 )}
-                              </span>
+                              </div>
 
-                              {/* NOME CLICÁVEL */}
                               <div
-                                className="text-sm font-medium text-muted-foreground hover:text-primary hover:underline flex items-center gap-1 mt-1 w-fit z-20"
+                                className="text-base font-semibold text-slate-700 dark:text-slate-200 mt-2 hover:text-primary transition-colors flex items-center gap-1 group/link"
                                 onClick={(e) => handleNavigateToPatient(e, app.contact_id || app.patient_id)}
-                                title="Ir para ficha do paciente"
                               >
                                 {patientName}
-                                <ExternalLink className="h-3 w-3 opacity-50" />
+                                <ExternalLink className="h-3 w-3 opacity-0 group-hover/link:opacity-100 transition-opacity text-primary" />
                               </div>
 
-                              {/* TIPO DA CONSULTA */}
-                              <div className="mt-1 flex flex-wrap gap-1">
-                                <span className="inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-medium bg-primary/10 text-primary uppercase tracking-wide">
-                                  {app.appointment_type || 'Consulta'}
-                                </span>
-                                {app.reminder_sent_at && (
-                                  <span className="inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-medium bg-green-100 text-green-700 uppercase tracking-wide gap-1" title={`Enviado em ${new Date(app.reminder_sent_at).toLocaleString('pt-BR')}`}>
-                                    <Send className="h-3 w-3" /> Enviado
+                              {/* Appointment Type & Status Badges */}
+                              <div className="flex flex-col gap-2 mt-3">
+                                {/* Type Badge */}
+                                <div className="flex items-center gap-2">
+                                  <span className="text-xs text-muted-foreground font-medium">Tipo:</span>
+                                  <span className="inline-flex items-center px-2.5 py-1 rounded-full text-xs font-bold bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 capitalize border border-slate-200 dark:border-slate-700">
+                                    {app.appointment_type || 'Consulta'}
                                   </span>
-                                )}
+                                </div>
+
+                                {/* Status Indicator */}
+                                <div className="flex items-center gap-2">
+                                  <span className="text-xs text-muted-foreground font-medium">Status:</span>
+                                  {app.reminder_sent_at ? (
+                                    <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-bold bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-400 gap-1.5 border border-green-200 dark:border-green-800">
+                                      <div className="w-1.5 h-1.5 rounded-full bg-green-500 animate-pulse" />
+                                      Confirmado / Enviado
+                                    </span>
+                                  ) : (
+                                    <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-bold bg-amber-100 dark:bg-amber-900/30 text-amber-700 dark:text-amber-400 gap-1.5 border border-amber-200 dark:border-amber-800">
+                                      <div className="w-1.5 h-1.5 rounded-full bg-amber-500" />
+                                      Pendente
+                                    </span>
+                                  )}
+                                </div>
                               </div>
-
                             </div>
-                          </div>
 
-                          <div className="flex items-center gap-3 text-xs text-muted-foreground pl-2 mt-3 border-t pt-2 border-border/50">
-                            <div className="flex items-center gap-1">
-                              <User className="h-3.5 w-3.5" />
-                              {app.professional_name || 'Profissional'}
-                            </div>
-                            <div className="flex items-center gap-1">
-                              <MapPin className="h-3.5 w-3.5" />
-                              {app.location === 'domiciliar' ? 'Casa do Paciente' : 'Consultório'}
+                            <div className="flex items-center gap-4 text-xs text-muted-foreground pt-3 border-t border-slate-100 dark:border-slate-800/50">
+                              <div className="flex items-center gap-1.5 truncate">
+                                <User className="h-3.5 w-3.5 text-slate-400" />
+                                <span className="truncate max-w-[80px]">{app.professional_name || 'Prof.'}</span>
+                              </div>
+                              <div className="flex items-center gap-1.5 truncate">
+                                <MapPin className="h-3.5 w-3.5 text-slate-400" />
+                                <span className="truncate">{app.location === 'domiciliar' ? 'Casa' : 'Consultório'}</span>
+                              </div>
                             </div>
                           </div>
                         </div>
@@ -487,15 +507,17 @@ const Appointments = () => {
               })()}
             </div>
           ) : (
-            <MonthlyCalendarView
-              currentDate={currentDate}
-              appointments={appointments}
-              onDayClick={(date) => {
-                setViewMode('day');
-                setCurrentDate(date);
-              }}
-              onAppointmentClick={handleAppointmentClick}
-            />
+            <div className="h-full overflow-hidden rounded-2xl">
+              <MonthlyCalendarView
+                currentDate={currentDate}
+                appointments={appointments}
+                onDayClick={(date) => {
+                  setViewMode('day');
+                  setCurrentDate(date);
+                }}
+                onAppointmentClick={handleAppointmentClick}
+              />
+            </div>
           )}
         </div>
 
@@ -517,7 +539,7 @@ const Appointments = () => {
 
         {/* DIALOG DE RELATÓRIO DE ENVIO */}
         <Dialog open={reportDialogOpen} onOpenChange={setReportDialogOpen}>
-          <DialogContent className="max-w-md">
+          <DialogContent className="max-w-md rounded-3xl">
             <DialogHeader>
               <DialogTitle>Relatório de Envio</DialogTitle>
               <DialogDescription>
@@ -527,7 +549,7 @@ const Appointments = () => {
 
             {reportData && (
               <div className="space-y-4">
-                <div className="flex justify-between items-center bg-muted p-3 rounded-lg">
+                <div className="flex justify-between items-center bg-muted p-4 rounded-2xl">
                   <div className="text-center w-1/2 border-r border-border">
                     <p className="text-sm text-muted-foreground">Sucesso</p>
                     <p className="text-2xl font-bold text-green-600">{reportData.success}</p>
@@ -541,13 +563,13 @@ const Appointments = () => {
                 </div>
 
                 {reportData.failures?.length > 0 && (
-                  <div className="border rounded-md max-h-[200px] overflow-y-auto">
-                    <div className="bg-red-50 p-2 text-xs font-semibold text-red-700 sticky top-0">
+                  <div className="border rounded-xl max-h-[200px] overflow-y-auto bg-red-50/50">
+                    <div className="bg-red-100/50 p-2 text-xs font-semibold text-red-700 sticky top-0 backdrop-blur-sm">
                       Falhas ({reportData.failures.length})
                     </div>
-                    <ul className="divide-y text-sm">
+                    <ul className="divide-y divide-red-100 text-sm">
                       {reportData.failures.map((fail, idx) => (
-                        <li key={idx} className="p-2 hover:bg-muted/50 flex flex-col">
+                        <li key={idx} className="p-3 hover:bg-red-100/30 flex flex-col">
                           <span className="font-medium">{fail.patientName}</span>
                           <span className="text-xs text-red-500 truncate" title={fail.error}>
                             {fail.error}
@@ -558,13 +580,13 @@ const Appointments = () => {
                   </div>
                 )}
                 {reportData.successes?.length > 0 && (
-                  <div className="border rounded-md max-h-[150px] overflow-y-auto">
-                    <div className="bg-green-50 p-2 text-xs font-semibold text-green-700 sticky top-0">
+                  <div className="border rounded-xl max-h-[150px] overflow-y-auto bg-green-50/50">
+                    <div className="bg-green-100/50 p-2 text-xs font-semibold text-green-700 sticky top-0 backdrop-blur-sm">
                       Enviados ({reportData.successes.length})
                     </div>
-                    <ul className="divide-y text-sm">
+                    <ul className="divide-y divide-green-100 text-sm">
                       {reportData.successes.map((item, idx) => (
-                        <li key={idx} className="p-2 text-muted-foreground">
+                        <li key={idx} className="p-2 text-muted-foreground px-4">
                           {item.patientName}
                         </li>
                       ))}
@@ -575,7 +597,7 @@ const Appointments = () => {
             )}
 
             <DialogFooter>
-              <Button onClick={() => setReportDialogOpen(false)}>Fechar</Button>
+              <Button onClick={() => setReportDialogOpen(false)} className="rounded-xl w-full">Fechar Relatório</Button>
             </DialogFooter>
           </DialogContent>
         </Dialog>
