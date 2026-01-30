@@ -516,13 +516,17 @@ const Appointments = () => {
                                   onClick={(e) => {
                                     e.stopPropagation();
                                     const params = new URLSearchParams();
-                                    const phone = app.contact?.phone || app.contact_phone;
-                                    const name = app.contact?.name || app.contact_name;
-                                    const id = app.contact_id || app.patient_id;
 
-                                    if (phone) params.append('phone', phone);
-                                    if (name) params.append('name', name);
+                                    const rawPhone = app.contact?.phone || app.contact_phone || '';
+                                    const cleanPhone = rawPhone.replace(/\D/g, '');
+
+                                    params.append('phone', cleanPhone);
+                                    params.append('name', app.contact?.name || app.contact_name || 'Visitante');
+                                    if (app.contact?.email) params.append('email', app.contact.email);
+
+                                    const id = app.contact_id || app.patient_id;
                                     if (id) params.append('leadId', id);
+
                                     navigate(`/inbox?${params.toString()}`);
                                   }}
                                   title="Enviar mensagem WhatsApp"

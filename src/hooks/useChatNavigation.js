@@ -14,9 +14,14 @@ export const useChatNavigation = () => {
       setLoading(true);
 
       const params = new URLSearchParams();
-      if (patientData.phone) params.append('phone', patientData.phone);
-      if (patientData.name) params.append('name', patientData.name);
+
+      // Lógica espelhada do PatientDetails para garantir compatibilidade
+      const cleanPhone = (patientData.phone || '').replace(/\D/g, '');
+      params.append('phone', cleanPhone);
+
+      params.append('name', patientData.name || 'Visitante');
       if (patientData.email) params.append('email', patientData.email);
+
       if (patientData.leadId) params.append('leadId', patientData.leadId);
 
       navigate(`/inbox?${params.toString()}`);

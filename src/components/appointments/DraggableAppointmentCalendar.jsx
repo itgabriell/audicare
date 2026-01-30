@@ -126,7 +126,9 @@ const DraggableAppointment = memo(({ appointment, onAppointmentClick }) => {
                   e.stopPropagation();
                   navigateToChat({
                     name: appointment.contact?.name,
-                    phone: appointment.contact?.phone
+                    phone: appointment.contact?.phone,
+                    email: appointment.contact?.email, // Passar email para garantir formatação correta no hook
+                    leadId: appointment.contact_id || appointment.patient_id
                   });
                 }}
                 title="Abrir Conversa"

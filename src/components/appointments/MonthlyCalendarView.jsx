@@ -18,11 +18,15 @@ const MonthlyCalendarView = ({
   const { theme } = useTheme();
 
   // Helper para navegar p/ Chat
-  const handleChat = (e, leadId, phone, name) => {
+  const handleChat = (e, leadId, phone, name, email) => {
     e.stopPropagation();
     const params = new URLSearchParams();
-    if (phone) params.append('phone', phone);
-    if (name) params.append('name', name);
+
+    const cleanPhone = (phone || '').replace(/\D/g, '');
+    params.append('phone', cleanPhone);
+    params.append('name', name || 'Visitante');
+    if (email) params.append('email', email); // Envia apenas se existir
+
     if (leadId) params.append('leadId', leadId);
     navigate(`/inbox?${params.toString()}`);
   };
@@ -84,7 +88,8 @@ const MonthlyCalendarView = ({
     const location = event.extendedProps.location;
     const patientName = event.extendedProps.contact_name || event.title;
     const patientId = event.extendedProps.contact_id || event.extendedProps.patient_id;
-    const patientPhone = event.extendedProps.contact_phone || event.extendedProps.patient_phone; // Assumir que vem nos props explicitar depois
+    const patientPhone = event.extendedProps.contact_phone || event.extendedProps.patient_phone;
+    const patientEmail = event.extendedProps.contact_email; // Recuperando email
     const contactId = event.extendedProps.contact_id; // ID do contato/lead
     const status = event.extendedProps.status || 'scheduled';
 
@@ -135,7 +140,7 @@ const MonthlyCalendarView = ({
             {/* Botão Chat */}
             <div
               role="button"
-              onClick={(e) => handleChat(e, contactId, patientPhone, patientName)}
+              onClick={(e) => handleChat(e, contactId, patientPhone, patientName, patientEmail)}
               className="p-0.5 hover:bg-green-100 dark:hover:bg-green-900/30 rounded text-green-600 dark:text-green-400 transition-colors"
               title="Enviar mensagem"
             >
@@ -159,9 +164,9 @@ const MonthlyCalendarView = ({
       location: app.location,
       contact_name: app.contact?.name || app.contact_name || 'Paciente',
       contact_id: app.contact?.id || app.contact_id || app.patient_id,
-      contact_id: app.contact?.id || app.contact_id || app.patient_id,
       patient_id: app.patient_id,
-      contact_phone: app.contact?.phone || app.patient_phone, // Garantir telefone
+      contact_phone: app.contact?.phone || app.patient_phone,
+      contact_email: app.contact?.email, // Adicionado Email
       status: app.status
     }
   }));
