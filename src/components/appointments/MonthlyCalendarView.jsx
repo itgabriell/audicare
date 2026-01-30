@@ -4,7 +4,7 @@ import dayGridPlugin from '@fullcalendar/daygrid';
 import interactionPlugin from '@fullcalendar/interaction';
 import ptBrLocale from '@fullcalendar/core/locales/pt-br';
 import { useNavigate } from 'react-router-dom';
-import { Home, ExternalLink, Calendar as CalendarIcon, Ear, Stethoscope, BriefcaseMedical } from 'lucide-react';
+import { Home, ExternalLink, Calendar as CalendarIcon, Ear, Stethoscope, BriefcaseMedical, MessageSquare } from 'lucide-react';
 import { useTheme } from '@/contexts/ThemeContext';
 
 const MonthlyCalendarView = ({
@@ -16,6 +16,16 @@ const MonthlyCalendarView = ({
   const calendarRef = useRef(null);
   const navigate = useNavigate();
   const { theme } = useTheme();
+
+  // Helper para navegar p/ Chat
+  const handleChat = (e, leadId, phone, name) => {
+    e.stopPropagation();
+    const params = new URLSearchParams();
+    if (phone) params.append('phone', phone);
+    if (name) params.append('name', name);
+    if (leadId) params.append('leadId', leadId);
+    navigate(`/inbox?${params.toString()}`);
+  };
 
   useEffect(() => {
     if (calendarRef.current) {
@@ -74,6 +84,8 @@ const MonthlyCalendarView = ({
     const location = event.extendedProps.location;
     const patientName = event.extendedProps.contact_name || event.title;
     const patientId = event.extendedProps.contact_id || event.extendedProps.patient_id;
+    const patientPhone = event.extendedProps.contact_phone || event.extendedProps.patient_phone; // Assumir que vem nos props explicitar depois
+    const contactId = event.extendedProps.contact_id; // ID do contato/lead
     const status = event.extendedProps.status || 'scheduled';
 
     const statusLabels = {
@@ -85,7 +97,6 @@ const MonthlyCalendarView = ({
       no_show: 'Não Compareceu'
     };
 
-    // Determina estilo baseado no tipo combinado (type + location)
     // Determina estilo baseado no tipo combinado (type + location)
     const config = getTypeConfig(location?.includes('domiciliar') ? 'domiciliar' : type);
     const Icon = config.icon;
@@ -121,6 +132,15 @@ const MonthlyCalendarView = ({
             <span className="text-[9px] text-muted-foreground opacity-90 truncate">
               {statusLabels[status] || status}
             </span>
+            {/* Botão Chat */}
+            <div
+              role="button"
+              onClick={(e) => handleChat(e, contactId, patientPhone, patientName)}
+              className="p-0.5 hover:bg-green-100 dark:hover:bg-green-900/30 rounded text-green-600 dark:text-green-400 transition-colors"
+              title="Enviar mensagem"
+            >
+              <MessageSquare className="w-3 h-3" />
+            </div>
           </div>
         </div>
 
@@ -141,6 +161,7 @@ const MonthlyCalendarView = ({
       contact_id: app.contact?.id || app.contact_id || app.patient_id,
       contact_id: app.contact?.id || app.contact_id || app.patient_id,
       patient_id: app.patient_id,
+      contact_phone: app.contact?.phone || app.patient_phone, // Garantir telefone
       status: app.status
     }
   }));

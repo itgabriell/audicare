@@ -507,6 +507,30 @@ const Appointments = () => {
                                 <ExternalLink className="h-3 w-3 opacity-0 group-hover/link:opacity-100 transition-opacity text-primary" />
                               </div>
 
+                              {/* Action Buttons Row */}
+                              <div className="absolute top-4 right-4 flex gap-1">
+                                <Button
+                                  size="icon"
+                                  variant="ghost"
+                                  className="h-7 w-7 rounded-full bg-green-50 text-green-600 hover:bg-green-100 dark:bg-green-900/20 dark:text-green-400 border border-green-200 dark:border-green-800"
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    const params = new URLSearchParams();
+                                    const phone = app.contact?.phone || app.contact_phone;
+                                    const name = app.contact?.name || app.contact_name;
+                                    const id = app.contact_id || app.patient_id;
+
+                                    if (phone) params.append('phone', phone);
+                                    if (name) params.append('name', name);
+                                    if (id) params.append('leadId', id);
+                                    navigate(`/inbox?${params.toString()}`);
+                                  }}
+                                  title="Enviar mensagem WhatsApp"
+                                >
+                                  <MessageSquare className="h-3.5 w-3.5" />
+                                </Button>
+                              </div>
+
                               {/* Appointment Type & Status Badges */}
                               <div className="flex flex-col gap-2 mt-3">
                                 {/* Type Badge */}

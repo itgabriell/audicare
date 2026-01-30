@@ -8,17 +8,23 @@ export const useChatNavigation = () => {
   const navigate = useNavigate();
   const { toast } = useToast();
 
-  const navigateToChat = async (patientData) => {
+  const navigateToChat = (patientData) => {
     // patientData expects: { name, phone, email (optional) }
     try {
       setLoading(true);
-      const { conversationId } = await chatwootService.ensureConversationForNavigation(patientData);
-      navigate(`/chat/conversations/${conversationId}`);
+
+      const params = new URLSearchParams();
+      if (patientData.phone) params.append('phone', patientData.phone);
+      if (patientData.name) params.append('name', patientData.name);
+      if (patientData.email) params.append('email', patientData.email);
+      if (patientData.leadId) params.append('leadId', patientData.leadId);
+
+      navigate(`/inbox?${params.toString()}`);
     } catch (error) {
       console.error("Navigation failed:", error);
       toast({
         title: "Erro ao abrir conversa",
-        description: "Não foi possível localizar ou criar a conversa.",
+        description: "Dados insuficientes para navegação.",
         variant: "destructive"
       });
     } finally {

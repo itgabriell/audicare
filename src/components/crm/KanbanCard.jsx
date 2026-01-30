@@ -59,7 +59,7 @@ const KanbanCard = ({ lead, onClick }) => {
               onClick={(e) => {
                 e.stopPropagation();
                 // Navegar para integração
-                window.location.href = `/chat-integration?phone=${lead.phone}&name=${encodeURIComponent(lead.name)}&leadId=${lead.id}`;
+                window.location.href = `/inbox?phone=${lead.phone}&name=${encodeURIComponent(lead.name)}&leadId=${lead.id}`;
               }}
               className="p-1 hover:bg-green-100 rounded-full text-green-600 transition-colors"
               title="Abrir WhatsApp/Chat"
