@@ -22,6 +22,7 @@ import { useAuth } from '@/contexts/SupabaseAuthContext';
 import { supabase } from '@/lib/customSupabaseClient';
 import { useAppointmentReminders } from '@/hooks/useAppointmentReminders';
 import { useAppointments } from '@/hooks/useAppointments';
+import { useChatNavigation } from '@/hooks/useChatNavigation'; // Importado
 
 const Appointments = () => {
   const [currentDate, setCurrentDate] = useState(new Date());
@@ -35,10 +36,10 @@ const Appointments = () => {
     appointments,
     loading,
     refetch: loadAppointments,
-    // deleteAppointment já vem importado do database no topo para evitar conflito de nomes, 
-    // mas se estiver usando o hook useAppointments, precisamos garantir que a função delete esteja disponível.
     // Vou usar a função importada diretamente do database para garantir consistência neste arquivo.
   } = useAppointments();
+
+  const { navigateToChat } = useChatNavigation(); // Hook de navegação padronizado
 
   const [dialogInitialData, setDialogInitialData] = useState(null);
   const [editingAppointment, setEditingAppointment] = useState(null);
@@ -515,19 +516,14 @@ const Appointments = () => {
                                   className="h-7 w-7 rounded-full bg-green-50 text-green-600 hover:bg-green-100 dark:bg-green-900/20 dark:text-green-400 border border-green-200 dark:border-green-800"
                                   onClick={(e) => {
                                     e.stopPropagation();
-                                    const params = new URLSearchParams();
 
-                                    const rawPhone = app.contact?.phone || app.contact_phone || '';
-                                    const cleanPhone = rawPhone.replace(/\D/g, '');
-
-                                    params.append('phone', cleanPhone);
-                                    params.append('name', app.contact?.name || app.contact_name || 'Visitante');
-                                    if (app.contact?.email) params.append('email', app.contact.email);
-
-                                    const id = app.contact_id || app.patient_id;
-                                    if (id) params.append('leadId', id);
-
-                                    navigate(`/inbox?${params.toString()}`);
+                                    // Usando hook padronizado (igual RepairKanban)
+                                    navigateToChat({
+                                      name: app.contact?.name || app.contact_name,
+                                      phone: app.contact?.phone || app.contact_phone,
+                                      email: app.contact?.email,
+                                      leadId: app.contact_id || app.patient_id
+                                    });
                                   }}
                                   title="Enviar mensagem WhatsApp"
                                 >

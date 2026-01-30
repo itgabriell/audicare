@@ -7,6 +7,8 @@ import { useNavigate } from 'react-router-dom';
 import { Home, ExternalLink, Calendar as CalendarIcon, Ear, Stethoscope, BriefcaseMedical, MessageSquare } from 'lucide-react';
 import { useTheme } from '@/contexts/ThemeContext';
 
+import { useChatNavigation } from '@/hooks/useChatNavigation';
+
 const MonthlyCalendarView = ({
   currentDate,
   appointments,
@@ -16,20 +18,9 @@ const MonthlyCalendarView = ({
   const calendarRef = useRef(null);
   const navigate = useNavigate();
   const { theme } = useTheme();
+  const { navigateToChat } = useChatNavigation(); // Usar o hook padronizado
 
-  // Helper para navegar p/ Chat
-  const handleChat = (e, leadId, phone, name, email) => {
-    e.stopPropagation();
-    const params = new URLSearchParams();
 
-    const cleanPhone = (phone || '').replace(/\D/g, '');
-    params.append('phone', cleanPhone);
-    params.append('name', name || 'Visitante');
-    if (email) params.append('email', email); // Envia apenas se existir
-
-    if (leadId) params.append('leadId', leadId);
-    navigate(`/inbox?${params.toString()}`);
-  };
 
   useEffect(() => {
     if (calendarRef.current) {
@@ -140,7 +131,16 @@ const MonthlyCalendarView = ({
             {/* Botão Chat */}
             <div
               role="button"
-              onClick={(e) => handleChat(e, contactId, patientPhone, patientName, patientEmail)}
+              onClick={(e) => {
+                e.stopPropagation();
+                // Usando a mesma lógica do RepairKanban via hook
+                navigateToChat({
+                  name: patientName,
+                  phone: patientPhone,
+                  email: patientEmail,
+                  leadId: contactId
+                });
+              }}
               className="p-0.5 hover:bg-green-100 dark:hover:bg-green-900/30 rounded text-green-600 dark:text-green-400 transition-colors"
               title="Enviar mensagem"
             >
