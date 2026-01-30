@@ -27,7 +27,7 @@ import { format } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 import { Link } from 'react-router-dom';
 import { useToast } from '@/components/ui/use-toast';
-import WelcomeMessage from '@/components/WelcomeMessage';
+import WelcomeMessage from '@/components/layout/WelcomeMessage';
 
 const NEWS_CACHE_KEY = 'audiology_news_cache';
 const CACHE_DURATION = 24 * 60 * 60 * 1000; // 24 hours

@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { Outlet, useLocation } from 'react-router-dom';
-import Sidebar from '@/components/Sidebar';
-import Header from '@/components/Header';
+import Sidebar from '@/components/layout/Sidebar';
+import Header from '@/components/layout/Header';
 import { Sheet, SheetContent } from "@/components/ui/sheet";
 import { Menu } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -38,7 +38,7 @@ const DashboardLayout = () => {
     if (pathname.startsWith('/settings')) return 'Configurações';
     if (pathname.startsWith('/profile')) return 'Meu Perfil';
     if (pathname.startsWith('/inbox')) return 'Inbox'; // Título correto para Inbox
-    
+
     return 'Audicare'; // Padrão
   };
 
@@ -49,7 +49,7 @@ const DashboardLayout = () => {
     <div className="flex min-h-screen bg-background">
       {/* Validation Banner is placed here to be visible across all dashboard pages */}
       <ConfigValidationBanner />
-      
+
       {/* Mobile Sidebar Overlay */}
       <Sheet open={sidebarOpen} onOpenChange={setSidebarOpen}>
         <SheetContent side="left" className="p-0 w-64">
@@ -64,7 +64,7 @@ const DashboardLayout = () => {
 
       {/* Main Content */}
       <div className="flex-1 md:pl-72 flex flex-col relative min-w-0 overflow-hidden">
-        
+
         {/* Renderiza o Header exceto no Inbox (que tem layout próprio) ou se quiser forçar o título */}
         {!isInbox && (
           <div className="relative z-10">

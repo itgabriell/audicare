@@ -8,4 +8,7 @@ dist
 .env.*.local. e n v  
  . e n v . l o c a l  
  . e n v . p r o d u c t i o n  
+# Logs
+logs/*
+!logs/.gitkeep
 *.log
