@@ -544,10 +544,11 @@ class AutomationManager {
 
       if (data.appointment) {
         const appointmentDate = new Date(data.appointment.start_time);
-        const formattedDate = appointmentDate.toLocaleDateString('pt-BR');
+        const formattedDate = appointmentDate.toLocaleDateString('pt-BR', { timeZone: 'America/Sao_Paulo' });
         const formattedTime = appointmentDate.toLocaleTimeString('pt-BR', {
           hour: '2-digit',
-          minute: '2-digit'
+          minute: '2-digit',
+          timeZone: 'America/Sao_Paulo'
         });
 
         message = message.replace(/\{\{data\}\}/g, formattedDate);

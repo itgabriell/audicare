@@ -53,8 +53,20 @@ const KanbanCard = ({ lead, onClick }) => {
         <span className={`font-semibold text-sm truncate pr-2 ${isStoppedResponding ? 'text-muted-foreground' : ''}`}>
           {lead.name}
         </span>
-        <div className="flex gap-1">
-          {lead.source === 'whatsapp' && <MessageCircle className="h-3.5 w-3.5 text-green-600 shrink-0" />}
+        <div className="flex gap-1 items-center">
+          {lead.phone && (
+            <button
+              onClick={(e) => {
+                e.stopPropagation();
+                // Navegar para integração
+                window.location.href = `/chat-integration?phone=${lead.phone}&name=${encodeURIComponent(lead.name)}&leadId=${lead.id}`;
+              }}
+              className="p-1 hover:bg-green-100 rounded-full text-green-600 transition-colors"
+              title="Abrir WhatsApp/Chat"
+            >
+              <MessageCircle className="h-4 w-4" />
+            </button>
+          )}
           {isStoppedResponding && <PhoneOff className="h-3.5 w-3.5 text-gray-400 shrink-0" />}
         </div>
       </div>

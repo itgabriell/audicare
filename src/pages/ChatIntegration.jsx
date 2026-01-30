@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import { Loader2, CalendarPlus, Calendar, Plus } from 'lucide-react';
+import { Loader2, CalendarPlus, Calendar, Plus, ExternalLink } from 'lucide-react';
 import { useSearchParams } from 'react-router-dom';
 
 import { chatwootService } from '@/services/chatwootService';
@@ -215,6 +215,21 @@ const ChatIntegration = () => {
           </div>
         </div>
       )}
+
+      {/* Botão Auxiliar de Login / Abertura Externa */}
+      <div className="absolute top-4 right-4 z-20">
+        <Button
+          variant="secondary"
+          size="sm"
+          className="shadow-sm bg-white/90 backdrop-blur text-xs h-8"
+          onClick={() => window.open(BASE_URL, '_blank')}
+          title="Se o chat pedir login, clique aqui para logar em uma nova aba"
+        >
+          <ExternalLink className="h-3 w-3 mr-2" />
+          Abrir Painel / Login
+        </Button>
+      </div>
+
       <div className="w-full h-full">
         <iframe
           key={computedUrl}

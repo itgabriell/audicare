@@ -74,6 +74,16 @@ const MonthlyCalendarView = ({
     const location = event.extendedProps.location;
     const patientName = event.extendedProps.contact_name || event.title;
     const patientId = event.extendedProps.contact_id || event.extendedProps.patient_id;
+    const status = event.extendedProps.status || 'scheduled';
+
+    const statusLabels = {
+      scheduled: 'Agendado',
+      confirmed: 'Confirmado',
+      arrived: 'Chegou',
+      completed: 'Concluído',
+      cancelled: 'Cancelado',
+      no_show: 'Não Compareceu'
+    };
 
     // Determina estilo baseado no tipo combinado (type + location)
     // Determina estilo baseado no tipo combinado (type + location)
@@ -106,6 +116,12 @@ const MonthlyCalendarView = ({
           >
             {patientName}
           </span>
+
+          <div className="flex items-center justify-between mt-0.5">
+            <span className="text-[9px] text-muted-foreground opacity-90 truncate">
+              {statusLabels[status] || status}
+            </span>
+          </div>
         </div>
 
         <Icon className={`w-3 h-3 ${config.text} opacity-50 flex-shrink-0`} />
@@ -123,7 +139,9 @@ const MonthlyCalendarView = ({
       location: app.location,
       contact_name: app.contact?.name || app.contact_name || 'Paciente',
       contact_id: app.contact?.id || app.contact_id || app.patient_id,
-      patient_id: app.patient_id
+      contact_id: app.contact?.id || app.contact_id || app.patient_id,
+      patient_id: app.patient_id,
+      status: app.status
     }
   }));
 

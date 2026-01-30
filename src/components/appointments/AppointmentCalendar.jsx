@@ -6,25 +6,29 @@ import interactionPlugin from '@fullcalendar/interaction';
 import listPlugin from '@fullcalendar/list';
 import ptBrLocale from '@fullcalendar/core/locales/pt-br';
 import { Button } from '@/components/ui/button';
-import { 
-  ChevronLeft, 
-  ChevronRight, 
-  Calendar as CalendarIcon, 
-  Clock, 
-  MapPin, 
+import {
+  ChevronLeft,
+  ChevronRight,
+  Calendar as CalendarIcon,
+  Clock,
+  MapPin,
   User,
-  Home // Ícone para Domiciliar
+  Home, // Ícone para Domiciliar
+  MessageCircle, // Ícone chat
+  CheckCircle2, // Confirmado
+  Check, // Chegou
+  Clock as ClockIcon
 } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import { format } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 
-const AppointmentCalendar = ({ 
-  appointments, 
-  onDateClick, 
-  onEventClick, 
+const AppointmentCalendar = ({
+  appointments,
+  onDateClick,
+  onEventClick,
   onEventDrop,
-  onViewChange 
+  onViewChange
 }) => {
   const calendarRef = React.useRef(null);
   const [currentView, setCurrentView] = useState('timeGridDay'); // Padrão: DIA
@@ -70,37 +74,79 @@ const AppointmentCalendar = ({
   const renderEventContent = (eventInfo) => {
     const { event } = eventInfo;
     const isDomiciliar = event.extendedProps.type === 'domiciliar' || event.extendedProps.location?.toLowerCase().includes('domiciliar');
-    
-    // Design Box Arredondado Melhorado
+    const status = event.extendedProps.status || 'scheduled';
+    const patientName = event.title;
+    const patientPhone = event.extendedProps.contact_phone || event.extendedProps.patient_phone; // Assumindo que backend manda isso
+    const contactId = event.extendedProps.contact_id || event.extendedProps.patient_id;
+
+    // Cores por Status
+    const statusColors = {
+      scheduled: 'bg-card border-l-4 border-l-primary/60',
+      confirmed: 'bg-green-50 border-l-4 border-l-green-500',
+      arrived: 'bg-blue-50 border-l-4 border-l-blue-600', // "Chegou" - Destaque Azul/Verde
+      completed: 'bg-slate-100 border-l-4 border-l-slate-400 opacity-80',
+      cancelled: 'bg-red-50 border-l-4 border-l-red-400 opacity-60',
+      no_show: 'bg-red-100 border-l-4 border-l-red-600',
+    };
+
+    const baseClass = statusColors[status] || statusColors.scheduled;
+
+    // Se for domiciliar, sobrescreve ou adiciona indicador visual extra?
+    // Vamos manter status como cor principal e domiciliar com ícone/badge
+
     return (
-      <div className={`flex flex-col h-full w-full p-1.5 rounded-md border-l-4 overflow-hidden shadow-sm transition-all hover:shadow-md ${
-        isDomiciliar 
-          ? 'bg-blue-50 border-blue-500 text-blue-900' // Estilo Domiciliar
-          : 'bg-card border-primary/60 text-card-foreground' // Estilo Padrão
-      }`}>
+      <div className={`flex flex-col h-full w-full p-1.5 rounded-md overflow-hidden shadow-sm transition-all hover:shadow-md group relative ${baseClass} ${isDomiciliar ? 'bg-amber-50/50' : ''}`}>
+
         <div className="flex items-center justify-between gap-1 mb-0.5">
-          <span className="font-bold text-xs truncate flex-1">
-            {event.title}
+          <span className="font-bold text-xs truncate flex-1 leading-tight">
+            {patientName}
           </span>
-          {isDomiciliar && (
-            <div className="bg-blue-200 text-blue-800 p-0.5 rounded flex items-center justify-center" title="Atendimento Domiciliar">
-               <Home className="h-3 w-3" />
-            </div>
-          )}
+
+          <div className="flex gap-0.5" onClick={(e) => e.stopPropagation()}>
+            {/* Botão Chatwoot no Card */}
+            <button
+              onClick={(e) => {
+                e.stopPropagation(); // Garante que não abre edit dialog
+                // Navegar para chat integration
+                // Precisamos do telefone ou ID. Se não tiver telefone no prop, tentamos pelo contactId
+                let url = `/chat-integration?leadId=${contactId}`;
+                if (patientPhone) url += `&phone=${patientPhone}&name=${encodeURIComponent(patientName)}`;
+                else url += `&name=${encodeURIComponent(patientName)}`; // Fallback nome
+                window.location.href = url;
+              }}
+              className="opacity-0 group-hover:opacity-100 transition-opacity p-0.5 hover:bg-green-200 rounded text-green-700"
+              title="Enviar mensagem"
+            >
+              <MessageCircle className="h-3 w-3" />
+            </button>
+
+            {status === 'arrived' && <Check className="h-3 w-3 text-blue-600" />}
+            {status === 'confirmed' && <CheckCircle2 className="h-3 w-3 text-green-600" />}
+
+            {isDomiciliar && (
+              <div className="bg-amber-200 text-amber-800 p-0.5 rounded flex items-center justify-center" title="Atendimento Domiciliar">
+                <Home className="h-3 w-3" />
+              </div>
+            )}
+          </div>
         </div>
-        
+
         <div className="flex items-center gap-1 text-[10px] opacity-90">
-          <Clock className="h-2.5 w-2.5" />
-          <span className="truncate">
+          <ClockIcon className="h-2.5 w-2.5" />
+          <span className="truncate font-medium">
             {eventInfo.timeText}
+          </span>
+          {/* Status Label Pequeno */}
+          <span className="ml-auto text-[8px] uppercase tracking-wide opacity-70">
+            {status === 'scheduled' ? '' : status === 'arrived' ? 'Chegou' : status}
           </span>
         </div>
 
         {event.extendedProps.professional && (
-           <div className="flex items-center gap-1 text-[10px] opacity-80 mt-auto pt-1">
-             <User className="h-2.5 w-2.5" />
-             <span className="truncate">{event.extendedProps.professional}</span>
-           </div>
+          <div className="flex items-center gap-1 text-[9px] opacity-70 mt-auto pt-0.5">
+            <User className="h-2 w-2" />
+            <span className="truncate">{event.extendedProps.professional}</span>
+          </div>
         )}
       </div>
     );
@@ -110,7 +156,7 @@ const AppointmentCalendar = ({
     <div className="flex flex-col h-full bg-background rounded-lg border shadow-sm overflow-hidden">
       {/* Header do Calendário */}
       <div className="p-4 border-b flex flex-col sm:flex-row items-center justify-between gap-4">
-        
+
         {/* Controles de Navegação */}
         <div className="flex items-center gap-2">
           <div className="flex items-center rounded-md border bg-card p-0.5">
@@ -167,7 +213,7 @@ const AppointmentCalendar = ({
           .fc-timegrid-slot { height: 3rem; } /* Altura maior para os slots */
           .fc-event { border: none !important; background: transparent !important; box-shadow: none !important; }
         `}</style>
-        
+
         <FullCalendar
           ref={calendarRef}
           plugins={[dayGridPlugin, timeGridPlugin, interactionPlugin, listPlugin]}
