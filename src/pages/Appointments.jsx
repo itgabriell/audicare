@@ -56,6 +56,23 @@ const Appointments = () => {
   const [searchParams, setSearchParams] = useSearchParams();
   const leadIdFromQuery = searchParams.get('leadId');
 
+  // MOBILE OPTIMIZATION: Force Day view on small screens
+  useEffect(() => {
+    const handleResize = () => {
+      if (window.innerWidth < 768 && viewMode !== 'day') {
+        setViewMode('day');
+      }
+    };
+
+    // Initial check
+    if (window.innerWidth < 768) {
+      setViewMode('day');
+    }
+
+    window.addEventListener('resize', handleResize);
+    return () => window.removeEventListener('resize', handleResize);
+  }, [viewMode]);
+
   useEffect(() => {
     const fetchPatients = async () => {
       const patientsData = await getPatients(1, 1000);
@@ -399,8 +416,8 @@ const Appointments = () => {
           </div>
 
           <div className="flex flex-col sm:flex-row gap-3 items-center justify-between w-full pt-1 border-t border-slate-100 dark:border-slate-800/50">
-            {/* View Switcher */}
-            <div className="flex bg-slate-100/50 dark:bg-slate-800/50 rounded-xl p-1">
+            {/* View Switcher - Hidden on Mobile (Mobile is always Day View) */}
+            <div className="hidden md:flex bg-slate-100/50 dark:bg-slate-800/50 rounded-xl p-1">
               {['day', 'week', 'month'].map((mode) => (
                 <Button
                   key={mode}

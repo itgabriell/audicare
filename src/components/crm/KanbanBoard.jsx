@@ -98,7 +98,7 @@ const KanbanBoard = ({
       onDragStart={handleDragStart}
       onDragEnd={handleDragEnd}
     >
-      <div className="flex gap-4 h-full min-h-[500px] overflow-x-auto pb-4">
+      <div className="flex gap-4 h-full overflow-x-auto pb-4">
         {columns.map((column) => (
           <div key={column.id} className="min-w-[280px] w-[280px] flex-shrink-0">
             <KanbanColumn
