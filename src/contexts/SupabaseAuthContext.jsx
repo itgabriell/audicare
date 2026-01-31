@@ -14,13 +14,11 @@ export const AuthProvider = ({ children }) => {
 
   const clearLocalSession = () => {
     console.log("[AuthContext] Clearing invalid session data.");
-    Object.keys(localStorage).forEach(key => {
-        if (key.startsWith('sb-') && key.includes('-auth-token')) {
-            localStorage.removeItem(key);
-        }
-    });
     setSession(null);
     setUser(null);
+    // Removed aggressive localStorage loop as it can interfere with Supabase client's own management.
+    // relying on supabase.auth.signOut() is preferred.
+    // If absolutely needed to hard reset, we can clear specific known keys, but loop is risky.
   };
 
   const fetchUserProfile = async (currentSession) => {
@@ -58,25 +56,25 @@ export const AuthProvider = ({ children }) => {
       try {
         // Check for existing session first
         const { data: { session: currentSession }, error } = await supabase.auth.getSession();
-        
+
         if (error) throw error;
-        
+
         if (mounted) {
-            setSession(currentSession);
-            if (currentSession) {
-              // Optimistic UI: Set user immediately with session data while fetching profile
-              setUser(currentSession.user); 
-              
-              // Fetch full profile in background
-              fetchUserProfile(currentSession).then(fullProfile => {
-                  if (mounted && fullProfile) setUser(fullProfile);
-              });
-            }
+          setSession(currentSession);
+          if (currentSession) {
+            // Optimistic UI: Set user immediately with session data while fetching profile
+            setUser(currentSession.user);
+
+            // Fetch full profile in background
+            fetchUserProfile(currentSession).then(fullProfile => {
+              if (mounted && fullProfile) setUser(fullProfile);
+            });
+          }
         }
       } catch (error) {
         console.error('Error getting initial session:', error);
         if (error.message && (error.message.includes('Invalid Refresh Token') || error.message.includes('Refresh Token Not Found'))) {
-             clearLocalSession();
+          clearLocalSession();
         }
       } finally {
         if (mounted) setLoading(false);
@@ -88,24 +86,24 @@ export const AuthProvider = ({ children }) => {
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
       async (event, newSession) => {
         if (!mounted) return;
-        
+
         if (event === 'SIGNED_OUT' || event === 'USER_DELETED') {
-            setSession(null);
-            setUser(null);
-            setLoading(false);
-            return;
+          setSession(null);
+          setUser(null);
+          setLoading(false);
+          return;
         }
 
         setSession(newSession);
-        
+
         if (newSession) {
-            // If user is already set (from init), don't wipe it, just update
-            if (!user) setUser(newSession.user);
-            
-            const userProfile = await fetchUserProfile(newSession);
-            if (mounted) setUser(userProfile);
+          // If user is already set (from init), don't wipe it, just update
+          if (!user) setUser(newSession.user);
+
+          const userProfile = await fetchUserProfile(newSession);
+          if (mounted) setUser(userProfile);
         }
-        
+
         if (mounted) setLoading(false);
       }
     );
@@ -121,7 +119,7 @@ export const AuthProvider = ({ children }) => {
       email,
       password,
     });
-    
+
     if (error) {
       toast({
         variant: "destructive",
@@ -134,14 +132,14 @@ export const AuthProvider = ({ children }) => {
 
   const signOut = useCallback(async () => {
     try {
-        await supabase.auth.signOut();
+      await supabase.auth.signOut();
     } catch (error) {
-        console.error("Error signing out:", error);
+      console.error("Error signing out:", error);
     } finally {
-        clearLocalSession();
+      clearLocalSession();
     }
   }, []);
-  
+
   const signUp = useCallback(async (email, password, options) => {
     const { data, error } = await supabase.auth.signUp({
       email,

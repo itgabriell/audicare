@@ -290,78 +290,51 @@ export class AutomationService {
                 });
             }
         }
-
         return results;
     }
 
     /**
-     * Envia mensagem WhatsApp via UAZAPI
+     * Envia mensagem WhatsApp via Chatwoot (Backend Bridge)
      * @param {Object} automation - Configuração da automação
      * @param {Object} recipient - Destinatário
      * @returns {Promise<Object>} Resultado do envio
      */
     static async sendWhatsAppMessage(automation, recipient) {
         try {
+            // Importação dinâmica para evitar ciclos se houver
+            const { chatwootService } = await import('./chatwootService');
+
             // Preparar mensagem com template se necessário
             let message = automation.action_config.message_template;
-
             if (automation.action_config.use_template) {
                 message = this.processTemplate(message, recipient);
             }
 
-            // Configurações da UAZAPI (buscar do ambiente ou configuração)
-            const uazapiConfig = {
-                baseUrl: process.env.UAZAPI_BASE_URL || 'https://api.uazapi.com.br',
-                instanceId: process.env.UAZAPI_INSTANCE_ID,
-                apiToken: process.env.UAZAPI_API_TOKEN
-            };
+            console.log(`[Automation] Enviando via Chatwoot para ${recipient.name} (${recipient.phone})...`);
 
-            // Verificar se as configurações estão presentes
-            if (!uazapiConfig.instanceId || !uazapiConfig.apiToken) {
-                throw new Error('Configuração UAZAPI incompleta. Verifique as variáveis de ambiente.');
-            }
+            // Usar o serviço refatorado que passa pelo Proxy seguro
+            const result = await chatwootService.sendMessage(
+                recipient.phone,
+                message,
+                recipient.name
+            );
 
-            // Formatar número do telefone (remover não-dígitos e adicionar +55 se necessário)
-            let phoneNumber = recipient.phone.replace(/\D/g, '');
-            if (!phoneNumber.startsWith('55')) {
-                phoneNumber = `55${phoneNumber}`;
-            }
-
-            // Construir URL da API UAZAPI
-            const apiUrl = `${uazapiConfig.baseUrl}/message/sendText/${uazapiConfig.instanceId}`;
-
-            // Fazer chamada real para UAZAPI
-            const response = await fetch(apiUrl, {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                    'apikey': uazapiConfig.apiToken
-                },
-                body: JSON.stringify({
-                    number: phoneNumber,
-                    text: message,
-                    delay: 0 // Sem delay
-                })
-            });
-
-            const responseData = await response.json();
-
-            if (response.ok && responseData?.messageId) {
+            if (result.success) {
                 return {
                     success: true,
-                    messageId: responseData.messageId,
+                    messageId: result.conversationId, // Chatwoot retorna conv ID, serve como tracking
                     error: null
                 };
             } else {
                 return {
                     success: false,
                     messageId: null,
-                    error: responseData?.message || 'Erro na API UAZAPI'
+                    error: result.error || 'Erro no envio via Chatwoot'
                 };
             }
 
         } catch (error) {
-            console.error('Error sending WhatsApp message:', error);
+            console.error('Error sending WhatsApp message via Chatwoot:', error);
             return {
                 success: false,
                 messageId: null,

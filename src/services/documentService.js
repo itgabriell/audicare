@@ -1,6 +1,7 @@
 import { supabase } from '@/lib/customSupabaseClient';
-import jsPDF from 'jspdf';
-import html2canvas from 'html2canvas';
+// Libraries loaded dynamically to save bundle size
+// import jsPDF from 'jspdf';
+// import html2canvas from 'html2canvas';
 
 /**
  * Serviço para gerenciar documentos médicos
@@ -113,6 +114,10 @@ class DocumentService {
       }
 
       // Converter para canvas e depois para PDF
+      // Dynamic Import for optimization
+      const { default: html2canvas } = await import('html2canvas');
+      const { default: jsPDF } = await import('jspdf');
+
       const canvas = await html2canvas(container, {
         scale: 2,
         useCORS: true,
@@ -261,7 +266,7 @@ class DocumentService {
    */
   replacePlaceholders(html, data) {
     let result = html;
-    
+
     // Substituir placeholders {{campo}}
     const placeholders = html.match(/\{\{(\w+)\}\}/g) || [];
     placeholders.forEach(placeholder => {
@@ -285,7 +290,7 @@ class DocumentService {
    */
   addWatermark(pdf, text) {
     const pageCount = pdf.internal.pages.length - 1;
-    
+
     for (let i = 1; i <= pageCount; i++) {
       pdf.setPage(i);
       pdf.saveState();
@@ -303,10 +308,10 @@ class DocumentService {
   addSignature(pdf, issuedBy, position = 'bottom-right') {
     const pageCount = pdf.internal.pages.length;
     pdf.setPage(pageCount);
-    
+
     pdf.setFontSize(10);
     pdf.setTextColor(0, 0, 0);
-    
+
     let x, y;
     switch (position) {
       case 'bottom-left':

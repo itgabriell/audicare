@@ -192,6 +192,36 @@ class ChatwootService {
             return { success: false, error: error.message };
         }
     }
+    // --- NOVO: Envio Genérico de Mensagem (Via Chatwoot/Bridge) ---
+    async sendMessage(phone, messageText, customerName = 'Cliente') {
+        try {
+            // 1. Formatar telefone (Bridge espera 55...)
+            let cleanPhone = phone.replace(/\D/g, '');
+            if (!cleanPhone.startsWith('55') && cleanPhone.length > 9) {
+                cleanPhone = `55${cleanPhone}`;
+            }
+
+            // 2. Garantir contato e conversa
+            // Usamos ensureConversationForNavigation que já cria tudo se precisar
+            const { conversationId } = await this.ensureConversationForNavigation({
+                name: customerName,
+                phone: cleanPhone
+            });
+
+            // 3. Enviar mensagem via Proxy
+            // Endpoint do Chatwoot: POST /api/v1/accounts/{account_id}/conversations/{conversation_id}/messages
+            await this._invokeProxy('POST', `/conversations/${conversationId}/messages`, {
+                content: messageText,
+                message_type: 'outgoing',
+                private: false
+            });
+
+            return { success: true, conversationId };
+        } catch (error) {
+            console.error('[ChatwootService] Erro ao enviar mensagem:', error);
+            return { success: false, error: error.message };
+        }
+    }
 }
 
 export const chatwootService = new ChatwootService();
