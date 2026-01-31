@@ -63,7 +63,8 @@ const Users = () => {
 
   const callManageUsers = async (payload) => {
     // Usando client do Supabase para ter Auth Headers e URL correta automaticamente
-    const { data, error } = await supabase.functions.invoke('manage-users', {
+    // OBS: Função no servidor chama 'manager-users' (com 'r'), diferente do padrão
+    const { data, error } = await supabase.functions.invoke('manager-users', {
       body: payload,
     });
 
