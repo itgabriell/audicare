@@ -9,7 +9,7 @@ import { Switch } from '@/components/ui/switch';
 import { Badge } from '@/components/ui/badge';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
 import { useToast } from '@/components/ui/use-toast';
-import { Loader2, Plus, Edit, Trash2, FileText } from 'lucide-react';
+import { Loader2, Plus, Edit, Trash2, FileText, Eye } from 'lucide-react';
 import { documentService } from '@/services/documentService';
 import { useAuth } from '@/contexts/SupabaseAuthContext';
 
@@ -19,6 +19,8 @@ const DocumentTemplateManager = () => {
   const [templates, setTemplates] = useState([]);
   const [loading, setLoading] = useState(true);
   const [dialogOpen, setDialogOpen] = useState(false);
+  const [previewOpen, setPreviewOpen] = useState(false);
+  const [previewTemplate, setPreviewTemplate] = useState(null);
   const [editingTemplate, setEditingTemplate] = useState(null);
   const [formData, setFormData] = useState({
     name: '',
@@ -172,6 +174,11 @@ const DocumentTemplateManager = () => {
     });
   };
 
+  const handlePreview = (template) => {
+    setPreviewTemplate(template);
+    setPreviewOpen(true);
+  };
+
   if (loading) {
     return (
       <Card>
@@ -209,6 +216,14 @@ const DocumentTemplateManager = () => {
             </CardHeader>
             <CardContent>
               <div className="flex gap-2">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => handlePreview(template)}
+                  title="Visualizar"
+                >
+                  <Eye className="h-4 w-4" />
+                </Button>
                 <Button
                   variant="outline"
                   size="sm"
@@ -410,6 +425,64 @@ const DocumentTemplateManager = () => {
             <Button onClick={handleSave}>
               Salvar Template
             </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Dialog de Preview */}
+      <Dialog open={previewOpen} onOpenChange={setPreviewOpen}>
+        <DialogContent className="max-w-3xl max-h-[80vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle>Visualização do Template: {previewTemplate?.name}</DialogTitle>
+            <CardDescription>Esta é uma simulação visual de como o documento será gerado.</CardDescription>
+          </DialogHeader>
+
+          <div className="border p-8 min-h-[500px] bg-white text-black shadow-sm relative">
+            {/* Simulação de Cabeçalho (se houver lógica para isso no futuro, aqui é estático por enquanto) */}
+            <div className="text-center mb-8 border-b pb-4">
+              <h1 className="text-xl font-bold uppercase">{previewTemplate?.name}</h1>
+              <p className="text-sm text-gray-500">Clínica Audicare</p>
+            </div>
+
+            {/* Conteúdo do Template (Fields) */}
+            <div className="space-y-6">
+              {previewTemplate?.template_content?.fields?.map((field, idx) => (
+                <div key={idx} className="mb-4">
+                  <p className="font-semibold text-sm mb-1">{field.label}:</p>
+                  <div className="p-2 bg-gray-50 border border-dashed border-gray-300 rounded text-gray-500 italic text-sm">
+                    {'{'}{'{'} {field.label} {'}'}{'}'}
+                  </div>
+                </div>
+              ))}
+              {(!previewTemplate?.template_content?.fields || previewTemplate.template_content.fields.length === 0) && (
+                <p className="text-center text-gray-400 italic py-10">Este template não possui campos definidos.</p>
+              )}
+            </div>
+
+            {/* Marca d'água */}
+            {previewTemplate?.watermark_enabled && (
+              <div className="absolute inset-0 flex items-center justify-center pointer-events-none opacity-[0.08] select-none">
+                <span className="transform -rotate-45 text-6xl font-black uppercase">
+                  {previewTemplate.watermark_text}
+                </span>
+              </div>
+            )}
+
+            {/* Assinatura */}
+            {previewTemplate?.signature_enabled && (
+              <div className={`absolute bottom-8 w-64 border-t border-black pt-2 text-center text-sm
+                    ${previewTemplate.signature_position === 'bottom-left' ? 'left-8' :
+                  previewTemplate.signature_position === 'bottom-center' ? 'left-1/2 -translate-x-1/2' :
+                    'right-8'}`
+              }>
+                <p className="font-bold">Dr(a). Nome do Profissional</p>
+                <p className="text-xs">CRFa: 12345</p>
+              </div>
+            )}
+          </div>
+
+          <DialogFooter>
+            <Button onClick={() => setPreviewOpen(false)}>Fechar</Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>

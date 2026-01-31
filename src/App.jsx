@@ -5,7 +5,7 @@ import { useTheme } from '@/contexts/ThemeContext';
 import DashboardLayout from '@/layouts/DashboardLayout';
 import ErrorBoundary from '@/components/ErrorBoundary';
 import { cacheManager } from '@/utils/cacheManager';
-import { Loader2 } from 'lucide-react'; 
+import { Loader2 } from 'lucide-react';
 
 // --- Critical Pages (Eagerly Loaded for speed) ---
 import LoginPage from '@/pages/LoginPage';
@@ -14,10 +14,10 @@ import LoginPage from '@/pages/LoginPage';
 const FullPageSpinner = () => (
   <div className="flex flex-col items-center justify-center h-screen bg-background text-primary">
     <div className="relative">
-        <div className="w-16 h-16 border-4 border-primary/20 border-t-primary rounded-full animate-spin"></div>
-        <div className="absolute inset-0 flex items-center justify-center">
-            <Loader2 className="h-6 w-6 animate-pulse" />
-        </div>
+      <div className="w-16 h-16 border-4 border-primary/20 border-t-primary rounded-full animate-spin"></div>
+      <div className="absolute inset-0 flex items-center justify-center">
+        <Loader2 className="h-6 w-6 animate-pulse" />
+      </div>
     </div>
     <p className="mt-4 text-sm text-muted-foreground animate-pulse">Carregando Audicare...</p>
   </div>
@@ -41,7 +41,7 @@ const ChatIntegration = lazy(() => import('@/pages/ChatIntegration'));
 const KnowledgeBase = lazy(() => import('@/pages/KnowledgeBase'));
 
 // --- ALTERAÇÃO AQUI: Apontando para o novo Kanban de Reparos ---
-const Repairs = lazy(() => import('@/components/crm/RepairKanban')); 
+const Repairs = lazy(() => import('@/components/crm/RepairKanban'));
 
 const SocialMedia = lazy(() => import('@/pages/SocialMedia'));
 const Automations = lazy(() => import('@/pages/Automations'));
@@ -53,11 +53,9 @@ const Profile = lazy(() => import('@/pages/Profile'));
 // Settings
 const Settings = lazy(() => import('@/pages/Settings'));
 const ProfileSettings = lazy(() => import('@/components/settings/ProfileSettings'));
-const ClinicSettings = lazy(() => import('@/components/settings/ClinicSettings'));
-const WorkingHoursSettings = lazy(() => import('@/components/settings/WorkingHoursSettings'));
+const ActivityLogSettings = lazy(() => import('@/components/settings/ActivityLogSettings'));
+const InterfaceSettings = lazy(() => import('@/components/settings/InterfaceSettings'));
 const SecuritySettings = lazy(() => import('@/components/settings/SecuritySettings'));
-const NotificationSettings = lazy(() => import('@/components/settings/NotificationSettings'));
-const ChannelSettings = lazy(() => import('@/pages/ChannelSettings'));
 const WebhookSettings = lazy(() => import('@/components/settings/WebhookSettings'));
 const DocumentTemplateManager = lazy(() => import('@/components/documents/DocumentTemplateManager'));
 const DocumentMessagesSettings = lazy(() => import('@/components/settings/DocumentMessagesSettings'));
@@ -66,12 +64,12 @@ const HealthCheckPanel = lazy(() => import('@/components/HealthCheckPanel'));
 // --- Protected Route Wrapper ---
 const ProtectedRoute = ({ children }) => {
   const { session, loading } = useAuth();
-  
+
   if (loading) return <FullPageSpinner />;
-  
+
   // If not authenticated, redirect to login
   if (!session) return <Navigate to="/login" replace />;
-  
+
   return children;
 };
 
@@ -84,7 +82,7 @@ function App() {
   }, [theme]);
 
   useEffect(() => {
-      cacheManager.openDB().catch(e => console.warn("[App] Cache Init Failed", e));
+    cacheManager.openDB().catch(e => console.warn("[App] Cache Init Failed", e));
   }, []);
 
   // Show spinner only on initial cold start check
@@ -99,10 +97,10 @@ function App() {
           {/* Public Routes */}
           <Route path="/login" element={<LoginPage />} />
           <Route path="/register" element={<RegisterPage />} />
-          
+
           {/* Protected Dashboard Routes */}
-          <Route 
-            path="/" 
+          <Route
+            path="/"
             element={<ProtectedRoute><DashboardLayout /></ProtectedRoute>}
           >
             <Route index element={<Navigate to="/dashboard" replace />} />
@@ -114,13 +112,13 @@ function App() {
             <Route path="appointments" element={<Appointments />} />
             <Route path="crm" element={<CRM />} />
             <Route path="tasks" element={<Tasks />} />
-            
+
             {/* Rota de Reparos (Carrega o Kanban) */}
             <Route path="repairs" element={<Repairs />} />
-            
+
             {/* Rota da Base de Conhecimento */}
             <Route path="knowledge-base" element={<KnowledgeBase />} />
-            
+
             <Route path="inbox" element={<ChatIntegration />} />
             <Route path="social-media" element={<SocialMedia />} />
             <Route path="email-campaigns" element={<EmailCampaigns />} />
@@ -130,17 +128,15 @@ function App() {
             <Route path="users" element={<Users />} />
             <Route path="import" element={<ImportData />} />
             <Route path="profile" element={<Profile />} />
-            
+
             {/* Settings Sub-routes */}
             <Route path="settings" element={<Settings />}>
               <Route index element={<Navigate to="profile" replace />} />
               <Route path="profile" element={<ProfileSettings />} />
-              <Route path="clinic" element={<ClinicSettings />} />
-              <Route path="hours" element={<WorkingHoursSettings />} />
+              <Route path="activity-log" element={<ActivityLogSettings />} />
+              <Route path="interface" element={<InterfaceSettings />} />
               <Route path="security" element={<SecuritySettings />} />
-              <Route path="notifications" element={<NotificationSettings />} />
-              <Route path="channels" element={<ChannelSettings />} />
-              <Route path="webhooks" element={<WebhookSettings />} /> 
+              <Route path="webhooks" element={<WebhookSettings />} />
               <Route path="document-templates" element={<DocumentTemplateManager />} />
               <Route path="document-messages" element={<DocumentMessagesSettings />} />
               <Route path="diagnostics" element={<HealthCheckPanel />} />

@@ -8,15 +8,13 @@ import { Loader2 } from 'lucide-react';
 const SettingsLayout = () => {
   const navItems = [
     { to: 'profile', label: 'Meu Perfil', icon: User },
-    { to: 'clinic', label: 'Clínica', icon: Building },
-    { to: 'hours', label: 'Horários', icon: Clock },
+    { to: 'activity-log', label: 'Minhas Atividades', icon: Shield },
+    { to: 'interface', label: 'Preferências', icon: Radio },
     { to: 'security', label: 'Segurança', icon: Shield },
-    { to: 'notifications', label: 'Notificações', icon: Bell },
-    { to: 'channels', label: 'Canais & Integrações', icon: Radio },
     { to: 'webhooks', label: 'Webhooks', icon: Network },
     { to: 'document-templates', label: 'Templates de Documentos', icon: FileText },
     { to: 'document-messages', label: 'Mensagens de Documentos', icon: MessageSquare },
-    { to: 'diagnostics', label: 'Diagnóstico', icon: Activity },
+    { to: 'diagnostics', label: 'Status do Sistema', icon: Activity },
   ];
 
   return (
