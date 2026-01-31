@@ -11,10 +11,7 @@ const SettingsLayout = () => {
     { to: 'activity-log', label: 'Minhas Atividades', icon: Shield },
     { to: 'interface', label: 'Preferências', icon: Radio },
     { to: 'security', label: 'Segurança', icon: Shield },
-    { to: 'webhooks', label: 'Webhooks', icon: Network },
-    { to: 'document-templates', label: 'Templates de Documentos', icon: FileText },
-    { to: 'document-messages', label: 'Mensagens de Documentos', icon: MessageSquare },
-    { to: 'diagnostics', label: 'Status do Sistema', icon: Activity },
+    { to: 'security', label: 'Segurança', icon: Shield },
   ];
 
   return (

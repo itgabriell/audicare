@@ -56,10 +56,6 @@ const ProfileSettings = lazy(() => import('@/components/settings/ProfileSettings
 const ActivityLogSettings = lazy(() => import('@/components/settings/ActivityLogSettings'));
 const InterfaceSettings = lazy(() => import('@/components/settings/InterfaceSettings'));
 const SecuritySettings = lazy(() => import('@/components/settings/SecuritySettings'));
-const WebhookSettings = lazy(() => import('@/components/settings/WebhookSettings'));
-const DocumentTemplateManager = lazy(() => import('@/components/documents/DocumentTemplateManager'));
-const DocumentMessagesSettings = lazy(() => import('@/components/settings/DocumentMessagesSettings'));
-const HealthCheckPanel = lazy(() => import('@/components/HealthCheckPanel'));
 
 // --- Protected Route Wrapper ---
 const ProtectedRoute = ({ children }) => {
@@ -136,10 +132,6 @@ function App() {
               <Route path="activity-log" element={<ActivityLogSettings />} />
               <Route path="interface" element={<InterfaceSettings />} />
               <Route path="security" element={<SecuritySettings />} />
-              <Route path="webhooks" element={<WebhookSettings />} />
-              <Route path="document-templates" element={<DocumentTemplateManager />} />
-              <Route path="document-messages" element={<DocumentMessagesSettings />} />
-              <Route path="diagnostics" element={<HealthCheckPanel />} />
             </Route>
           </Route>
 
