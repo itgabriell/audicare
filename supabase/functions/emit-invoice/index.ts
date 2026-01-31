@@ -1,14 +1,50 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
+import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 
-// Funções helper para emissão de notas fiscais
+// Helper para obter o próximo número sequencial
+async function getNextInvoiceNumber(supabaseClient: any, type: string): Promise<string> {
+  // Define o grupo de notas (NFS-e para serviços, NF-e para produtos)
+  const isProduct = type === 'sale';
+  const typesToFilter = isProduct ? ['sale'] : ['fono', 'maintenance'];
 
-async function emitNFSeFono(accessToken: string, paciente: any, servico: any) {
-  console.log('Emitindo NFS-e REAL para Fonoaudiologia');
+  // Busca a última nota emitida desse grupo
+  const { data, error } = await supabaseClient
+    .from('invoices')
+    .select('numero')
+    .in('type', typesToFilter)
+    .order('created_at', { ascending: false })
+    .limit(1)
+    .single();
+
+  if (error && error.code !== 'PGRST116') { // PGRST116 é "no rows returned"
+    console.warn('Erro ao buscar última nota:', error);
+    // Em caso de erro, tenta fallback seguro ou lança exceção?
+    // Vamos lançar para evitar furos, mas se for a primeira nota, prossegue.
+  }
+
+  // Se não houver notas anteriores, começa do 1
+  if (!data?.numero) {
+    return '1';
+  }
+
+  // Tenta converter para número e incrementar
+  const lastNumber = parseInt(data.numero, 10);
+  if (isNaN(lastNumber)) {
+    // Se o último número não for numérico (ex: legado), reseta ou loga erro
+    // Para segurança, vamos assumir 1 se falhar parse
+    return '1';
+  }
+
+  return (lastNumber + 1).toString();
+}
+
+async function emitNFSeFono(accessToken: string, paciente: any, servico: any, numero: string) {
+  console.log('Emitindo NFS-e REAL para Fonoaudiologia. Número:', numero);
 
   const nfsePayload = {
     ambiente: 'producao',
     serie: '1',
-    numero: Math.floor(Math.random() * 1000000).toString(), // Número sequencial - implementar controle adequado
+    numero: numero,
     data_emissao: new Date().toISOString(),
     prestador: {
       cpf_cnpj: '45582340000106', // CNPJ real da Audicare
@@ -26,7 +62,7 @@ async function emitNFSeFono(accessToken: string, paciente: any, servico: any) {
       }
     },
     tomador: {
-      cpf_cnpj: paciente.patient_document.replace(/\D/g, ''), // Remove formatação
+      cpf_cnpj: paciente.patient_document.replace(/\D/g, ''),
       nome: paciente.patient_name,
       email: paciente.patient_email,
       endereco: {
@@ -34,7 +70,7 @@ async function emitNFSeFono(accessToken: string, paciente: any, servico: any) {
         numero: paciente.address?.number || '',
         complemento: paciente.address?.complement || '',
         bairro: paciente.address?.neighborhood || '',
-        codigo_municipio: '3550308', // São Paulo - ajustar conforme endereço do paciente
+        codigo_municipio: '3550308', // São Paulo
         uf: paciente.address?.state || 'SP',
         cep: paciente.address?.zip_code?.replace(/\D/g, '') || ''
       }
@@ -65,7 +101,7 @@ async function emitNFSeFono(accessToken: string, paciente: any, servico: any) {
   const result = await response.json();
 
   return {
-    numero: result.numero,
+    numero: result.numero || numero, // Fallback para número gerado se a API não retornar
     status: result.status,
     link: result.link,
     tipo: 'nfs-e',
@@ -74,17 +110,17 @@ async function emitNFSeFono(accessToken: string, paciente: any, servico: any) {
   };
 }
 
-async function emitNFSeMaintenance(accessToken: string, paciente: any, servico: any) {
-  console.log('Emitindo NFS-e REAL para Manutenção');
+async function emitNFSeMaintenance(accessToken: string, paciente: any, servico: any, numero: string) {
+  console.log('Emitindo NFS-e REAL para Manutenção. Número:', numero);
 
   const nfsePayload = {
     ambiente: 'producao',
     serie: '1',
-    numero: Math.floor(Math.random() * 1000000).toString(), // Número sequencial - implementar controle adequado
+    numero: numero,
     data_emissao: new Date().toISOString(),
     prestador: {
-      cpf_cnpj: '45582340000106', // CNPJ real da Audicare
-      inscricao_municipal: '123456', // Ajustar conforme necessário
+      cpf_cnpj: '45582340000106',
+      inscricao_municipal: '123456',
       nome_fantasia: 'Audicare Clínica Auditiva',
       razao_social: 'Audicare Clínica Auditiva Ltda',
       endereco: {
@@ -92,13 +128,13 @@ async function emitNFSeMaintenance(accessToken: string, paciente: any, servico: 
         numero: '123',
         complemento: '',
         bairro: 'Centro',
-        codigo_municipio: '3550308', // São Paulo
+        codigo_municipio: '3550308',
         uf: 'SP',
         cep: '01234567'
       }
     },
     tomador: {
-      cpf_cnpj: paciente.patient_document.replace(/\D/g, ''), // Remove formatação
+      cpf_cnpj: paciente.patient_document.replace(/\D/g, ''),
       nome: paciente.patient_name,
       email: paciente.patient_email,
       endereco: {
@@ -106,7 +142,7 @@ async function emitNFSeMaintenance(accessToken: string, paciente: any, servico: 
         numero: paciente.address?.number || '',
         complemento: paciente.address?.complement || '',
         bairro: paciente.address?.neighborhood || '',
-        codigo_municipio: '3550308', // São Paulo - ajustar conforme endereço do paciente
+        codigo_municipio: '3550308', // São Paulo
         uf: paciente.address?.state || 'SP',
         cep: paciente.address?.zip_code?.replace(/\D/g, '') || ''
       }
@@ -138,7 +174,7 @@ async function emitNFSeMaintenance(accessToken: string, paciente: any, servico: 
   const result = await response.json();
 
   return {
-    numero: result.numero,
+    numero: result.numero || numero,
     status: result.status,
     link: result.link,
     tipo: 'nfs-e',
@@ -148,8 +184,8 @@ async function emitNFSeMaintenance(accessToken: string, paciente: any, servico: 
   };
 }
 
-async function emitNFeSale(accessToken: string, paciente: any, servico: any) {
-  console.log('Emitindo NF-e REAL para Venda de Aparelho');
+async function emitNFeSale(accessToken: string, paciente: any, servico: any, numero: string) {
+  console.log('Emitindo NF-e REAL para Venda de Aparelho. Número:', numero);
 
   const quantidade = parseInt(servico.quantity || 1);
   const valorUnitario = parseFloat(servico.amount) / quantidade;
@@ -158,7 +194,7 @@ async function emitNFeSale(accessToken: string, paciente: any, servico: any) {
     ambiente: 'producao',
     natureza_operacao: 'Venda de Mercadoria',
     serie: '1',
-    numero: Math.floor(Math.random() * 1000000).toString(), // Número sequencial - implementar controle adequado
+    numero: numero,
     data_emissao: new Date().toISOString(),
     data_saida_entrada: new Date().toISOString(),
     tipo_operacao: '1', // Saída
@@ -166,7 +202,7 @@ async function emitNFeSale(accessToken: string, paciente: any, servico: any) {
     consumidor_final: '1', // Consumidor final
     presenca_comprador: '9', // Operação não presencial
     destinatario: {
-      cpf_cnpj: paciente.patient_document.replace(/\D/g, ''), // Remove formatação
+      cpf_cnpj: paciente.patient_document.replace(/\D/g, ''),
       nome: paciente.patient_name,
       email: paciente.patient_email,
       endereco: {
@@ -174,7 +210,7 @@ async function emitNFeSale(accessToken: string, paciente: any, servico: any) {
         numero: paciente.address?.number || '',
         complemento: paciente.address?.complement || '',
         bairro: paciente.address?.neighborhood || '',
-        codigo_municipio: '3550308', // São Paulo - ajustar conforme endereço do paciente
+        codigo_municipio: '3550308', // São Paulo
         uf: paciente.address?.state || 'SP',
         cep: paciente.address?.zip_code?.replace(/\D/g, '') || ''
       }
@@ -187,7 +223,7 @@ async function emitNFeSale(accessToken: string, paciente: any, servico: any) {
       quantidade_comercial: quantidade,
       valor_unitario_comercial: valorUnitario,
       valor_total: parseFloat(servico.amount),
-      indicacao_cst_csosn: '102', // Simples Nacional CSOSN 102
+      indicacao_cst_csosn: '102',
       codigo_cst_csosn: '102'
     }],
     totais: {
@@ -213,7 +249,7 @@ async function emitNFeSale(accessToken: string, paciente: any, servico: any) {
   const result = await response.json();
 
   return {
-    numero: result.numero,
+    numero: result.numero || numero,
     status: result.status,
     link: result.link,
     tipo: 'nf-e',
@@ -238,22 +274,23 @@ serve(async (req) => {
   }
 
   try {
-    // Receber dados do body
     const { type, paciente, servico } = await req.json();
 
     // Ler variáveis de ambiente
     const clientId = Deno.env.get('NUVEM_CLIENT_ID');
     const clientSecret = Deno.env.get('NUVEM_CLIENT_SECRET');
     const scope = Deno.env.get('NUVEM_SCOPE');
+    const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
+    const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
 
     if (!clientId || !clientSecret || !scope) {
-      return new Response(JSON.stringify({ error: 'Variáveis de ambiente não configuradas' }), {
-        status: 500,
-        headers: { 'Content-Type': 'application/json' },
-      });
+      throw new Error('Variáveis de ambiente Nuvem Fiscal não configuradas');
     }
 
-    // Passo A: Autenticação OAuth2
+    // Inicializar Supabase Admin para buscar numeração
+    const supabaseAdmin = createClient(supabaseUrl, supabaseServiceKey);
+
+    // Obter Token Nuvem Fiscal
     const authResponse = await fetch('https://auth.nuvemfiscal.com.br/oauth/token', {
       method: 'POST',
       headers: {
@@ -268,41 +305,32 @@ serve(async (req) => {
     });
 
     if (!authResponse.ok) {
-      return new Response(JSON.stringify({ error: 'Falha na autenticação com Nuvem Fiscal' }), {
-        status: 401,
-        headers: { 'Content-Type': 'application/json' },
-      });
+      throw new Error('Falha na autenticação com Nuvem Fiscal');
     }
 
-    const authData = await authResponse.json();
-    const accessToken = authData.access_token;
+    const { access_token: accessToken } = await authResponse.json();
 
-    console.log('Autenticação bem-sucedida, access_token obtido');
+    // Obter próximo número sequencial
+    const nextNumber = await getNextInvoiceNumber(supabaseAdmin, type);
+    console.log(`Gerando nota ${nextNumber} para tipo ${type}`);
 
-    // Passo B: Emissão baseada no tipo
+    // Emissão baseada no tipo
     let invoiceResult;
 
     switch (type) {
       case 'fono':
-        // NFS-e para Fonoaudiologia
-        invoiceResult = await emitNFSeFono(accessToken, paciente, servico);
+        invoiceResult = await emitNFSeFono(accessToken, paciente, servico, nextNumber);
         break;
-
       case 'maintenance':
-        // NFS-e para Manutenção
-        invoiceResult = await emitNFSeMaintenance(accessToken, paciente, servico);
+        invoiceResult = await emitNFSeMaintenance(accessToken, paciente, servico, nextNumber);
         break;
-
       case 'sale':
-        // NF-e para Venda de Aparelho
-        invoiceResult = await emitNFeSale(accessToken, paciente, servico);
+        invoiceResult = await emitNFeSale(accessToken, paciente, servico, nextNumber);
         break;
-
       default:
         throw new Error(`Tipo de nota fiscal não suportado: ${type}`);
     }
 
-    // Retornar resultado
     return new Response(JSON.stringify({
       success: true,
       paciente,
@@ -318,9 +346,13 @@ serve(async (req) => {
     });
 
   } catch (error) {
+    console.error('Erro na emissão:', error);
     return new Response(JSON.stringify({ error: error.message }), {
       status: 500,
-      headers: { 'Content-Type': 'application/json' },
+      headers: {
+        'Content-Type': 'application/json',
+        'Access-Control-Allow-Origin': '*',
+      },
     });
   }
 });

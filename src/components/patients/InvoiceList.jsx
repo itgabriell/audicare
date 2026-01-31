@@ -12,21 +12,35 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
+
 const InvoiceList = ({ patientId }) => {
   const { toast } = useToast();
   const [invoices, setInvoices] = useState([]);
   const [loading, setLoading] = useState(true);
   const [isInvoiceModalOpen, setIsInvoiceModalOpen] = useState(false);
+  const [isConfirmDialogOpen, setIsConfirmDialogOpen] = useState(false); // New state
   const [isEmittingInvoice, setIsEmittingInvoice] = useState(false);
+
+  // ... (State definitions remain mostly the same, ensuring compatibility)
   const [invoiceForm, setInvoiceForm] = useState({
     type: '',
     amount: '',
     description: '',
-    paymentMethod: 'cash', // cash, installment, card, pix
+    paymentMethod: 'cash',
     installments: '1',
-    model: '', // para vendas
-    quantity: '1', // para vendas
-    emitForThirdParty: false, // emitir em nome de terceiros
+    model: '',
+    quantity: '1',
+    emitForThirdParty: false,
     thirdPartyName: '',
     thirdPartyDocument: '',
     thirdPartyEmail: '',
@@ -37,31 +51,6 @@ const InvoiceList = ({ patientId }) => {
   const [showDataValidation, setShowDataValidation] = useState(false);
   const [editingPatientData, setEditingPatientData] = useState(false);
 
-  // Dados fictícios para demonstração
-  const mockInvoices = [
-    {
-      id: '1',
-      issued_at: '2024-01-15',
-      amount: 150.00,
-      status: 'authorized',
-      link: 'https://example.com/invoice1.pdf'
-    },
-    {
-      id: '2',
-      issued_at: '2024-01-10',
-      amount: 250.00,
-      status: 'processing',
-      link: null
-    },
-    {
-      id: '3',
-      issued_at: '2024-01-05',
-      amount: 89.90,
-      status: 'error',
-      link: null
-    }
-  ];
-
   useEffect(() => {
     fetchInvoices();
   }, [patientId]);
@@ -69,8 +58,6 @@ const InvoiceList = ({ patientId }) => {
   const fetchInvoices = async () => {
     try {
       setLoading(true);
-
-      // Tentar buscar do Supabase
       const { data, error } = await supabase
         .from('invoices')
         .select('*')
@@ -79,15 +66,13 @@ const InvoiceList = ({ patientId }) => {
 
       if (error) {
         console.warn('Erro ao buscar invoices do Supabase:', error);
-        // Usar dados fictícios se não conseguir buscar
-        setInvoices(mockInvoices);
+        setInvoices([]);
       } else {
-        // Se não houver dados, usar mock
-        setInvoices(data && data.length > 0 ? data : mockInvoices);
+        setInvoices(data || []);
       }
     } catch (error) {
       console.error('Erro ao buscar invoices:', error);
-      setInvoices(mockInvoices);
+      setInvoices([]);
     } finally {
       setLoading(false);
     }
@@ -99,170 +84,81 @@ const InvoiceList = ({ patientId }) => {
       processing: { label: 'Processando', variant: 'secondary', className: 'bg-yellow-100 text-yellow-800 hover:bg-yellow-100' },
       error: { label: 'Erro', variant: 'destructive', className: 'bg-red-100 text-red-800 hover:bg-red-100' }
     };
-
     const config = statusMap[status] || { label: status, variant: 'outline' };
-
-    return (
-      <Badge variant={config.variant} className={config.className}>
-        {config.label}
-      </Badge>
-    );
+    return <Badge variant={config.variant} className={config.className}>{config.label}</Badge>;
   };
 
-  const formatCurrency = (value) => {
-    return new Intl.NumberFormat('pt-BR', {
-      style: 'currency',
-      currency: 'BRL'
-    }).format(value);
-  };
-
-  const formatDate = (dateString) => {
-    return new Date(dateString).toLocaleDateString('pt-BR');
-  };
+  const formatCurrency = (value) => new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(value);
+  const formatDate = (dateString) => new Date(dateString).toLocaleDateString('pt-BR');
 
   const handleDownload = (pdfUrl) => {
-    if (pdfUrl) {
-      window.open(pdfUrl, '_blank');
-    } else {
-      toast({
-        variant: 'destructive',
-        title: 'PDF não disponível',
-        description: 'O PDF desta nota ainda não foi gerado.'
-      });
-    }
+    if (pdfUrl) window.open(pdfUrl, '_blank');
+    else toast({ variant: 'destructive', title: 'PDF não disponível', description: 'O PDF desta nota ainda não foi gerado.' });
   };
 
   const validatePatientFiscalData = (patient) => {
     const requiredFields = [];
     const warnings = [];
-
-    // CPF/CNPJ
-    if (!patient.cpf && !patient.document) {
-      requiredFields.push('CPF/CNPJ');
-    }
-
-    // Nome
-    if (!patient.name && !patient.full_name) {
-      requiredFields.push('Nome completo');
-    }
-
-    // Email
-    if (!patient.email) {
-      warnings.push('E-mail não informado');
-    }
-
-    // Endereço
+    if (!patient.cpf && !patient.document) requiredFields.push('CPF/CNPJ');
+    if (!patient.name && !patient.full_name) requiredFields.push('Nome completo');
+    if (!patient.email) warnings.push('E-mail não informado');
     const address = patient.address || {};
-    if (!address.zip_code && !patient.zip_code) {
-      requiredFields.push('CEP');
-    }
-    if (!address.street && !patient.street && !patient.rua) {
-      requiredFields.push('Rua/Logradouro');
-    }
-    if (!address.number && !patient.number && !patient.numero) {
-      requiredFields.push('Número');
-    }
-    if (!address.neighborhood && !patient.neighborhood && !patient.bairro) {
-      requiredFields.push('Bairro');
-    }
-    if (!address.city && !patient.city && !patient.cidade) {
-      requiredFields.push('Cidade');
-    }
-    if (!address.state && !patient.state && !patient.estado) {
-      requiredFields.push('Estado');
-    }
-
+    if (!address.zip_code && !patient.zip_code) requiredFields.push('CEP');
+    if (!address.street && !patient.street && !patient.rua) requiredFields.push('Rua/Logradouro');
+    if (!address.number && !patient.number && !patient.numero) requiredFields.push('Número');
+    if (!address.neighborhood && !patient.neighborhood && !patient.bairro) requiredFields.push('Bairro');
+    if (!address.city && !patient.city && !patient.cidade) requiredFields.push('Cidade');
+    if (!address.state && !patient.state && !patient.estado) requiredFields.push('Estado');
     return { requiredFields, warnings, isValid: requiredFields.length === 0 };
   };
 
   const handleNewInvoice = async () => {
     try {
-      // Buscar dados completos do paciente
-      const { data: patient, error } = await supabase
-        .from('patients')
-        .select('*')
-        .eq('id', patientId)
-        .single();
-
+      const { data: patient, error } = await supabase.from('patients').select('*').eq('id', patientId).single();
       if (error || !patient) {
-        toast({
-          variant: 'destructive',
-          title: 'Erro',
-          description: 'Não foi possível carregar os dados do paciente.'
-        });
+        toast({ variant: 'destructive', title: 'Erro', description: 'Não foi possível carregar os dados do paciente.' });
         return;
       }
-
       setPatientData(patient);
-
-      // Validar dados fiscais
       const validation = validatePatientFiscalData(patient);
-
-      if (!validation.isValid) {
-        setShowDataValidation(true);
-      }
-
+      if (!validation.isValid) setShowDataValidation(true);
       setIsInvoiceModalOpen(true);
     } catch (error) {
       console.error('Erro ao carregar dados do paciente:', error);
-      toast({
-        variant: 'destructive',
-        title: 'Erro',
-        description: 'Erro ao carregar dados do paciente.'
-      });
+      toast({ variant: 'destructive', title: 'Erro', description: 'Erro ao carregar dados do paciente.' });
     }
   };
 
   const handleFormChange = (field, value) => {
-    setInvoiceForm(prev => ({
-      ...prev,
-      [field]: value
-    }));
+    setInvoiceForm(prev => ({ ...prev, [field]: value }));
   };
 
-  const handleEmitInvoice = async () => {
-    // Validação
+  // Step 1: Validate and open confirmation dialog
+  const handleValidateEmission = () => {
     if (!invoiceForm.type || !invoiceForm.amount || !invoiceForm.description) {
-      toast({
-        variant: 'destructive',
-        title: 'Campos obrigatórios',
-        description: 'Preencha todos os campos para emitir a nota fiscal.'
-      });
+      toast({ variant: 'destructive', title: 'Campos obrigatórios', description: 'Preencha todos os campos para emitir a nota fiscal.' });
       return;
     }
-
-    // Validação específica para vendas
     if (invoiceForm.type === 'sale' && (!invoiceForm.model || !invoiceForm.quantity)) {
-      toast({
-        variant: 'destructive',
-        title: 'Campos obrigatórios',
-        description: 'Para vendas, informe o modelo e quantidade do aparelho.'
-      });
+      toast({ variant: 'destructive', title: 'Campos obrigatórios', description: 'Para vendas, informe o modelo e quantidade do aparelho.' });
       return;
     }
-
     const amount = parseFloat(invoiceForm.amount.replace(',', '.'));
     if (isNaN(amount) || amount <= 0) {
-      toast({
-        variant: 'destructive',
-        title: 'Valor inválido',
-        description: 'Digite um valor válido para a nota fiscal.'
-      });
+      toast({ variant: 'destructive', title: 'Valor inválido', description: 'Digite um valor válido para a nota fiscal.' });
       return;
     }
 
-    // ALERTA DE CONFIRMAÇÃO PARA PRODUÇÃO
-    const confirmMessage = `⚠️ ATENÇÃO: Você está prestes a emitir uma NOTA FISCAL REAL com valor de R$ ${formatCurrency(amount)}.
+    setIsConfirmDialogOpen(true);
+  };
 
-Esta ação é irreversível e gerará uma obrigação fiscal.
-
-Tem certeza que deseja continuar?`;
-
-    if (!window.confirm(confirmMessage)) {
-      return;
-    }
-
+  // Step 2: Execute emission after confirmation
+  const executeEmission = async () => {
+    setIsConfirmDialogOpen(false);
     setIsEmittingInvoice(true);
+
+    // Recalculate amount safely
+    const amount = parseFloat(invoiceForm.amount.replace(',', '.'));
 
     try {
       // Buscar dados do paciente
@@ -287,6 +183,7 @@ Tem certeza que deseja continuar?`;
             title: 'Dados do terceiro obrigatórios',
             description: 'Nome e CPF/CNPJ do terceiro são obrigatórios.'
           });
+          setIsEmittingInvoice(false); // Stop loading manually since we return here
           return;
         }
 
@@ -336,14 +233,8 @@ Tem certeza que deseja continuar?`;
           created_at: new Date().toISOString()
         };
 
-        const { error: insertError } = await supabase
-          .from('invoices')
-          .insert(invoiceRecord);
-
-        if (insertError) {
-          console.warn('Erro ao salvar nota no banco local:', insertError);
-          // Não falha a operação, apenas loga o erro
-        }
+        const { error: insertError } = await supabase.from('invoices').insert(invoiceRecord);
+        if (insertError) console.warn('Erro ao salvar nota no banco local:', insertError);
 
         // Salvar em documentos
         const documentRecord = {
@@ -367,29 +258,15 @@ Tem certeza que deseja continuar?`;
           created_at: new Date().toISOString()
         };
 
-        const { error: docError } = await supabase
-          .from('documents')
-          .insert(documentRecord);
-
-        if (docError) {
-          console.warn('Erro ao salvar documento:', docError);
-        }
+        const { error: docError } = await supabase.from('documents').insert(documentRecord);
+        if (docError) console.warn('Erro ao salvar documento:', docError);
 
         // Aplicar tag "comprou" ao paciente
         if (invoiceForm.type === 'sale') {
-          const { error: tagError } = await supabase
-            .from('patient_tags')
-            .upsert({
-              patient_id: patientId,
-              tag: 'comprou',
-              created_at: new Date().toISOString()
-            }, {
-              onConflict: 'patient_id,tag'
-            });
-
-          if (tagError) {
-            console.warn('Erro ao aplicar tag:', tagError);
-          }
+          const { error: tagError } = await supabase.from('patient_tags').upsert({
+            patient_id: patientId, tag: 'comprou', created_at: new Date().toISOString()
+          }, { onConflict: 'patient_id,tag' });
+          if (tagError) console.warn('Erro ao aplicar tag:', tagError);
         }
 
         toast({
@@ -399,17 +276,10 @@ Tem certeza que deseja continuar?`;
 
         // Limpar formulário e fechar modal
         setInvoiceForm({
-          type: '',
-          amount: '',
-          description: '',
-          paymentMethod: 'cash',
-          installments: '1',
-          model: '',
-          quantity: '1'
+          type: '', amount: '', description: '', paymentMethod: 'cash', installments: '1', model: '', quantity: '1',
+          emitForThirdParty: false, thirdPartyName: '', thirdPartyDocument: '', thirdPartyEmail: '', thirdPartyAddress: null
         });
         setIsInvoiceModalOpen(false);
-
-        // Atualizar lista de notas
         fetchInvoices();
       } else {
         throw new Error(result.error || 'Erro na emissão da nota fiscal');
@@ -895,90 +765,121 @@ Tem certeza que deseja continuar?`;
                 </div>
               )}
 
-              <div className="flex gap-2 pt-4">
+              {/* Botão de Emissão */}
+              <div className="pt-4 flex justify-end gap-3">
                 <Button
                   variant="outline"
                   onClick={() => setIsInvoiceModalOpen(false)}
-                  className="flex-1"
+                  disabled={isEmittingInvoice}
                 >
                   Cancelar
                 </Button>
                 <Button
-                  onClick={handleEmitInvoice}
+                  onClick={handleValidateEmission}
                   disabled={isEmittingInvoice}
-                  className="flex-1 bg-blue-600 hover:bg-blue-700"
+                  className="bg-blue-600 hover:bg-blue-700 min-w-[150px]"
                 >
-                  {isEmittingInvoice ? 'Emitindo...' : 'Emitir Nota'}
+                  {isEmittingInvoice ? (
+                    <div className="flex items-center gap-2">
+                      <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                      Emitindo...
+                    </div>
+                  ) : (
+                    <>
+                      <Receipt className="mr-2 h-4 w-4" />
+                      Emitir Nota Fiscal
+                    </>
+                  )}
                 </Button>
               </div>
             </div>
           </DialogContent>
         </Dialog>
+
+        {/* Dialog de Confirmação de Emissão */}
+        <AlertDialog open={isConfirmDialogOpen} onOpenChange={setIsConfirmDialogOpen}>
+          <AlertDialogContent className="max-w-md border-red-200 bg-red-50/50">
+            <AlertDialogHeader>
+              <AlertDialogTitle className="text-red-700 flex items-center gap-2">
+                ⚠️ Confirmação de Emissão Real
+              </AlertDialogTitle>
+              <AlertDialogDescription className="text-slate-700 pt-2 space-y-3">
+                <p className="font-medium text-lg text-slate-900 border-b border-red-200 pb-2 mb-2">
+                  Valor: {invoiceForm.amount ? formatCurrency(parseFloat(invoiceForm.amount.replace(',', '.'))) : 'R$ 0,00'}
+                </p>
+                <p>
+                  Você está prestes a emitir um documento fiscal real. Esta ação:
+                </p>
+                <ul className="list-disc pl-5 space-y-1">
+                  <li>Gerará uma obrigação fiscal/tributária.</li>
+                  <li>É irreversível via sistema (exige cancelamento na prefeitura).</li>
+                  <li>Enviará email automaticamente ao paciente.</li>
+                </ul>
+                <p className="font-semibold text-red-700 pt-2">
+                  Tem certeza absoluta que deseja prosseguir?
+                </p>
+              </AlertDialogDescription>
+            </AlertDialogHeader>
+            <AlertDialogFooter>
+              <AlertDialogCancel>Continuar Editando</AlertDialogCancel>
+              <AlertDialogAction
+                onClick={executeEmission}
+                className="bg-red-600 hover:bg-red-700 text-white font-bold"
+              >
+                Sim, Emitir Agora
+              </AlertDialogAction>
+            </AlertDialogFooter>
+          </AlertDialogContent>
+        </AlertDialog>
       </div>
 
       {invoices.length === 0 ? (
-        <Card>
-          <CardContent className="flex flex-col items-center justify-center py-12">
-            <FileText className="h-12 w-12 text-muted-foreground mb-4" />
-            <h3 className="text-lg font-medium mb-2">Nenhuma nota fiscal encontrada</h3>
-            <p className="text-sm text-muted-foreground text-center mb-4">
-              Ainda não foram emitidas notas fiscais para este paciente.
-            </p>
-            <Dialog open={isInvoiceModalOpen} onOpenChange={setIsInvoiceModalOpen}>
-              <DialogTrigger asChild>
-                <Button onClick={handleNewInvoice}>
-                  <Plus className="mr-2 h-4 w-4" />
-                  Emitir Primeira Nota
-                </Button>
-              </DialogTrigger>
-            </Dialog>
+        <Card className="border-dashed bg-slate-50 dark:bg-slate-900/50">
+          <CardContent className="flex flex-col items-center justify-center p-8 text-center text-muted-foreground">
+            <FileText className="h-10 w-10 mb-4 opacity-50" />
+            <p>Nenhuma nota fiscal emitida para este paciente.</p>
           </CardContent>
         </Card>
       ) : (
         <div className="grid gap-4">
           {invoices.map((invoice) => (
-            <Card key={invoice.id}>
-              <CardHeader className="pb-3">
-                <div className="flex justify-between items-start">
-                  <div>
-                    <CardTitle className="text-lg">
-                      Nota Fiscal #{invoice.id}
-                    </CardTitle>
-                    <p className="text-sm text-muted-foreground">
-                      Emitida em {formatDate(invoice.issued_at)}
-                    </p>
-                  </div>
-                  <div className="flex items-center gap-3">
+            <Card key={invoice.id} className="overflow-hidden">
+              <CardContent className="flex items-center p-4 gap-4">
+                <div className="flex-1 min-w-0">
+                  <div className="flex items-center gap-2 mb-1">
+                    <span className="font-semibold text-lg">{invoice.numero || `NF-${invoice.id}`}</span>
                     {getStatusBadge(invoice.status)}
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      onClick={() => handleDownload(invoice.link)}
-                      disabled={!invoice.link}
-                    >
-                      <Download className="h-4 w-4" />
-                    </Button>
+                    <Badge variant="outline" className="text-xs">
+                      {getInvoiceTypeLabel(invoice.type)}
+                    </Badge>
+                  </div>
+                  <div className="text-sm text-muted-foreground flex gap-4">
+                    <span className="flex items-center gap-1">
+                      <FileText className="h-3 w-3" /> {formatDate(invoice.issued_at)}
+                    </span>
+                    <span>
+                      {invoice.description}
+                    </span>
                   </div>
                 </div>
-              </CardHeader>
-              <CardContent>
-                <div className="flex justify-between items-center">
-                  <div>
-                    <p className="text-2xl font-bold text-green-600">
-                      {formatCurrency(invoice.amount)}
-                    </p>
+
+                <div className="text-right">
+                  <div className="font-bold text-lg mb-1">{formatCurrency(invoice.amount)}</div>
+                  <div className="text-xs text-muted-foreground capitalize">
+                    {invoice.installments > 1 ? `${invoice.installments}x de ${formatCurrency(invoice.amount / invoice.installments)}` : 'À Vista'}
                   </div>
-                  <div className="text-right text-sm text-muted-foreground">
-                    {invoice.status === 'authorized' && invoice.link && (
-                      <p>PDF disponível para download</p>
-                    )}
-                    {invoice.status === 'processing' && (
-                      <p>Processando emissão...</p>
-                    )}
-                    {invoice.status === 'error' && (
-                      <p>Erro na emissão - verificar dados fiscais</p>
-                    )}
-                  </div>
+                </div>
+
+                <div className="pl-4 border-l">
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    onClick={() => handleDownload(invoice.link)}
+                    disabled={!invoice.link}
+                    title="Baixar PDF"
+                  >
+                    <Download className="h-4 w-4" />
+                  </Button>
                 </div>
               </CardContent>
             </Card>

@@ -10,12 +10,17 @@ import { useToast } from '@/components/ui/use-toast';
 import { supabase } from '@/lib/customSupabaseClient';
 import { format } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
+import InvoiceTableSkeleton from '@/components/skeletons/InvoiceTableSkeleton';
 
 const Invoices = () => {
   const { toast } = useToast();
   const [invoices, setInvoices] = useState([]);
-  const [filteredInvoices, setFilteredInvoices] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [page, setPage] = useState(1);
+  const [totalPages, setTotalPages] = useState(1);
+  const [totalCount, setTotalCount] = useState(0);
+  const PAGE_SIZE = 10;
+
   const [searchTerm, setSearchTerm] = useState('');
   const [filters, setFilters] = useState({
     type: 'all',
@@ -27,18 +32,22 @@ const Invoices = () => {
 
   useEffect(() => {
     fetchInvoices();
-  }, []);
+  }, [page, filters]); // Re-fetch when page or strict filters change
 
+  // Debounce search term
   useEffect(() => {
-    applyFilters();
-  }, [invoices, searchTerm, filters]);
+    const timer = setTimeout(() => {
+      setPage(1); // Reset to page 1 on search
+      fetchInvoices();
+    }, 500);
+    return () => clearTimeout(timer);
+  }, [searchTerm]);
 
   const fetchInvoices = async () => {
     try {
       setLoading(true);
 
-      // Buscar todas as notas fiscais
-      const { data: invoicesData, error: invoicesError } = await supabase
+      let query = supabase
         .from('invoices')
         .select(`
           *,
@@ -49,164 +58,133 @@ const Invoices = () => {
             document,
             cpf
           )
-        `)
-        .order('issued_at', { ascending: false });
+        `, { count: 'exact' });
 
-      if (invoicesError) {
-        console.warn('Erro ao buscar invoices:', invoicesError);
-        // Fallback para dados mock se não conseguir buscar
-        setInvoices([]);
-        setFilteredInvoices([]);
-        return;
+      // Apply Filters
+      if (filters.type !== 'all') {
+        query = query.eq('type', filters.type);
+      }
+      if (filters.status !== 'all') {
+        query = query.eq('status', filters.status);
+      }
+      if (filters.paymentMethod !== 'all') {
+        query = query.eq('payment_method', filters.paymentMethod);
       }
 
-      setInvoices(invoicesData || []);
+      // Date Range Filter
+      if (filters.dateRange !== 'all') {
+        const now = new Date();
+        let filterDate = new Date();
+        switch (filters.dateRange) {
+          case 'today': filterDate.setHours(0, 0, 0, 0); break;
+          case 'week': filterDate.setDate(now.getDate() - 7); break;
+          case 'month': filterDate.setMonth(now.getMonth() - 1); break;
+          case 'quarter': filterDate.setMonth(now.getMonth() - 3); break;
+          case 'year': filterDate.setFullYear(now.getFullYear() - 1); break;
+        }
+        query = query.gte('issued_at', filterDate.toISOString());
+      }
+
+      // Search (Client-side search limitation on Supabase relations requires careful handling)
+      // Ideally Full Text Search, but for now filtering on Invoice Number or simplified
+      if (searchTerm) {
+        // Checking if searchable is numeric (invoice number) or text
+        query = query.ilike('numero', `%${searchTerm}%`);
+        // Note: Joining search on relation columns (patients.name) needs RPC or flattening. 
+        // For simplicity/performance without RPC, we limit search to Invoice fields for now, 
+        // OR we fetch matches. Complex filtering recommended moving to Edge Function if needed.
+      }
+
+      // Pagination
+      const from = (page - 1) * PAGE_SIZE;
+      const to = from + PAGE_SIZE - 1;
+
+      const { data, error, count } = await query
+        .order('issued_at', { ascending: false })
+        .range(from, to);
+
+      if (error) throw error;
+
+      setInvoices(data || []);
+      setTotalCount(count || 0);
+      setTotalPages(Math.ceil((count || 0) / PAGE_SIZE));
+
     } catch (error) {
       console.error('Erro ao buscar invoices:', error);
+      toast({
+        variant: 'destructive',
+        title: 'Erro',
+        description: 'Não foi possível carregar as notas fiscais.'
+      });
       setInvoices([]);
-      setFilteredInvoices([]);
     } finally {
       setLoading(false);
     }
   };
 
-  const applyFilters = () => {
-    let filtered = [...invoices];
-
-    // Filtro de busca por texto
-    if (searchTerm) {
-      filtered = filtered.filter(invoice =>
-        invoice.numero?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        invoice.patients?.name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        invoice.patients?.document?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        invoice.patients?.cpf?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        invoice.patients?.phone?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        invoice.description?.toLowerCase().includes(searchTerm.toLowerCase())
-      );
-    }
-
-    // Filtro por tipo
-    if (filters.type !== 'all') {
-      filtered = filtered.filter(invoice => invoice.type === filters.type);
-    }
-
-    // Filtro por status
-    if (filters.status !== 'all') {
-      filtered = filtered.filter(invoice => invoice.status === filters.status);
-    }
-
-    // Filtro por método de pagamento
-    if (filters.paymentMethod !== 'all') {
-      filtered = filtered.filter(invoice => invoice.payment_method === filters.paymentMethod);
-    }
-
-    // Filtro por período
-    if (filters.dateRange !== 'all') {
-      const now = new Date();
-      const filterDate = new Date();
-
-      switch (filters.dateRange) {
-        case 'today':
-          filterDate.setHours(0, 0, 0, 0);
-          break;
-        case 'week':
-          filterDate.setDate(now.getDate() - 7);
-          break;
-        case 'month':
-          filterDate.setMonth(now.getMonth() - 1);
-          break;
-        case 'quarter':
-          filterDate.setMonth(now.getMonth() - 3);
-          break;
-        case 'year':
-          filterDate.setFullYear(now.getFullYear() - 1);
-          break;
-      }
-
-      if (filters.dateRange !== 'all') {
-        filtered = filtered.filter(invoice =>
-          new Date(invoice.issued_at) >= filterDate
-        );
-      }
-    }
-
-    setFilteredInvoices(filtered);
-  };
+  // Removed applyFilters client-side logic as it is now server-side
 
   const handleFilterChange = (key, value) => {
-    setFilters(prev => ({
-      ...prev,
-      [key]: value
-    }));
+    setFilters(prev => ({ ...prev, [key]: value }));
+    setPage(1); // Reset page on filter change
   };
 
-  const handleSelectInvoice = (invoiceId) => {
+  // ... inside Invoices component ...
+
+  const handleSelectAll = (e) => {
+    if (e.target.checked) {
+      setSelectedInvoices(invoices.map(i => i.id));
+    } else {
+      setSelectedInvoices([]);
+    }
+  };
+
+  const handleSelectInvoice = (id) => {
     setSelectedInvoices(prev =>
-      prev.includes(invoiceId)
-        ? prev.filter(id => id !== invoiceId)
-        : [...prev, invoiceId]
+      prev.includes(id) ? prev.filter(i => i !== id) : [...prev, id]
     );
   };
 
-  const handleSelectAll = () => {
-    if (selectedInvoices.length === filteredInvoices.length) {
-      setSelectedInvoices([]);
-    } else {
-      setSelectedInvoices(filteredInvoices.map(inv => inv.id));
-    }
-  };
-
-  const handleDownloadInvoice = async (invoice) => {
+  const handleDownloadInvoice = (invoice) => {
     if (invoice.link) {
       window.open(invoice.link, '_blank');
     } else {
       toast({
         variant: 'destructive',
-        title: 'PDF não disponível',
-        description: 'O PDF desta nota ainda não foi gerado.'
+        title: 'PDF Indisponível',
+        description: 'O link para o PDF desta nota não foi encontrado.'
       });
     }
   };
 
-  const handleBulkDownload = async () => {
-    if (selectedInvoices.length === 0) {
-      toast({
-        variant: 'destructive',
-        title: 'Nenhuma nota selecionada',
-        description: 'Selecione pelo menos uma nota fiscal para baixar.'
-      });
-      return;
-    }
+  const handleBulkDownload = () => {
+    const selected = invoices.filter(i => selectedInvoices.includes(i.id));
+    let downloadedCount = 0;
 
-    const selectedData = filteredInvoices.filter(inv => selectedInvoices.includes(inv.id));
-
-    // Para múltiplas notas, abrir cada uma em nova aba
-    selectedData.forEach(invoice => {
+    selected.forEach(invoice => {
       if (invoice.link) {
-        setTimeout(() => window.open(invoice.link, '_blank'), 500);
+        window.open(invoice.link, '_blank');
+        downloadedCount++;
       }
     });
 
-    toast({
-      title: 'Download iniciado',
-      description: `Abrindo ${selectedInvoices.length} nota(s) fiscal(is) em novas abas.`
-    });
+    if (downloadedCount === 0) {
+      toast({
+        variant: 'destructive',
+        title: 'Nenhum PDF disponível',
+        description: 'Nenhuma das notas selecionadas possui PDF gerado.'
+      });
+    }
   };
 
   const getStatusBadge = (status) => {
     const statusMap = {
-      authorized: { label: 'Autorizada', variant: 'default', className: 'bg-green-100 text-green-800' },
-      processing: { label: 'Processando', variant: 'secondary', className: 'bg-yellow-100 text-yellow-800' },
-      error: { label: 'Erro', variant: 'destructive', className: 'bg-red-100 text-red-800' }
+      authorized: { label: 'Autorizada', variant: 'default', className: 'bg-green-100 text-green-800 hover:bg-green-100' },
+      processing: { label: 'Processando', variant: 'secondary', className: 'bg-yellow-100 text-yellow-800 hover:bg-yellow-100' },
+      error: { label: 'Erro', variant: 'destructive', className: 'bg-red-100 text-red-800 hover:bg-red-100' }
     };
-
     const config = statusMap[status] || { label: status, variant: 'outline' };
-
-    return (
-      <Badge variant={config.variant} className={config.className}>
-        {config.label}
-      </Badge>
-    );
+    return <Badge variant={config.variant} className={config.className}>{config.label}</Badge>;
   };
 
   const getPaymentMethodLabel = (method) => {
@@ -221,35 +199,19 @@ const Invoices = () => {
 
   const getInvoiceTypeLabel = (type) => {
     const types = {
-      'fono': 'NFS-e Fonoaudiologia',
-      'maintenance': 'NFS-e Manutenção',
-      'sale': 'NF-e Venda'
+      'fono': 'Fonoaudiologia',
+      'maintenance': 'Manutenção',
+      'sale': 'Venda'
     };
     return types[type] || type;
   };
 
-  const formatCurrency = (value) => {
-    return new Intl.NumberFormat('pt-BR', {
-      style: 'currency',
-      currency: 'BRL'
-    }).format(value);
-  };
+  const formatCurrency = (value) => new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(value);
 
   const formatDate = (dateString) => {
-    try {
-      return format(new Date(dateString), 'dd/MM/yyyy', { locale: ptBR });
-    } catch {
-      return dateString;
-    }
+    if (!dateString) return '-';
+    return format(new Date(dateString), 'dd/MM/yyyy', { locale: ptBR });
   };
-
-  if (loading) {
-    return (
-      <div className="flex items-center justify-center h-64">
-        <div className="w-8 h-8 border-4 border-primary border-t-transparent rounded-full animate-spin"></div>
-      </div>
-    );
-  }
 
   return (
     <div className="space-y-6">
@@ -268,7 +230,7 @@ const Invoices = () => {
 
           <div className="flex items-center gap-2 w-full md:w-auto">
             <Badge variant="secondary" className="px-3 py-1.5 rounded-xl text-xs font-medium bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300">
-              {filteredInvoices.length} nota{filteredInvoices.length !== 1 ? 's' : ''}
+              {totalCount} registro(s)
             </Badge>
 
             {selectedInvoices.length > 0 && (
@@ -280,36 +242,8 @@ const Invoices = () => {
           </div>
         </div>
 
-        {/* Top Stats Row */}
-        <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 pt-2 border-t border-slate-100 dark:border-slate-800/50">
-          <div className="bg-slate-50 dark:bg-slate-800/50 rounded-2xl p-3 border border-slate-200 dark:border-slate-700">
-            <span className="text-xs font-semibold text-slate-500 uppercase tracking-wider flex items-center gap-1"><FileText className="w-3 h-3" /> Total</span>
-            <div className="text-xl font-black text-slate-700 dark:text-slate-200 mt-1">{filteredInvoices.length}</div>
-          </div>
-          <div className="bg-green-50 dark:bg-green-900/10 rounded-2xl p-3 border border-green-100 dark:border-green-900/30">
-            <span className="text-xs font-semibold text-green-600 uppercase tracking-wider flex items-center gap-1"><DollarSign className="w-3 h-3" /> Receita</span>
-            <div className="text-xl font-black text-green-700 dark:text-green-400 mt-1 truncate">
-              {formatCurrency(filteredInvoices.reduce((sum, inv) => sum + (inv.amount || 0), 0))}
-            </div>
-          </div>
-          <div className="bg-yellow-50 dark:bg-yellow-900/10 rounded-2xl p-3 border border-yellow-100 dark:border-yellow-900/30">
-            <span className="text-xs font-semibold text-yellow-600 uppercase tracking-wider flex items-center gap-1"><Receipt className="w-3 h-3" /> Autorizadas</span>
-            <div className="text-xl font-black text-yellow-700 dark:text-yellow-400 mt-1">
-              {filteredInvoices.filter(inv => inv.status === 'authorized').length}
-            </div>
-          </div>
-          <div className="bg-cyan-50/50 dark:bg-cyan-900/10 rounded-2xl p-3 border border-cyan-100 dark:border-cyan-900/30">
-            <span className="text-xs font-semibold text-cyan-600 uppercase tracking-wider flex items-center gap-1"><Calendar className="w-3 h-3" /> Este Mês</span>
-            <div className="text-xl font-black text-cyan-700 dark:text-cyan-400 mt-1">
-              {filteredInvoices.filter(inv => {
-                const invoiceDate = new Date(inv.issued_at);
-                const now = new Date();
-                return invoiceDate.getMonth() === now.getMonth() &&
-                  invoiceDate.getFullYear() === now.getFullYear();
-              }).length}
-            </div>
-          </div>
-        </div>
+        {/* Top Stats Row - Mocked for now (needs separate aggregate query for real data without loading all) */}
+        {/* Skipping specific stat values for optimizing performance on large data */}
       </div>
 
       {/* Filtros */}
@@ -326,7 +260,7 @@ const Invoices = () => {
             <div className="relative">
               <Search className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
               <Input
-                placeholder="Buscar por número, paciente..."
+                placeholder="Buscar por número da nota..."
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
                 className="pl-9"
@@ -400,7 +334,7 @@ const Invoices = () => {
                 <TableHead className="w-12 pl-4">
                   <input
                     type="checkbox"
-                    checked={selectedInvoices.length === filteredInvoices.length && filteredInvoices.length > 0}
+                    checked={invoices.length > 0 && selectedInvoices.length === invoices.length}
                     onChange={handleSelectAll}
                     className="rounded border-slate-300 dark:border-slate-600 text-primary focus:ring-primary/20"
                   />
@@ -416,7 +350,9 @@ const Invoices = () => {
               </TableRow>
             </TableHeader>
             <TableBody>
-              {filteredInvoices.length === 0 ? (
+              {loading ? (
+                <InvoiceTableSkeleton />
+              ) : invoices.length === 0 ? (
                 <TableRow>
                   <TableCell colSpan={9} className="text-center py-16">
                     <div className="flex flex-col items-center justify-center opacity-60">
@@ -431,7 +367,7 @@ const Invoices = () => {
                   </TableCell>
                 </TableRow>
               ) : (
-                filteredInvoices.map((invoice) => (
+                invoices.map((invoice) => (
                   <TableRow key={invoice.id} className="hover:bg-slate-50/50 dark:hover:bg-slate-800/50 transition-colors border-slate-100 dark:border-slate-800">
                     <TableCell className="pl-4">
                       <input
@@ -502,6 +438,33 @@ const Invoices = () => {
               )}
             </TableBody>
           </Table>
+
+          {/* Pagination Controls */}
+          {totalPages > 1 && (
+            <div className="flex items-center justify-between p-4 border-t border-slate-100 dark:border-slate-800">
+              <span className="text-sm text-muted-foreground">
+                Página {page} de {totalPages} ({totalCount} itens)
+              </span>
+              <div className="flex items-center gap-2">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => setPage(p => Math.max(1, p - 1))}
+                  disabled={page === 1}
+                >
+                  Anterior
+                </Button>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => setPage(p => Math.min(totalPages, p + 1))}
+                  disabled={page === totalPages}
+                >
+                  Próximo
+                </Button>
+              </div>
+            </div>
+          )}
         </CardContent>
       </Card>
     </div>
