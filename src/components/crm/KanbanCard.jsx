@@ -44,7 +44,7 @@ const KanbanCard = ({ lead, onClick }) => {
         bg-card p-3 rounded-lg border shadow-sm mb-0 cursor-pointer transition-all hover:shadow-md relative overflow-hidden group touch-none
         ${isUrgent ? 'border-l-4 border-l-red-500 bg-red-50/30' : ''}
         ${isWarning ? 'border-l-4 border-l-yellow-500' : ''}
-        ${isStoppedResponding ? 'opacity-75 bg-gray-50 border-gray-200 grayscale-[0.5]' : ''}
+        ${isStoppedResponding ? 'opacity-75 bg-gray-50 border-gray-200 grayscale-[0.5] dark:bg-slate-800/50 dark:border-slate-700' : ''}
         ${isDragging ? 'opacity-50 ring-2 ring-primary rotate-2 z-50 shadow-xl scale-105' : ''}
       `}
     >

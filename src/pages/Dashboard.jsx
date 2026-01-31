@@ -4,6 +4,7 @@ import {
   Activity, Clock, Bot, UserPlus
 } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Skeleton } from '@/components/ui/skeleton';
 import { getDashboardStats } from '@/database';
 import {
   BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer,
@@ -77,9 +78,33 @@ const Dashboard = () => {
 
   if (loading) {
     return (
-      <div className="h-full w-full flex flex-col items-center justify-center space-y-4 animate-pulse">
-        <div className="w-12 h-12 rounded-full border-4 border-primary/20 border-t-primary animate-spin"></div>
-        <p className="text-muted-foreground font-medium">Sincronizando Dashboard...</p>
+      <div className="h-full flex flex-col space-y-6 overflow-hidden pr-2">
+        {/* Header Skeleton */}
+        <div className="flex justify-between items-center py-1">
+          <div className="space-y-2">
+            <Skeleton className="h-8 w-48" />
+            <Skeleton className="h-4 w-64" />
+          </div>
+          <Skeleton className="h-8 w-40 rounded-full" />
+        </div>
+
+        {/* Stats Grid Skeleton */}
+        <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
+          {[...Array(4)].map((_, i) => (
+            <Skeleton key={i} className="h-32 rounded-2xl" />
+          ))}
+        </div>
+
+        {/* Charts Grid Skeleton */}
+        <div className="grid gap-4 md:grid-cols-12 flex-1">
+          <div className="md:col-span-12 lg:col-span-3 flex flex-col gap-4">
+            <Skeleton className="h-24 rounded-2xl" />
+            <Skeleton className="h-24 rounded-2xl" />
+            <Skeleton className="flex-1 rounded-3xl" />
+          </div>
+          <Skeleton className="md:col-span-8 lg:col-span-6 h-[400px] rounded-2xl" />
+          <Skeleton className="md:col-span-4 lg:col-span-3 h-[400px] rounded-2xl" />
+        </div>
       </div>
     );
   }
@@ -213,7 +238,11 @@ const Dashboard = () => {
                     cursor={{ fill: '#f1f5f9' }}
                     contentStyle={{
                       borderRadius: '16px',
-                      border: 'none',
+                      backgroundColor: 'hsl(var(--card))',
+                      borderColor: 'hsl(var(--border))',
+                      color: 'hsl(var(--foreground))',
+                      border: '1px solid hsl(var(--border))',
+                      borderRadius: '16px',
                       boxShadow: '0 20px 25px -5px rgb(0 0 0 / 0.1), 0 8px 10px -6px rgb(0 0 0 / 0.1)',
                       fontFamily: 'Plus Jakarta Sans, sans-serif',
                       fontWeight: 500,
@@ -263,7 +292,7 @@ const Dashboard = () => {
                     ))}
                   </Pie>
                   <Tooltip
-                    contentStyle={{ borderRadius: '12px', border: 'none', boxShadow: '0 4px 6px -1px rgb(0 0 0 / 0.1)' }}
+                    contentStyle={{ borderRadius: '12px', borderColor: 'hsl(var(--border))', backgroundColor: 'hsl(var(--card))', color: 'hsl(var(--foreground))', boxShadow: '0 4px 6px -1px rgb(0 0 0 / 0.1)' }}
                   />
                   <Legend
                     verticalAlign="bottom"

@@ -70,8 +70,8 @@ const NavItem = ({ item, isCollapsed }) => {
             "group flex items-center gap-3 rounded-2xl px-4 py-3 text-sm font-medium transition-all duration-300 relative z-10",
             "hover:bg-muted/50 hover:text-foreground hover:translate-x-1",
             isActive
-              ? "bg-primary text-primary-foreground shadow-md shadow-primary/25"
-              : "text-muted-foreground"
+              ? "bg-gradient-to-r from-primary/10 to-transparent dark:from-primary/20 text-primary dark:text-primary-foreground font-bold shadow-sm border-l-4 border-primary"
+              : "text-muted-foreground hover:bg-muted/50 hover:text-foreground"
           )}
         >
           <item.icon className={cn(

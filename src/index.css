@@ -6,9 +6,10 @@
   :root {
     /* Refined Professional - Light Mode */
     --background: 210 20% 98%;
-    /* Softer off-white */
-    --foreground: 220 15% 15%;
+    /* Fallback */
+
     /* Deep charcoal */
+    --foreground: 220 15% 15%;
 
     --card: 0 0% 100%;
     --card-foreground: 220 15% 15%;
@@ -85,10 +86,23 @@
   body {
     @apply bg-background text-foreground;
     font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+    background-image: radial-gradient(at 0% 0%, hsla(210, 40%, 96%, 0.3) 0px, transparent 50%),
+      radial-gradient(at 100% 0%, hsla(165, 30%, 96%, 0.3) 0px, transparent 50%);
+    background-attachment: fixed;
+  }
+
+  .dark body {
+    background-image: radial-gradient(at 0% 0%, hsla(222, 20%, 15%, 0.4) 0px, transparent 50%),
+      radial-gradient(at 100% 0%, hsla(165, 20%, 15%, 0.4) 0px, transparent 50%);
   }
 
   .dark .dark\:invert {
     filter: invert(1);
+  }
+
+  ::selection {
+    background-color: hsl(var(--primary));
+    color: hsl(var(--primary-foreground));
   }
 }
 

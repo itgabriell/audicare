@@ -61,7 +61,7 @@ const KanbanColumn = ({
       <div
         ref={setNodeRef}
         className={`
-          p-2 space-y-2 overflow-y-auto flex-1 transition-colors scrollbar-thin scrollbar-thumb-gray-200
+          p-2 space-y-2 overflow-y-auto flex-1 transition-colors scrollbar-thin scrollbar-thumb-gray-200 dark:scrollbar-thumb-slate-700
           ${isOver ? 'bg-muted/30' : ''}
         `}
         style={{ minHeight: '100px' }}
