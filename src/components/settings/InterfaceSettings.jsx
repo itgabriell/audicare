@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from '@/components/ui/card';
 import { Label } from '@/components/ui/label';
-import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
+import { cn } from '@/lib/utils';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Switch } from '@/components/ui/switch';
 import { Button } from '@/components/ui/button';
@@ -51,35 +51,32 @@ const InterfaceSettings = () => {
                     <CardDescription>Personalize o esquema de cores do sistema.</CardDescription>
                 </CardHeader>
                 <CardContent>
-                    <RadioGroup
-                        value={theme}
-                        onValueChange={setTheme}
-                        className="grid max-w-md grid-cols-3 gap-4"
-                    >
-                        <div>
-                            <RadioGroupItem value="light" id="light" className="peer sr-only" />
-                            <Label
-                                htmlFor="light"
-                                className="flex flex-col items-center justify-between rounded-md border-2 border-muted bg-popover p-4 hover:bg-accent hover:text-accent-foreground peer-data-[state=checked]:border-primary [&:has([data-state=checked])]:border-primary"
-                            >
+                    <div className="grid max-w-md grid-cols-3 gap-4">
+                        <div
+                            className={cn(
+                                "cursor-pointer rounded-md border-2 border-muted bg-popover p-4 hover:bg-accent hover:text-accent-foreground",
+                                theme === 'light' && "border-primary"
+                            )}
+                            onClick={() => setTheme('light')}
+                        >
+                            <div className="flex flex-col items-center justify-between">
                                 <Sun className="mb-3 h-6 w-6" />
-                                Light
-                            </Label>
+                                <span className="font-medium">Light</span>
+                            </div>
                         </div>
-                        <div>
-                            <RadioGroupItem value="dark" id="dark" className="peer sr-only" />
-                            <Label
-                                htmlFor="dark"
-                                className="flex flex-col items-center justify-between rounded-md border-2 border-muted bg-popover p-4 hover:bg-accent hover:text-accent-foreground peer-data-[state=checked]:border-primary [&:has([data-state=checked])]:border-primary"
-                            >
+                        <div
+                            className={cn(
+                                "cursor-pointer rounded-md border-2 border-muted bg-popover p-4 hover:bg-accent hover:text-accent-foreground",
+                                theme === 'dark' && "border-primary"
+                            )}
+                            onClick={() => setTheme('dark')}
+                        >
+                            <div className="flex flex-col items-center justify-between">
                                 <Moon className="mb-3 h-6 w-6" />
-                                Dark
-                            </Label>
+                                <span className="font-medium">Dark</span>
+                            </div>
                         </div>
-                        {/* Sistema (Dependendo da implementação do ThemeContext, pode precisar de ajuste se não suportar 'system' explicitamente, mas vamos deixar a opção visual por enquanto, mapeando para o context) */}
-                        {/* Se o ThemeContext só suporta 'light' e 'dark', podemos simular 'system' ou apenas deixar os dois. 
-                Vou assumir que o usuário quer alternar manualmente por enquanto, dado o código do ThemeContext lido anteriormente. */}
-                    </RadioGroup>
+                    </div>
                 </CardContent>
             </Card>
 
