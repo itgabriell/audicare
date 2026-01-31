@@ -237,7 +237,6 @@ const Dashboard = () => {
                   <Tooltip
                     cursor={{ fill: '#f1f5f9' }}
                     contentStyle={{
-                      borderRadius: '16px',
                       backgroundColor: 'hsl(var(--card))',
                       borderColor: 'hsl(var(--border))',
                       color: 'hsl(var(--foreground))',
