@@ -5,12 +5,13 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
-import { Download, Search, Filter, FileText, Receipt, Calendar, DollarSign, User } from 'lucide-react';
+import { Download, Search, Filter, FileText, Receipt, Calendar, DollarSign, User, Plus } from 'lucide-react';
 import { useToast } from '@/components/ui/use-toast';
 import { supabase } from '@/lib/customSupabaseClient';
 import { format } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 import InvoiceTableSkeleton from '@/components/skeletons/InvoiceTableSkeleton';
+import CreateInvoiceDialog from '@/components/invoices/CreateInvoiceDialog';
 
 const Invoices = () => {
   const { toast } = useToast();
@@ -29,6 +30,7 @@ const Invoices = () => {
     paymentMethod: 'all'
   });
   const [selectedInvoices, setSelectedInvoices] = useState([]);
+  const [isCreateDialogOpen, setIsCreateDialogOpen] = useState(false);
 
   useEffect(() => {
     fetchInvoices();
@@ -239,12 +241,29 @@ const Invoices = () => {
                 Baixar Selecionadas ({selectedInvoices.length})
               </Button>
             )}
+
+            <Button
+              onClick={() => setIsCreateDialogOpen(true)}
+              className="rounded-xl h-11 bg-primary hover:bg-primary/90 text-white shadow-sm hover:shadow-md transition-all"
+            >
+              <Plus className="h-4 w-4 mr-2" />
+              Nova Nota Fiscal
+            </Button>
           </div>
         </div>
 
         {/* Top Stats Row - Mocked for now (needs separate aggregate query for real data without loading all) */}
         {/* Skipping specific stat values for optimizing performance on large data */}
       </div>
+
+      <CreateInvoiceDialog
+        open={isCreateDialogOpen}
+        onOpenChange={setIsCreateDialogOpen}
+        onInvoiceCreated={() => {
+          fetchInvoices();
+          setPage(1);
+        }}
+      />
 
       {/* Filtros */}
       <Card>

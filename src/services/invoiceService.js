@@ -77,3 +77,72 @@ export class InvoiceService {
 
 
 }
+
+    /**
+     * Salva o registro da nota fiscal no banco de dados local (Supabase)
+     * e cria os registros relacionados (Documentos, Tags)
+     * @param {Object} emissionResult - Resultado da emissão (da Edge Function)
+     * @param {Object} params - Dados originais do formulário
+     * @returns {Promise<void>}
+     */
+    static async saveInvoiceRecord(emissionResult, params) {
+    const { patient, amount, type, description, paymentMethod, installments, model, quantity } = params;
+    const { invoice } = emissionResult;
+
+    // 1. Salvar na tabela invoices
+    const invoiceRecord = {
+        patient_id: patient.id,
+        type,
+        amount: parseFloat(amount),
+        description,
+        payment_method: paymentMethod,
+        installments: parseInt(installments || 1),
+        model,
+        quantity: parseInt(quantity || 1),
+        status: 'authorized',
+        issued_at: new Date().toISOString(),
+        numero: invoice.numero,
+        link: invoice.link,
+        created_at: new Date().toISOString()
+    };
+
+    const { error: insertError } = await supabase.from('invoices').insert(invoiceRecord);
+    if (insertError) {
+        console.error('Erro ao salvar invoice:', insertError);
+        throw new Error('Nota emitida, mas erro ao salvar registro local.');
+    }
+
+    // 2. Salvar em documentos
+    const documentRecord = {
+        patient_id: patient.id,
+        title: `Nota Fiscal ${invoice.numero}`,
+        type: 'invoice',
+        content: {
+            invoice_number: invoice.numero,
+            type,
+            amount: parseFloat(amount),
+            description,
+            payment_method: paymentMethod,
+            installments: parseInt(installments || 1),
+            model,
+            quantity: parseInt(quantity || 1),
+            patient_name: patient.name,
+            patient_document: patient.document || patient.cpf,
+            issue_date: new Date().toISOString()
+        },
+        file_url: invoice.link,
+        created_at: new Date().toISOString()
+    };
+
+    await supabase.from('documents').insert(documentRecord);
+
+    // 3. Aplicar tag "comprou" se for venda
+    if (type === 'sale') {
+        await supabase.from('patient_tags').upsert({
+            patient_id: patient.id,
+            tag: 'comprou',
+            created_at: new Date().toISOString()
+        }, { onConflict: 'patient_id,tag' });
+    }
+}
+}
