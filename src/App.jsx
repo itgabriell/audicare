@@ -56,6 +56,7 @@ const ProfileSettings = lazy(() => import('@/components/settings/ProfileSettings
 const ActivityLogSettings = lazy(() => import('@/components/settings/ActivityLogSettings'));
 const InterfaceSettings = lazy(() => import('@/components/settings/InterfaceSettings'));
 const SecuritySettings = lazy(() => import('@/components/settings/SecuritySettings'));
+const NotificationSettings = lazy(() => import('@/components/settings/NotificationSettings'));
 
 // --- Protected Route Wrapper ---
 const ProtectedRoute = ({ children }) => {
@@ -131,6 +132,7 @@ function App() {
               <Route path="profile" element={<ProfileSettings />} />
               <Route path="activity-log" element={<ActivityLogSettings />} />
               <Route path="interface" element={<InterfaceSettings />} />
+              <Route path="notifications" element={<NotificationSettings />} />
               <Route path="security" element={<SecuritySettings />} />
             </Route>
           </Route>

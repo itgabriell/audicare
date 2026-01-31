@@ -11,7 +11,7 @@ const SettingsLayout = () => {
     { to: 'activity-log', label: 'Minhas Atividades', icon: Shield },
     { to: 'interface', label: 'Preferências', icon: Radio },
     { to: 'security', label: 'Segurança', icon: Shield },
-    { to: 'security', label: 'Segurança', icon: Shield },
+    { to: 'notifications', label: 'Notificações', icon: Bell },
   ];
 
   return (
