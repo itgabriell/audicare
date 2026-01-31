@@ -62,30 +62,16 @@ const Users = () => {
   }, [loadUsers]);
 
   const callManageUsers = async (payload) => {
-    const resp = await fetch('/functions/v1/manage-users', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify(payload),
+    // Usando client do Supabase para ter Auth Headers e URL correta automaticamente
+    const { data, error } = await supabase.functions.invoke('manage-users', {
+      body: payload,
     });
 
-    let data = null;
-    const text = await resp.text(); // lê como texto primeiro
-
-    if (text) {
-      try {
-        data = JSON.parse(text);
-      } catch {
-        // se não for JSON válido, mantém data = null
-      }
-    }
-
-    if (!resp.ok) {
-      const message =
-        (data && data.error) ||
-        text ||
-        'Erro na função manage-users';
+    if (error) {
+      console.error('[Users] Erro na Edge Function:', error);
+      // Tentar extrair mensagem de erro útil se for um objeto retornável
+      // O client do Supabase já trata erros de rede/http
+      const message = error.message || 'Erro na função manage-users';
       throw new Error(message);
     }
 
