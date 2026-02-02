@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import { Helmet } from 'react-helmet';
-import { Plus, ChevronLeft, ChevronRight, Send, MessageSquare, Calendar, Loader2, MapPin, User, Home, ExternalLink } from 'lucide-react';
+import { Plus, ChevronLeft, ChevronRight, Send, MessageSquare, Calendar, Loader2, MapPin, User, Home, ExternalLink, LayoutList, LayoutGrid } from 'lucide-react';
 import { useSearchParams, useNavigate } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import DraggableAppointmentCalendar from '@/components/appointments/DraggableAppointmentCalendar';
@@ -44,6 +44,7 @@ const Appointments = () => {
   const [dialogInitialData, setDialogInitialData] = useState(null);
   const [editingAppointment, setEditingAppointment] = useState(null);
   const [viewMode, setViewMode] = useState('day');
+  const [dayViewFormat, setDayViewFormat] = useState('grid'); // 'list' | 'grid'
   const [processingAction, setProcessingAction] = useState(null);
 
   const { toast } = useToast();
@@ -417,18 +418,44 @@ const Appointments = () => {
 
           <div className="flex flex-col sm:flex-row gap-3 items-center justify-between w-full pt-1 border-t border-slate-100 dark:border-slate-800/50">
             {/* View Switcher - Hidden on Mobile (Mobile is always Day View) */}
-            <div className="hidden md:flex bg-slate-100/50 dark:bg-slate-800/50 rounded-xl p-1">
-              {['day', 'week', 'month'].map((mode) => (
-                <Button
-                  key={mode}
-                  variant={viewMode === mode ? 'default' : 'ghost'}
-                  size="sm"
-                  onClick={() => setViewMode(mode)}
-                  className={`text-xs h-9 px-3 sm:px-4 rounded-lg capitalize transition-all ${viewMode === mode ? 'shadow-sm' : 'text-muted-foreground hover:bg-white/50 dark:hover:bg-slate-700/50'}`}
-                >
-                  {mode === 'day' ? 'Dia' : mode === 'week' ? 'Semana' : 'Mês'}
-                </Button>
-              ))}
+            <div className="flex gap-2 items-center">
+              <div className="hidden md:flex bg-slate-100/50 dark:bg-slate-800/50 rounded-xl p-1">
+                {['day', 'week', 'month'].map((mode) => (
+                  <Button
+                    key={mode}
+                    variant={viewMode === mode ? 'default' : 'ghost'}
+                    size="sm"
+                    onClick={() => setViewMode(mode)}
+                    className={`text-xs h-9 px-3 sm:px-4 rounded-lg capitalize transition-all ${viewMode === mode ? 'shadow-sm' : 'text-muted-foreground hover:bg-white/50 dark:hover:bg-slate-700/50'}`}
+                  >
+                    {mode === 'day' ? 'Dia' : mode === 'week' ? 'Semana' : 'Mês'}
+                  </Button>
+                ))}
+              </div>
+
+              {/* Toggle Lista/Grid (apenas no modo Dia) */}
+              {viewMode === 'day' && (
+                <div className="hidden md:flex bg-slate-100/50 dark:bg-slate-800/50 rounded-xl p-1 border-l ml-1">
+                  <Button
+                    variant={dayViewFormat === 'list' ? 'default' : 'ghost'}
+                    size="icon"
+                    onClick={() => setDayViewFormat('list')}
+                    className={`h-9 w-9 rounded-lg ${dayViewFormat === 'list' ? 'shadow-sm' : 'text-muted-foreground'}`}
+                    title="Lista"
+                  >
+                    <LayoutList className="h-4 w-4" />
+                  </Button>
+                  <Button
+                    variant={dayViewFormat === 'grid' ? 'default' : 'ghost'}
+                    size="icon"
+                    onClick={() => setDayViewFormat('grid')}
+                    className={`h-9 w-9 rounded-lg ${dayViewFormat === 'grid' ? 'shadow-sm' : 'text-muted-foreground'}`}
+                    title="Cards"
+                  >
+                    <LayoutGrid className="h-4 w-4" />
+                  </Button>
+                </div>
+              )}
             </div>
 
             {/* Quick Actions */}
@@ -483,7 +510,10 @@ const Appointments = () => {
                 }
 
                 return (
-                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
+                  <div className={dayViewFormat === 'grid'
+                    ? "grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4"
+                    : "flex flex-col gap-3 max-w-3xl mx-auto" // List View Layout
+                  }>
                     {dayAppointments.map(app => {
                       const isDomiciliar = app.appointment_type === 'domiciliar' || app.location?.toLowerCase() === 'domiciliar';
                       const patientName = app.contact?.name || app.contact_name || 'Paciente sem nome';
