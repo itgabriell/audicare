@@ -3,7 +3,7 @@ import { Helmet } from 'react-helmet';
 import { motion } from 'framer-motion';
 import {
   Plus, Search, RefreshCcw, Download, Upload,
-  ChevronLeft, ChevronRight, ArrowUpDown, RefreshCw
+  ChevronLeft, ChevronRight, ArrowUpDown, RefreshCw, Merge
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -12,6 +12,7 @@ import {
 } from '@/components/ui/select';
 import PatientCard from '@/components/patients/PatientCard';
 import PatientDialog from '@/components/patients/PatientDialog';
+import PatientMergeDialog from '@/components/patients/PatientMergeDialog';
 import { useToast } from '@/components/ui/use-toast';
 import { useAuth } from '@/contexts/SupabaseAuthContext';
 import { supabase } from '@/lib/customSupabaseClient';
@@ -41,6 +42,7 @@ const Patients = () => {
 
   // UI State
   const [dialogOpen, setDialogOpen] = useState(false);
+  const [mergeDialogOpen, setMergeDialogOpen] = useState(false);
   const [editingPatient, setEditingPatient] = useState(null);
   const [isExporting, setIsExporting] = useState(false);
   const [isImporting, setIsImporting] = useState(false);
@@ -280,6 +282,9 @@ const Patients = () => {
                 <Button variant="ghost" size="icon" onClick={handleExportCSV} disabled={isExporting || loading} className="h-9 w-9 rounded-xl hover:bg-white dark:hover:bg-slate-700 shadow-none hover:shadow-sm transition-all" title="Exportar CSV">
                   {isExporting ? <RefreshCcw className="h-4 w-4 animate-spin" /> : <Download className="h-4 w-4 text-slate-600 dark:text-slate-400" />}
                 </Button>
+                <Button variant="ghost" size="icon" onClick={() => setMergeDialogOpen(true)} className="h-9 w-9 rounded-xl hover:bg-white dark:hover:bg-slate-700 shadow-none hover:shadow-sm transition-all" title="Mesclar Pacientes">
+                  <Merge className="h-4 w-4 text-slate-600 dark:text-slate-400" />
+                </Button>
               </div>
 
               <Button onClick={() => { setEditingPatient(null); setDialogOpen(true); }} className="rounded-2xl h-11 px-5 shadow-lg shadow-primary/25 hover:shadow-primary/40 transition-all active:scale-95">
@@ -415,6 +420,11 @@ const Patients = () => {
           }}
           patient={editingPatient}
           onSave={handleSavePatient}
+        />
+        <PatientMergeDialog
+          open={mergeDialogOpen}
+          onOpenChange={setMergeDialogOpen}
+          onSuccess={loadPatients}
         />
       </div>
     </>

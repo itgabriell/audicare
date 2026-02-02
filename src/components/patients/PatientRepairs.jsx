@@ -7,6 +7,10 @@ import { getRepairsByPatientId } from '@/database';
 import { useChatNavigation } from '@/hooks/useChatNavigation';
 import { format } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
+import RepairDialog from '@/components/repairs/RepairDialog';
+import { addRepair } from '@/database';
+import { useToast } from '@/components/ui/use-toast';
+import { Plus } from 'lucide-react';
 
 const STATUS_LABELS = {
     'received': 'Na Clínica',
@@ -30,6 +34,19 @@ const PatientRepairs = ({ patientId }) => {
     const [repairs, setRepairs] = useState([]);
     const [loading, setLoading] = useState(true);
     const { navigateToChat, loading: chatLoading } = useChatNavigation();
+    const [dialogOpen, setDialogOpen] = useState(false);
+    const { toast } = useToast();
+
+    const handleSaveRepair = async (repairData) => {
+        try {
+            await addRepair(repairData);
+            toast({ title: "Sucesso", description: "Reparo criado com sucesso." });
+            setDialogOpen(false);
+            loadRepairs();
+        } catch (error) {
+            toast({ variant: "destructive", title: "Erro", description: error.message });
+        }
+    };
 
     useEffect(() => {
         if (patientId) loadRepairs();
@@ -51,19 +68,35 @@ const PatientRepairs = ({ patientId }) => {
 
     if (repairs.length === 0) {
         return (
-            <div className="p-8 text-center border rounded-lg bg-slate-50 dark:bg-slate-900 border-dashed">
-                <Wrench className="h-10 w-10 mx-auto text-muted-foreground mb-3 opacity-50" />
-                <h3 className="text-lg font-medium text-foreground">Nenhum reparo encontrado</h3>
-                <p className="text-sm text-muted-foreground">Este paciente não possui histórico de ordens de serviço.</p>
-            </div>
+            <>
+                <div className="p-8 text-center border rounded-lg bg-slate-50 dark:bg-slate-900 border-dashed">
+                    <Wrench className="h-10 w-10 mx-auto text-muted-foreground mb-3 opacity-50" />
+                    <h3 className="text-lg font-medium text-foreground">Nenhum reparo encontrado</h3>
+                    <p className="text-sm text-muted-foreground mb-4">Este paciente não possui histórico de ordens de serviço.</p>
+                    <Button size="sm" variant="outline" onClick={() => setDialogOpen(true)}>
+                        <Plus className="h-4 w-4 mr-2" /> Adicionar Primeiro Reparo
+                    </Button>
+                </div>
+                <RepairDialog
+                    open={dialogOpen}
+                    onOpenChange={setDialogOpen}
+                    onSave={handleSaveRepair}
+                    initialPatientId={patientId}
+                />
+            </>
         );
     }
 
     return (
         <div className="space-y-4">
-            <h2 className="text-xl font-bold flex items-center gap-2 mb-4">
-                <Wrench className="w-5 h-5 text-primary" /> Histórico de Reparos
-            </h2>
+            <div className="flex items-center justify-between mb-4">
+                <h2 className="text-xl font-bold flex items-center gap-2">
+                    <Wrench className="w-5 h-5 text-primary" /> Histórico de Reparos
+                </h2>
+                <Button size="sm" onClick={() => setDialogOpen(true)}>
+                    <Plus className="h-4 w-4 mr-2" /> Novo Reparo
+                </Button>
+            </div>
             <div className="grid gap-3">
                 {repairs.map(ticket => (
                     <Card key={ticket.id} className="overflow-hidden hover:shadow-md transition-shadow">
@@ -99,6 +132,12 @@ const PatientRepairs = ({ patientId }) => {
                     </Card>
                 ))}
             </div>
+            <RepairDialog
+                open={dialogOpen}
+                onOpenChange={setDialogOpen}
+                onSave={handleSaveRepair}
+                initialPatientId={patientId}
+            />
         </div>
     );
 };

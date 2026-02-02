@@ -11,23 +11,7 @@ import {
 } from '@/components/ui/dropdown-menu';
 import { useToast } from '@/components/ui/use-toast';
 import { getRepairs, addRepair, updateRepair, deleteRepair } from '@/database';
-
-// Dummy component, replace with actual implementation
-const RepairDialog = ({ open, onOpenChange, onSave, repair }) => {
-  const { toast } = useToast();
-  const handleNotImplemented = () => {
-    toast({
-      title: "🚧 Não implementado",
-      description: "A criação e edição de reparos ainda não foi implementada.",
-    });
-    onOpenChange(false);
-  }
-  useEffect(() => {
-    if (open) handleNotImplemented();
-  }, [open]);
-
-  return null;
-}
+import RepairDialog from '@/components/repairs/RepairDialog';
 
 const Repairs = () => {
   const [repairs, setRepairs] = useState([]);
@@ -178,8 +162,8 @@ const Repairs = () => {
                 <CardContent>
                   <div className="flex items-center gap-2 mt-2">
                     <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium border ${repair.status === 'Concluído' ? 'bg-green-50 text-green-700 border-green-200 dark:bg-green-900/20 dark:text-green-400 dark:border-green-900/30' :
-                        repair.status === 'Em andamento' ? 'bg-blue-50 text-blue-700 border-blue-200 dark:bg-blue-900/20 dark:text-blue-400 dark:border-blue-900/30' :
-                          'bg-amber-50 text-amber-700 border-amber-200 dark:bg-amber-900/20 dark:text-amber-400 dark:border-amber-900/30'
+                      repair.status === 'Em andamento' ? 'bg-blue-50 text-blue-700 border-blue-200 dark:bg-blue-900/20 dark:text-blue-400 dark:border-blue-900/30' :
+                        'bg-amber-50 text-amber-700 border-amber-200 dark:bg-amber-900/20 dark:text-amber-400 dark:border-amber-900/30'
                       }`}>
                       {repair.status}
                     </span>

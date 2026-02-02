@@ -130,3 +130,84 @@ export const checkDuplicatePatient = async (name, cpf) => {
     if (error) return false;
     return data && data.length > 0;
 };
+
+/**
+ * Merges two patient profiles.
+ * Moves all related records (phones, repairs, appointments) from sourceId to targetId.
+ * Copies missing fields from source to target.
+ * Deletes source entry.
+ * @param {string} targetId - ID of the patient to keep.
+ * @param {string} sourceId - ID of the patient to delete (merge into target).
+ * @returns {Promise<boolean>} True if successful.
+ */
+export const mergePatients = async (targetId, sourceId) => {
+    const clinicId = await getClinicId();
+    if (!clinicId) throw new Error("Clinic ID not found");
+
+    // 1. Fetch Source Patient
+    const { data: source, error: sourceError } = await supabase
+        .from('patients')
+        .select('*')
+        .eq('id', sourceId)
+        .eq('clinic_id', clinicId)
+        .single();
+
+    if (sourceError || !source) throw new Error("Paciente de origem não encontrado.");
+
+    // 2. Fetch Target Patient
+    const { data: target, error: targetError } = await supabase
+        .from('patients')
+        .select('*')
+        .eq('id', targetId)
+        .eq('clinic_id', clinicId)
+        .single();
+
+    if (targetError || !target) throw new Error("Paciente de destino não encontrado.");
+
+    // 3. Prepare Updates for Target
+    const updates = {};
+    const fieldsToCheck = [
+        'email', 'fiscal_email', 'birthdate', 'gender',
+        'document', 'zip_code', 'street', 'number', 'complement',
+        'neighborhood', 'city', 'state',
+        'allergies', 'medications'
+    ];
+
+    fieldsToCheck.forEach(field => {
+        if (!target[field] && source[field]) {
+            updates[field] = source[field];
+        }
+    });
+
+    // Special handling for text blobs
+    if (source.medical_history) {
+        updates.medical_history = target.medical_history
+            ? `${target.medical_history}\n\n[Histórico mesclado]:\n${source.medical_history}`
+            : source.medical_history;
+    }
+    if (source.notes) {
+        updates.notes = target.notes
+            ? `${target.notes}\n\n[Notas mescladas]:\n${source.notes}`
+            : source.notes;
+    }
+
+    // 4. Update Target Patient
+    if (Object.keys(updates).length > 0) {
+        const { error: updateError } = await supabase
+            .from('patients')
+            .update(updates)
+            .eq('id', targetId);
+        if (updateError) throw updateError;
+    }
+
+    // 5. Move Related Records
+    await supabase.from('patient_phones').update({ patient_id: targetId }).eq('patient_id', sourceId);
+    await supabase.from('repair_tickets').update({ patient_id: targetId }).eq('patient_id', sourceId);
+    await supabase.from('appointments').update({ patient_id: targetId }).eq('patient_id', sourceId);
+
+    // 6. Delete Source Patient
+    const { error: deleteError } = await supabase.from('patients').delete().eq('id', sourceId);
+    if (deleteError) throw deleteError;
+
+    return true;
+};

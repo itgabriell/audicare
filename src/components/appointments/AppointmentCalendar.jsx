@@ -31,7 +31,7 @@ const AppointmentCalendar = ({
   onViewChange
 }) => {
   const calendarRef = React.useRef(null);
-  const [currentView, setCurrentView] = useState('timeGridDay'); // Padrão: DIA
+  const [currentView, setCurrentView] = useState('listDay'); // Padrão: DIA
   const [currentDate, setCurrentDate] = useState(new Date());
 
   // Atualiza o título da data
@@ -39,7 +39,7 @@ const AppointmentCalendar = ({
     if (currentView === 'dayGridMonth') {
       return format(currentDate, 'MMMM yyyy', { locale: ptBR });
     }
-    if (currentView === 'timeGridDay') {
+    if (currentView === 'listDay' || currentView === 'timeGridDay') {
       return format(currentDate, "dd 'de' MMMM", { locale: ptBR });
     }
     return 'Agenda';
@@ -178,9 +178,9 @@ const AppointmentCalendar = ({
         {/* Filtros de Visualização (Ordem Invertida: Dia - Semana - Mês) */}
         <div className="flex bg-muted p-1 rounded-lg">
           <Button
-            variant={currentView === 'timeGridDay' ? 'default' : 'ghost'}
+            variant={currentView === 'listDay' ? 'default' : 'ghost'}
             size="sm"
-            onClick={() => changeView('timeGridDay')}
+            onClick={() => changeView('listDay')}
             className="text-xs"
           >
             Dia
@@ -217,7 +217,7 @@ const AppointmentCalendar = ({
         <FullCalendar
           ref={calendarRef}
           plugins={[dayGridPlugin, timeGridPlugin, interactionPlugin, listPlugin]}
-          initialView="timeGridDay" // Inicia no DIA
+          initialView="listDay" // Inicia no DIA (Lista)
           locale={ptBrLocale}
           headerToolbar={false}
           events={appointments}
