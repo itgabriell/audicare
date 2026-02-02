@@ -15,7 +15,7 @@ import {
     PopoverContent,
     PopoverTrigger,
 } from "@/components/ui/popover";
-import { getPatients } from '@/services/patientService';
+import { getPatients, searchPatientsSimple } from '@/services/patientService';
 
 export function PatientSearchCombobox({ value, onChange, placeholder = "Buscar paciente...", disabled = false }) {
     const [open, setOpen] = useState(false);
@@ -36,7 +36,7 @@ export function PatientSearchCombobox({ value, onChange, placeholder = "Buscar p
         setLoading(true);
         try {
             // Fetch page 1, 20 items, sorted by name
-            const { data } = await getPatients(1, 20, term, 'name', 'asc');
+            const data = await searchPatientsSimple(term);
             setPatients(data || []);
         } catch (error) {
             console.error("Error fetching patients:", error);

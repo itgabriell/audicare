@@ -34,6 +34,24 @@ export const getPatients = async (page = 1, pageSize = 10, searchTerm = '', sort
     return { data, count };
 };
 
+export const searchPatientsSimple = async (term) => {
+    const clinicId = await getClinicId();
+    if (!clinicId) return [];
+
+    let query = supabase
+        .from('patients')
+        .select('id, name, cpf, phone')
+        .eq('clinic_id', clinicId);
+
+    if (term) {
+        query = query.or(`name.ilike.%${term}%,cpf.ilike.%${term}%,phone.ilike.%${term}%`);
+    }
+
+    const { data, error } = await query.limit(20);
+    if (error) console.error('Error searching patients:', error);
+    return data || [];
+};
+
 /**
  * Retrieves a single patient by ID.
  * @param {string} id - Patient ID.

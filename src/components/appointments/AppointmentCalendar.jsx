@@ -34,6 +34,16 @@ const AppointmentCalendar = ({
   const [currentView, setCurrentView] = useState('listDay'); // Padrão: DIA
   const [currentDate, setCurrentDate] = useState(new Date());
 
+  useEffect(() => {
+    // Force view on mount to ensure listDay is active
+    if (calendarRef.current) {
+      const api = calendarRef.current.getApi();
+      if (api.view.type !== 'listDay') {
+        api.changeView('listDay');
+      }
+    }
+  }, []);
+
   // Atualiza o título da data
   const dateTitle = React.useMemo(() => {
     if (currentView === 'dayGridMonth') {
