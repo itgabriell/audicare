@@ -20,6 +20,7 @@ import {
   DialogContent,
   DialogHeader,
   DialogTitle,
+  DialogDescription,
   DialogFooter,
 } from "@/components/ui/dialog"
 import { Input } from "@/components/ui/input"
@@ -150,7 +151,12 @@ export function PatientCombobox({ patients = [], value, onChange, onPatientsUpda
 
       <Dialog open={isRegisterOpen} onOpenChange={setIsRegisterOpen}>
         <DialogContent className="sm:max-w-[425px]">
-          <DialogHeader><DialogTitle>Novo Paciente Rápido</DialogTitle></DialogHeader>
+          <DialogHeader>
+            <DialogTitle>Novo Paciente Rápido</DialogTitle>
+            <DialogDescription>
+              Preencha os dados abaixo para cadastrar um novo paciente rapidamente.
+            </DialogDescription>
+          </DialogHeader>
           <div className="grid gap-4 py-4">
             <div className="grid gap-2">
               <Label htmlFor="name" className="flex items-center gap-2"><User className="w-4 h-4 text-muted-foreground" /> Nome Completo</Label>

@@ -17,7 +17,9 @@ import {
   MessageCircle, // Ícone chat
   CheckCircle2, // Confirmado
   Check, // Chegou
-  Clock as ClockIcon
+  Clock as ClockIcon,
+  LayoutList,
+  LayoutGrid
 } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import { format } from 'date-fns';
@@ -185,12 +187,36 @@ const AppointmentCalendar = ({
           </h2>
         </div>
 
-        {/* Filtros de Visualização (Ordem Invertida: Dia - Semana - Mês) */}
-        <div className="flex bg-muted p-1 rounded-lg">
+        {/* Filtros de Visualização */}
+        <div className="flex bg-muted p-1 rounded-lg items-center gap-1">
+          {/* Toggle Lista/Cards (Apenas visível se estiver em visão de DIA) */}
+          {(currentView === 'listDay' || currentView === 'timeGridDay') && (
+            <div className="flex border-r mr-2 pr-2 gap-1">
+              <Button
+                variant={currentView === 'listDay' ? 'secondary' : 'ghost'}
+                size="icon"
+                className="h-7 w-7"
+                onClick={() => changeView('listDay')}
+                title="Lista"
+              >
+                <LayoutList className="h-4 w-4" />
+              </Button>
+              <Button
+                variant={currentView === 'timeGridDay' ? 'secondary' : 'ghost'}
+                size="icon"
+                className="h-7 w-7"
+                onClick={() => changeView('timeGridDay')}
+                title="Cards"
+              >
+                <LayoutGrid className="h-4 w-4" />
+              </Button>
+            </div>
+          )}
+
           <Button
-            variant={currentView === 'listDay' ? 'default' : 'ghost'}
+            variant={(currentView === 'listDay' || currentView === 'timeGridDay') ? 'default' : 'ghost'}
             size="sm"
-            onClick={() => changeView('listDay')}
+            onClick={() => changeView('listDay')} // Default to list when clicking Day
             className="text-xs"
           >
             Dia

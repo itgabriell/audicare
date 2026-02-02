@@ -89,7 +89,6 @@ const RepairKanban = () => {
             const { error: updateError } = await supabase
                 .from('repair_tickets')
                 .update({
-                    patient_id: formData.patient_id,
                     patient_name: formData.patient_name,
                     patient_phone: formData.patient_phone,
                     device_brand: formData.device_brand,

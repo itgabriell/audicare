@@ -4,6 +4,7 @@ import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Wrench, MessageCircle, Calendar } from 'lucide-react';
 import { getRepairsByPatientId } from '@/database';
+import { supabase } from '@/lib/customSupabaseClient';
 import { useChatNavigation } from '@/hooks/useChatNavigation';
 import { format } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
@@ -33,6 +34,7 @@ const STATUS_COLORS = {
 const PatientRepairs = ({ patientId }) => {
     const [repairs, setRepairs] = useState([]);
     const [loading, setLoading] = useState(true);
+    const [patientDetails, setPatientDetails] = useState(null); // For dialog
     const { navigateToChat, loading: chatLoading } = useChatNavigation();
     const [dialogOpen, setDialogOpen] = useState(false);
     const { toast } = useToast();
@@ -55,10 +57,19 @@ const PatientRepairs = ({ patientId }) => {
     const loadRepairs = async () => {
         setLoading(true);
         try {
-            const data = await getRepairsByPatientId(patientId);
-            setRepairs(data || []);
+            const [repairsData, patientData] = await Promise.all([
+                getRepairsByPatientId(patientId),
+                // We need patient details for the dialog to show correct name in combobox
+                // Assuming we can get it via a simple select or reusing a service
+                supabase.from('patients').select('id, name, phone').eq('id', patientId).single()
+            ]);
+
+            setRepairs(repairsData || []);
+            if (patientData.data) {
+                setPatientDetails([patientData.data]); // Pass as array
+            }
         } catch (error) {
-            console.error("Erro ao carregar reparos:", error);
+            console.error("Erro ao carregar dados:", error);
         } finally {
             setLoading(false);
         }
@@ -82,6 +93,7 @@ const PatientRepairs = ({ patientId }) => {
                     onOpenChange={setDialogOpen}
                     onSave={handleSaveRepair}
                     initialPatientId={patientId}
+                    patients={patientDetails || []}
                 />
             </>
         );
@@ -137,6 +149,7 @@ const PatientRepairs = ({ patientId }) => {
                 onOpenChange={setDialogOpen}
                 onSave={handleSaveRepair}
                 initialPatientId={patientId}
+                patients={patientDetails || []}
             />
         </div>
     );

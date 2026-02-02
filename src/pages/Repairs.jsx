@@ -12,15 +12,24 @@ import {
 import { useToast } from '@/components/ui/use-toast';
 import { getRepairs, addRepair, updateRepair, deleteRepair } from '@/database';
 import RepairDialog from '@/components/repairs/RepairDialog';
+import { supabase } from '@/lib/customSupabaseClient';
 
 const Repairs = () => {
   const [repairs, setRepairs] = useState([]);
+  const [patients, setPatients] = useState([]);
   const [loading, setLoading] = useState(true);
   const [dialogOpen, setDialogOpen] = useState(false);
-  const [editingRepair, setEditingRepair] = useState(null);
+  const [selectedRepair, setSelectedRepair] = useState(null);
   const { toast } = useToast();
 
-  const loadRepairs = useCallback(async () => {
+  const fetchPassengers = async () => {
+    // Reusing logic from RepairKanban - fetching top 100 for combobox
+    // Fetching more patients to ensure search works (since Combobox is client-side filter)
+    const { data } = await supabase.from('patients').select('id, name, phone').order('name').limit(1000);
+    setPatients(data || []);
+  };
+
+  const fetchRepairs = useCallback(async () => {
     try {
       setLoading(true);
       const data = await getRepairs();
@@ -179,7 +188,8 @@ const Repairs = () => {
         open={dialogOpen}
         onOpenChange={setDialogOpen}
         onSave={handleSaveRepair}
-        repair={editingRepair}
+        repair={selectedRepair}
+        patients={patients}
       />
     </>
   );

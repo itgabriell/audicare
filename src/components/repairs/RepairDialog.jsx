@@ -12,21 +12,23 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { PatientSearchCombobox } from '@/components/patients/PatientSearchCombobox';
+import { PatientCombobox } from '@/components/appointments/PatientCombobox';
 import { useToast } from '@/components/ui/use-toast';
 import { Loader2, Wrench } from 'lucide-react';
 
-const RepairDialog = ({ open, onOpenChange, onSave, repair, initialPatientId }) => {
+const RepairDialog = ({ open, onOpenChange, onSave, repair, initialPatientId, patients = [] }) => {
     const { toast } = useToast();
     const [formData, setFormData] = useState({
-        patient_id: '',
+        patient_id: '', // Used for UI selection only
+        patient_name: '',
+        patient_phone: '',
         device_brand: '',
         device_model: '',
         serial_number: '',
         problem_description: '',
         status: 'received',
-        price: '',
-        delivery_date: ''
+        cost_estimate: '', // Was price
+        expected_return_date: '' // Was delivery_date
     });
     const [isSubmitting, setIsSubmitting] = useState(false);
 
@@ -34,32 +36,50 @@ const RepairDialog = ({ open, onOpenChange, onSave, repair, initialPatientId }) 
         if (open) {
             if (repair) {
                 setFormData({
-                    patient_id: repair.patient_id,
+                    patient_id: '', // Cannot recover ID from repair if not stored
+                    patient_name: repair.patient_name || '',
+                    patient_phone: repair.patient_phone || '',
                     device_brand: repair.device_brand || '',
                     device_model: repair.device_model || '',
                     serial_number: repair.serial_number || '',
                     problem_description: repair.problem_description || '',
                     status: repair.status || 'received',
-                    price: repair.price || '',
-                    delivery_date: repair.delivery_date ? repair.delivery_date.split('T')[0] : ''
+                    cost_estimate: repair.cost_estimate || '',
+                    expected_return_date: repair.expected_return_date ? repair.expected_return_date.split('T')[0] : ''
                 });
             } else {
                 setFormData({
                     patient_id: initialPatientId || '',
+                    patient_name: '',
+                    patient_phone: '',
                     device_brand: '',
                     device_model: '',
                     serial_number: '',
                     problem_description: '',
                     status: 'received',
-                    price: '',
-                    delivery_date: ''
+                    cost_estimate: '',
+                    expected_return_date: ''
                 });
             }
         }
     }, [open, repair, initialPatientId]);
 
+    // Update name/phone when patient_id changes
+    useEffect(() => {
+        if (formData.patient_id && patients.length > 0) {
+            const p = patients.find(x => x.id === formData.patient_id);
+            if (p) {
+                setFormData(prev => ({
+                    ...prev,
+                    patient_name: p.name,
+                    patient_phone: p.phone
+                }));
+            }
+        }
+    }, [formData.patient_id, patients]);
+
     const handleSubmit = async () => {
-        if (!formData.patient_id) {
+        if (!formData.patient_name) {
             toast({ variant: "destructive", title: "Erro", description: "Selecione um paciente." });
             return;
         }
@@ -70,10 +90,20 @@ const RepairDialog = ({ open, onOpenChange, onSave, repair, initialPatientId }) 
 
         setIsSubmitting(true);
         try {
-            await onSave({
-                ...formData,
-                // Format for DB if needed
-            });
+            // Clean data before sending to DB
+            const payload = {
+                patient_name: formData.patient_name,
+                patient_phone: formData.patient_phone,
+                device_brand: formData.device_brand,
+                device_model: formData.device_model,
+                serial_number: formData.serial_number,
+                problem_description: formData.problem_description,
+                status: formData.status,
+                cost_estimate: formData.cost_estimate === '' ? null : formData.cost_estimate,
+                expected_return_date: formData.expected_return_date === '' ? null : formData.expected_return_date
+            };
+
+            await onSave(payload);
             // onSave handles closing usually, but if not:
             // onOpenChange(false);
         } catch (error) {
@@ -98,7 +128,9 @@ const RepairDialog = ({ open, onOpenChange, onSave, repair, initialPatientId }) 
                 <div className="grid gap-4 py-4">
                     <div className="space-y-2">
                         <Label>Paciente</Label>
-                        <PatientSearchCombobox
+                        <Label>Paciente</Label>
+                        <PatientCombobox
+                            patients={patients}
                             value={formData.patient_id}
                             onChange={(val) => setFormData({ ...formData, patient_id: val })}
                             disabled={!!initialPatientId || !!repair} // Disable if creating from profile or editing
@@ -134,7 +166,7 @@ const RepairDialog = ({ open, onOpenChange, onSave, repair, initialPatientId }) 
                         />
                     </div>
 
-                    <div className="grid grid-cols-2 gap-4">
+                    <div className="grid grid-cols-3 gap-4">
                         <div className="space-y-2">
                             <Label>Status</Label>
                             <Select value={formData.status} onValueChange={val => setFormData({ ...formData, status: val })}>
@@ -152,11 +184,20 @@ const RepairDialog = ({ open, onOpenChange, onSave, repair, initialPatientId }) 
                             </Select>
                         </div>
                         <div className="space-y-2">
-                            <Label>Data Prevista</Label>
+                            <Label>Orçamento</Label>
+                            <Input
+                                type="number"
+                                value={formData.cost_estimate}
+                                onChange={e => setFormData({ ...formData, cost_estimate: e.target.value })}
+                                placeholder="0.00"
+                            />
+                        </div>
+                        <div className="space-y-2">
+                            <Label>Previsão</Label>
                             <Input
                                 type="date"
-                                value={formData.delivery_date}
-                                onChange={e => setFormData({ ...formData, delivery_date: e.target.value })}
+                                value={formData.expected_return_date}
+                                onChange={e => setFormData({ ...formData, expected_return_date: e.target.value })}
                             />
                         </div>
                     </div>
