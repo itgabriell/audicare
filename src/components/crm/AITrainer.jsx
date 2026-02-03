@@ -1,24 +1,70 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
 import { Input } from '@/components/ui/input';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { useToast } from '@/components/ui/use-toast';
 import { supabase } from '@/lib/customSupabaseClient';
-import { Wand2, Database, PlusCircle, CheckCircle } from 'lucide-react';
+import { Wand2, Database, PlusCircle, CheckCircle, Trash2, BookOpen } from 'lucide-react';
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from "@/components/ui/alert-dialog";
 
 const AITrainer = () => {
-  const [mode, setMode] = useState('manual'); // 'manual' | 'extract' | 'bulk'
+  const [mode, setMode] = useState('manual'); // 'manual' | 'extract' | 'bulk' | 'memory'
   const [question, setQuestion] = useState('');
   const [answer, setAnswer] = useState('');
-  
+
   const [transcript, setTranscript] = useState('');
   const [extractedPairs, setExtractedPairs] = useState([]);
-  
-  const [bulkJson, setBulkJson] = useState(''); // Para o JSON massivo
 
+  const [bulkJson, setBulkJson] = useState('');
+
+  const [existingMemories, setExistingMemories] = useState([]);
   const [loading, setLoading] = useState(false);
   const { toast } = useToast();
+
+  // --- 4. LISTAR MEMÓRIA ---
+  const loadMemories = async () => {
+    setLoading(true);
+    try {
+      const { data, error } = await supabase
+        .from('ai_knowledge_base')
+        .select('id, content, response, created_at')
+        .order('id', { ascending: false })
+        .limit(50);
+
+      if (error) throw error;
+      setExistingMemories(data || []);
+    } catch (err) {
+      toast({ title: "Erro", description: "Falha ao carregar memória.", variant: "destructive" });
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    if (mode === 'memory') loadMemories();
+  }, [mode]);
+
+  const handleDeleteMemory = async (id) => {
+    try {
+      const { error } = await supabase.from('ai_knowledge_base').delete().eq('id', id);
+      if (error) throw error;
+      toast({ title: "Removido", description: "Item apagado da memória." });
+      setExistingMemories(prev => prev.filter(m => m.id !== id));
+    } catch (err) {
+      toast({ title: "Erro", description: "Falha ao deletar.", variant: "destructive" });
+    }
+  };
 
   // --- 1. SALVAR ÚNICO (MANUAL OU EXTRAÍDO) ---
   const saveToMemory = async (q, a) => {
@@ -94,32 +140,32 @@ const AITrainer = () => {
     let failCount = 0;
 
     try {
-        const pairs = JSON.parse(bulkJson);
-        if (!Array.isArray(pairs)) throw new Error("O formato deve ser uma Lista []");
+      const pairs = JSON.parse(bulkJson);
+      if (!Array.isArray(pairs)) throw new Error("O formato deve ser uma Lista []");
 
-        toast({ title: "Iniciando Importação", description: `Processando ${pairs.length} itens. Isso pode demorar...` });
+      toast({ title: "Iniciando Importação", description: `Processando ${pairs.length} itens. Isso pode demorar...` });
 
-        for (const pair of pairs) {
-            try {
-                if(!pair.question || !pair.answer) continue;
-                await saveToMemory(pair.question, pair.answer);
-                successCount++;
-            } catch (e) {
-                console.error("Falha no item:", pair, e);
-                failCount++;
-            }
+      for (const pair of pairs) {
+        try {
+          if (!pair.question || !pair.answer) continue;
+          await saveToMemory(pair.question, pair.answer);
+          successCount++;
+        } catch (e) {
+          console.error("Falha no item:", pair, e);
+          failCount++;
         }
+      }
 
-        toast({ 
-            title: "Importação Finalizada", 
-            description: `✅ ${successCount} salvos. ❌ ${failCount} falhas.` 
-        });
-        setBulkJson('');
+      toast({
+        title: "Importação Finalizada",
+        description: `✅ ${successCount} salvos. ❌ ${failCount} falhas.`
+      });
+      setBulkJson('');
 
     } catch (error) {
-        toast({ title: "Erro no JSON", description: "Verifique a formatação do JSON.", variant: "destructive" });
+      toast({ title: "Erro no JSON", description: "Verifique a formatação do JSON.", variant: "destructive" });
     } finally {
-        setLoading(false);
+      setLoading(false);
     }
   };
 
@@ -127,79 +173,125 @@ const AITrainer = () => {
     <Card className="mb-6 border-blue-200 bg-blue-50/30">
       <CardHeader className="pb-3">
         <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
-            <CardTitle className="flex items-center gap-2 text-lg">
+          <CardTitle className="flex items-center gap-2 text-lg">
             🎓 Cérebro da Clara
-            </CardTitle>
-            <div className="flex bg-white rounded-lg border p-1">
-                <Button variant={mode === 'manual' ? 'secondary' : 'ghost'} size="sm" onClick={() => setMode('manual')}>
-                    <PlusCircle className="h-4 w-4 mr-2" /> Manual
-                </Button>
-                <Button variant={mode === 'extract' ? 'secondary' : 'ghost'} size="sm" onClick={() => setMode('extract')}>
-                    <Wand2 className="h-4 w-4 mr-2" /> Extrair
-                </Button>
-                <Button variant={mode === 'bulk' ? 'secondary' : 'ghost'} size="sm" onClick={() => setMode('bulk')}>
-                    <Database className="h-4 w-4 mr-2" /> Em Massa
-                </Button>
-            </div>
+          </CardTitle>
+          <div className="flex bg-white rounded-lg border p-1 flex-wrap">
+            <Button variant={mode === 'manual' ? 'secondary' : 'ghost'} size="sm" onClick={() => setMode('manual')}>
+              <PlusCircle className="h-4 w-4 mr-2" /> Manual
+            </Button>
+            <Button variant={mode === 'extract' ? 'secondary' : 'ghost'} size="sm" onClick={() => setMode('extract')}>
+              <Wand2 className="h-4 w-4 mr-2" /> Extrair
+            </Button>
+            <Button variant={mode === 'bulk' ? 'secondary' : 'ghost'} size="sm" onClick={() => setMode('bulk')}>
+              <Database className="h-4 w-4 mr-2" /> Em Massa
+            </Button>
+            <Button variant={mode === 'memory' ? 'secondary' : 'ghost'} size="sm" onClick={() => setMode('memory')}>
+              <BookOpen className="h-4 w-4 mr-2" /> Gerenciar Memória
+            </Button>
+          </div>
         </div>
       </CardHeader>
-      
+
       <CardContent className="space-y-4">
         {mode === 'manual' && (
-            <div className="space-y-4 animate-in fade-in">
-                <Input value={question} onChange={e => setQuestion(e.target.value)} placeholder="Ex: Qual o valor da consulta?" />
-                <Textarea value={answer} onChange={e => setAnswer(e.target.value)} placeholder="Sua resposta..." rows={3} />
-                <Button onClick={handleSaveManual} disabled={loading} className="w-full">
-                    {loading ? 'Salvando...' : 'Salvar na Memória'}
-                </Button>
-            </div>
+          <div className="space-y-4 animate-in fade-in">
+            <Input value={question} onChange={e => setQuestion(e.target.value)} placeholder="Ex: Qual o valor da consulta?" />
+            <Textarea value={answer} onChange={e => setAnswer(e.target.value)} placeholder="Sua resposta..." rows={3} />
+            <Button onClick={handleSaveManual} disabled={loading} className="w-full">
+              {loading ? 'Salvando...' : 'Salvar na Memória'}
+            </Button>
+          </div>
         )}
 
         {mode === 'extract' && (
-            <div className="space-y-4 animate-in fade-in">
-                {!extractedPairs.length ? (
-                    <>
-                        <Textarea value={transcript} onChange={e => setTranscript(e.target.value)} placeholder="Cole o histórico da conversa aqui..." rows={6} className="font-mono text-xs" />
-                        <Button onClick={handleAnalyze} disabled={loading || !transcript} className="w-full">
-                            {loading ? 'Analisando...' : 'Analisar Conversa'}
-                        </Button>
-                    </>
-                ) : (
-                    <div className="grid gap-3 max-h-[400px] overflow-y-auto pr-2">
-                        <Button variant="outline" size="sm" onClick={() => { setExtractedPairs([]); setTranscript(''); }} className="mb-2">Analisar Outra</Button>
-                        {extractedPairs.map((pair, idx) => (
-                            <div key={idx} className={`p-3 rounded border bg-white text-sm ${pair.saved ? 'border-green-500 bg-green-50' : ''}`}>
-                                <div className="font-semibold text-blue-800">P: {pair.question}</div>
-                                <div className="text-gray-700">R: {pair.answer}</div>
-                                {!pair.saved ? (
-                                    <Button size="sm" variant="secondary" className="w-full mt-2" onClick={() => handleSavePair(pair, idx)} disabled={pair.saving}>
-                                        {pair.saving ? 'Salvando...' : 'Salvar'}
-                                    </Button>
-                                ) : <div className="text-green-600 text-xs font-bold mt-2">✅ Salvo</div>}
-                            </div>
-                        ))}
-                    </div>
-                )}
-            </div>
+          <div className="space-y-4 animate-in fade-in">
+            {!extractedPairs.length ? (
+              <>
+                <Textarea value={transcript} onChange={e => setTranscript(e.target.value)} placeholder="Cole o histórico da conversa aqui..." rows={6} className="font-mono text-xs" />
+                <Button onClick={handleAnalyze} disabled={loading || !transcript} className="w-full">
+                  {loading ? 'Analisando...' : 'Analisar Conversa'}
+                </Button>
+              </>
+            ) : (
+              <div className="grid gap-3 max-h-[400px] overflow-y-auto pr-2">
+                <Button variant="outline" size="sm" onClick={() => { setExtractedPairs([]); setTranscript(''); }} className="mb-2">Analisar Outra</Button>
+                {extractedPairs.map((pair, idx) => (
+                  <div key={idx} className={`p-3 rounded border bg-white text-sm ${pair.saved ? 'border-green-500 bg-green-50' : ''}`}>
+                    <div className="font-semibold text-blue-800">P: {pair.question}</div>
+                    <div className="text-gray-700">R: {pair.answer}</div>
+                    {!pair.saved ? (
+                      <Button size="sm" variant="secondary" className="w-full mt-2" onClick={() => handleSavePair(pair, idx)} disabled={pair.saving}>
+                        {pair.saving ? 'Salvando...' : 'Salvar'}
+                      </Button>
+                    ) : <div className="text-green-600 text-xs font-bold mt-2">✅ Salvo</div>}
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
         )}
 
         {mode === 'bulk' && (
-            <div className="space-y-4 animate-in fade-in">
-                <div className="bg-yellow-50 p-3 rounded text-xs text-yellow-800 border border-yellow-200">
-                    <strong>Como usar:</strong> Prepare um arquivo JSON com suas conversas antigas. Cole o conteúdo abaixo.<br/>
-                    Formato esperado: <code>[{`{"question": "...", "answer": "..."}`}, ...]</code>
-                </div>
-                <Textarea 
-                    value={bulkJson} 
-                    onChange={e => setBulkJson(e.target.value)} 
-                    placeholder='[ {"question": "Onde fica?", "answer": "Rua X..."}, {"question": "Preço?", "answer": "Depende..."} ]' 
-                    rows={10} 
-                    className="font-mono text-xs"
-                />
-                <Button onClick={handleBulkImport} disabled={loading || !bulkJson} className="w-full">
-                    {loading ? 'Processando Lote (Pode demorar)...' : 'Importar Todos'}
-                </Button>
+          <div className="space-y-4 animate-in fade-in">
+            <div className="bg-yellow-50 p-3 rounded text-xs text-yellow-800 border border-yellow-200">
+              <strong>Como usar:</strong> Prepare um arquivo JSON com suas conversas antigas. Cole o conteúdo abaixo.<br />
+              Formato esperado: <code>[{`{"question": "...", "answer": "..."}`}, ...]</code>
             </div>
+            <Textarea
+              value={bulkJson}
+              onChange={e => setBulkJson(e.target.value)}
+              placeholder='[ {"question": "Onde fica?", "answer": "Rua X..."}, {"question": "Preço?", "answer": "Depende..."} ]'
+              rows={10}
+              className="font-mono text-xs"
+            />
+            <Button onClick={handleBulkImport} disabled={loading || !bulkJson} className="w-full">
+              {loading ? 'Processando Lote (Pode demorar)...' : 'Importar Todos'}
+            </Button>
+          </div>
+        )}
+
+        {mode === 'memory' && (
+          <div className="space-y-4 animate-in fade-in">
+            {loading ? <div className="text-center p-4">Carregando...</div> : (
+              existingMemories.length === 0 ? (
+                <p className="text-center text-gray-500 py-8">Memória vazia.</p>
+              ) : (
+                <div className="grid gap-3 max-h-[400px] overflow-y-auto pr-2">
+                  {existingMemories.map((mem) => (
+                    <div key={mem.id} className="p-3 rounded border bg-white text-sm flex justify-between gap-3 group">
+                      <div className="flex-1">
+                        <div className="font-semibold text-blue-800">P: {mem.content}</div>
+                        <div className="text-gray-700 mt-1">R: {mem.response}</div>
+                        <div className="text-xs text-gray-400 mt-2">ID: {mem.id}</div>
+                      </div>
+                      <AlertDialog>
+                        <AlertDialogTrigger asChild>
+                          <Button size="icon" variant="ghost" className="h-8 w-8 text-red-400 hover:text-red-600 hover:bg-red-50">
+                            <Trash2 className="h-4 w-4" />
+                          </Button>
+                        </AlertDialogTrigger>
+                        <AlertDialogContent>
+                          <AlertDialogHeader>
+                            <AlertDialogTitle>Apagar conhecimento?</AlertDialogTitle>
+                            <AlertDialogDescription>
+                              Isso removerá este item permanentemente da memória da Clara.
+                            </AlertDialogDescription>
+                          </AlertDialogHeader>
+                          <AlertDialogFooter>
+                            <AlertDialogCancel>Cancelar</AlertDialogCancel>
+                            <AlertDialogAction onClick={() => handleDeleteMemory(mem.id)} className="bg-red-600 hover:bg-red-700">
+                              Confirmar Exclusão
+                            </AlertDialogAction>
+                          </AlertDialogFooter>
+                        </AlertDialogContent>
+                      </AlertDialog>
+                    </div>
+                  ))}
+                </div>
+              )
+            )}
+          </div>
         )}
       </CardContent>
     </Card>
