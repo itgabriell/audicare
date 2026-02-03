@@ -222,6 +222,47 @@ class ChatwootService {
             return { success: false, error: error.message };
         }
     }
+
+    // --- MÉTODOS AUXILIARES PARA IA (CLARA) ---
+
+    async getConversationMessages(conversationId) {
+        try {
+            // GET /api/v1/accounts/{account_id}/conversations/{conversation_id}/messages
+            const data = await this._invokeProxy('GET', `/conversations/${conversationId}/messages`);
+            return data.payload || [];
+        } catch (error) {
+            console.error('[ChatwootService] Erro ao buscar mensagens:', error);
+            return [];
+        }
+    }
+
+    async updateConversationStatus(conversationId, status) {
+        try {
+            // POST /api/v1/accounts/{account_id}/conversations/{conversation_id}/toggle_status
+            // Ou update via PATCH no conversation. Vamos assumir toggle_status ou update directo.
+            // A API oficial usa POST /toggle_status com { status: '...' }
+            await this._invokeProxy('POST', `/conversations/${conversationId}/toggle_status`, { status });
+            return true;
+        } catch (error) {
+            console.error('[ChatwootService] Erro ao atualizar status:', error);
+            return false;
+        }
+    }
+
+    async createPrivateNote(conversationId, content) {
+        try {
+            // Private note is just a message with private: true
+            await this._invokeProxy('POST', `/conversations/${conversationId}/messages`, {
+                content,
+                message_type: 'outgoing',
+                private: true
+            });
+            return true;
+        } catch (error) {
+            console.error('[ChatwootService] Erro ao criar nota privada:', error);
+            return false;
+        }
+    }
 }
 
 export const chatwootService = new ChatwootService();
