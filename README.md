@@ -43,3 +43,7 @@ O backend é totalmente construído sobre o Supabase, utilizando seu banco de da
 ## Como Começar
 
 1.  **Clone o repositório:**
+
+## Última Atualização
+- **Data**: 03/02/2026
+- **Build**: Correção de Lint e Deploy.
