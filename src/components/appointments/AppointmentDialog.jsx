@@ -147,7 +147,7 @@ const AppointmentDialog = ({
   };
 
   const handleDelete = () => {
-    if (confirm('Tem certeza que deseja excluir este agendamento?')) {
+    if (window.confirm('Tem certeza que deseja excluir este agendamento?')) {
       onDelete(appointment.id);
     }
   };

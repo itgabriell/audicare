@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Card, CardContent, CardHeader, CardTitle, CardDescription, CardFooter } from "@/components/ui/card";
+import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Alert, AlertTitle, AlertDescription } from "@/components/ui/alert";
@@ -7,17 +7,17 @@ import { Separator } from "@/components/ui/separator";
 import { useToast } from "@/components/ui/use-toast";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { 
-  Server, 
-  Globe, 
-  ShieldCheck, 
-  AlertTriangle, 
-  RefreshCw, 
-  Copy, 
-  Download, 
-  Activity, 
-  CheckCircle2, 
-  XCircle, 
+import {
+
+  Globe,
+  ShieldCheck,
+  AlertTriangle,
+  RefreshCw,
+  Copy,
+  Download,
+  Activity,
+  CheckCircle2,
+  XCircle,
   Clock,
   Terminal,
   Zap
@@ -37,7 +37,7 @@ export default function ConfigurationStatusPanel() {
       const result = await ConfigValidator.generateReport();
       setReport(result);
       setLastChecked(new Date());
-      
+
       if (result.overallStatus === 'PASS') {
         toast({
           title: "Configuration Healthy",
@@ -138,7 +138,7 @@ export default function ConfigurationStatusPanel() {
             </div>
           </div>
         </CardHeader>
-        
+
         <CardContent>
           {/* Alerts */}
           {report.config.isLocalhost && (
@@ -198,7 +198,7 @@ export default function ConfigurationStatusPanel() {
                 </p>
               </div>
               <div className="mt-3 pt-3 border-t">
-                 <div className="flex items-center justify-between text-sm">
+                <div className="flex items-center justify-between text-sm">
                   <span className="text-muted-foreground">Latency</span>
                   <span className={`font-mono flex items-center gap-1 ${report.connectivity.latency > 500 ? 'text-yellow-600' : 'text-green-600'}`}>
                     <Zap className="w-3 h-3" /> {report.connectivity.latency}ms
@@ -215,10 +215,10 @@ export default function ConfigurationStatusPanel() {
                 </h3>
                 <div className="space-y-1">
                   {Object.entries(report.envVars).map(([key, value]) => (
-                     <div key={key} className="flex flex-col">
-                       <span className="text-[10px] font-mono text-muted-foreground">{key}</span>
-                       <span className="text-xs font-mono truncate bg-background px-1 py-0.5 rounded border" title={value}>{value}</span>
-                     </div>
+                    <div key={key} className="flex flex-col">
+                      <span className="text-[10px] font-mono text-muted-foreground">{key}</span>
+                      <span className="text-xs font-mono truncate bg-background px-1 py-0.5 rounded border" title={value}>{value}</span>
+                    </div>
                   ))}
                 </div>
               </div>
@@ -233,7 +233,7 @@ export default function ConfigurationStatusPanel() {
           <TabsTrigger value="details">Detailed Report</TabsTrigger>
           <TabsTrigger value="troubleshooting">Troubleshooting</TabsTrigger>
         </TabsList>
-        
+
         <TabsContent value="details" className="mt-4">
           <Card>
             <CardHeader>
@@ -251,7 +251,7 @@ export default function ConfigurationStatusPanel() {
 
         <TabsContent value="troubleshooting" className="mt-4">
           <Card>
-             <CardHeader>
+            <CardHeader>
               <CardTitle className="text-base">Quick Troubleshooting</CardTitle>
             </CardHeader>
             <CardContent className="space-y-4">
@@ -260,7 +260,7 @@ export default function ConfigurationStatusPanel() {
                   <XCircle className="w-4 h-4 text-red-500" /> API URL Mismatch?
                 </h4>
                 <p className="text-sm text-muted-foreground">
-                  If the API URL is incorrect (e.g., localhost), update your <code className="bg-muted px-1 rounded">.env.local</code> file with the production URL provided above. Don't forget to restart the dev server.
+                  Please update your <code className="bg-muted px-1 rounded">.env.local</code> file with the production URL provided above. Don&apos;t forget to restart the dev server.
                 </p>
               </div>
               <Separator />
@@ -280,7 +280,7 @@ export default function ConfigurationStatusPanel() {
               <Separator />
               <div className="space-y-2">
                 <h4 className="text-sm font-medium flex items-center gap-2">
-                   <Terminal className="w-4 h-4 text-blue-500" /> Env Vars Not Updating?
+                  <Terminal className="w-4 h-4 text-blue-500" /> Env Vars Not Updating?
                 </h4>
                 <p className="text-sm text-muted-foreground">
                   Vite caches environment variables. If you changed <code className="bg-muted px-1 rounded">.env.local</code>, you MUST restart the development server (Control+C, then npm run dev).

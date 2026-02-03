@@ -9,7 +9,7 @@ const CallToAction = () => {
       animate={{ opacity: 1 }}
       transition={{ duration: 0.5, delay: 0.8 }}
     >
-      Let's turn your ideas into reality.
+      Let&apos;s turn your ideas into reality.
     </motion.p>
   );
 };

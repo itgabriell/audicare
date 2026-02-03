@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { useToast } from '@/components/ui/use-toast';
-import { supabase } from '@/lib/customSupabaseClient'; 
+import { supabase } from '@/lib/customSupabaseClient';
 
 const ChatwootImporter = ({ onImportComplete }) => {
   const [loading, setLoading] = useState(false);
@@ -9,8 +9,8 @@ const ChatwootImporter = ({ onImportComplete }) => {
   const { toast } = useToast();
 
   const handleImport = async () => {
-    if (!confirm('Isso vai buscar conversas recentes do Chatwoot e criar Leads. Continuar?')) return;
-    
+    if (!window.confirm('Isso vai buscar conversas recentes do Chatwoot e criar Leads. Continuar?')) return;
+
     setLoading(true);
     setLog(['Iniciando importação via Proxy...']);
 
@@ -19,11 +19,11 @@ const ChatwootImporter = ({ onImportComplete }) => {
       const { data: responseData, error: fnError } = await supabase.functions.invoke('chatwoot-import');
 
       if (fnError) throw new Error(`Erro na função: ${fnError.message}`);
-      
-      const conversations = responseData.data.payload; 
-      
+
+      const conversations = responseData.data.payload;
+
       if (!conversations || !Array.isArray(conversations)) {
-          throw new Error("Formato de resposta inválido do Chatwoot");
+        throw new Error("Formato de resposta inválido do Chatwoot");
       }
 
       setLog(prev => [...prev, `Encontradas ${conversations.length} conversas recentes.`]);
@@ -34,19 +34,19 @@ const ChatwootImporter = ({ onImportComplete }) => {
         const contact = conv.meta.sender;
         // Tenta pegar o telefone, removendo formatação
         const phone = contact.phone_number?.replace(/\D/g, '');
-        
+
         // --- FILTRO DE DATA (SEXTA 23/01 PRA CÁ) ---
-        const lastActivity = new Date(conv.last_activity_at * 1000); 
+        const lastActivity = new Date(conv.last_activity_at * 1000);
         const cutoffDate = new Date('2026-01-23T00:00:00');
 
         if (lastActivity < cutoffDate) {
-            // setLog(prev => [...prev, `⏩ Ignorado (Antigo): ${contact.name}`]);
-            continue; 
+          // setLog(prev => [...prev, `⏩ Ignorado (Antigo): ${contact.name}`]);
+          continue;
         }
-        
+
         if (!phone) {
-            setLog(prev => [...prev, `⏩ Ignorado (Sem telefone): ${contact.name}`]);
-            continue;
+          setLog(prev => [...prev, `⏩ Ignorado (Sem telefone): ${contact.name}`]);
+          continue;
         }
 
         // Verifica se já existe no Leads
@@ -88,12 +88,12 @@ const ChatwootImporter = ({ onImportComplete }) => {
             setLog(prev => [...prev, `❌ Erro ao salvar: ${contact.name}`]);
           }
         } else {
-           // setLog(prev => [...prev, `⏩ Já existe: ${contact.name}`]);
+          // setLog(prev => [...prev, `⏩ Já existe: ${contact.name}`]);
         }
       }
 
       toast({ title: 'Importação Concluída', description: `${importedCount} leads recuperados.` });
-      onImportComplete(); 
+      onImportComplete();
 
     } catch (error) {
       console.error(error);

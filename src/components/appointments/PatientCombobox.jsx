@@ -127,7 +127,7 @@ export function PatientCombobox({ patients = [], value, onChange, onPatientsUpda
                 <div className="p-2 bg-slate-50 dark:bg-slate-900">
                   <div className="text-sm text-muted-foreground text-center py-2">Nenhum paciente encontrado.</div>
                   <Button className="w-full justify-start gap-2" onClick={openRegistrationModal}>
-                    <UserPlus className="h-4 w-4" /> Cadastrar Novo: "{searchTerm}"
+                    <UserPlus className="h-4 w-4" /> Cadastrar Novo: &quot;{searchTerm}&quot;
                   </Button>
                 </div>
               )}

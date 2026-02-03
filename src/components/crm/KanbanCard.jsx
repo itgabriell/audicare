@@ -81,7 +81,7 @@ const KanbanCard = ({ lead, onClick }) => {
       {/* Resumo da última mensagem */}
       {lead.last_message_content ? (
         <p className="text-xs text-muted-foreground line-clamp-2 mb-2 italic">
-          "{lead.last_message_content}"
+          &quot;{lead.last_message_content}&quot;
         </p>
       ) : (
         <p className="text-xs text-muted-foreground line-clamp-2 mb-2 italic opacity-50">

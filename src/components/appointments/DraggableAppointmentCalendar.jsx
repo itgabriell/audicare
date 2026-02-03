@@ -149,6 +149,8 @@ const DraggableAppointment = memo(({ appointment, onAppointmentClick }) => {
   );
 });
 
+DraggableAppointment.displayName = 'DraggableAppointment';
+
 const DroppableTimeSlot = memo(({
   date,
   time,
@@ -193,6 +195,8 @@ const DroppableTimeSlot = memo(({
     </div>
   );
 });
+
+DroppableTimeSlot.displayName = 'DroppableTimeSlot';
 
 const DraggableAppointmentCalendar = ({
   currentDate,
@@ -408,3 +412,5 @@ const DraggableAppointmentCalendar = ({
 };
 
 export default memo(DraggableAppointmentCalendar);
+
+DraggableAppointmentCalendar.displayName = 'DraggableAppointmentCalendar';
