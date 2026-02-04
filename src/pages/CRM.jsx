@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Helmet } from 'react-helmet';
-import { Plus, Search, Filter, RefreshCw, MessageSquare, Brain } from 'lucide-react';
+import { Plus, Search, Filter, RefreshCw, MessageSquare, Brain, Clock } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
