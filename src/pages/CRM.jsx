@@ -178,6 +178,24 @@ const CRM = () => {
                 {leads.filter(l => l.status === 'new').length}
               </div>
             </div>
+
+            {/* Monitoramento de Tempo de Resposta (Média) */}
+            <div className="hidden lg:block bg-slate-50 dark:bg-slate-800/30 rounded-2xl p-3 border border-slate-200 dark:border-slate-700">
+              <span className="text-xs font-semibold text-slate-500 uppercase tracking-wider flex items-center gap-1">
+                <Clock className="h-3 w-3" /> Tempo Resposta
+              </span>
+              <div className="text-xl font-black text-slate-600 dark:text-slate-300 mt-1">
+                {(() => {
+                  const activeLeads = leads.filter(l => l.status !== 'archived' && l.last_message_at);
+                  if (!activeLeads.length) return '0h';
+                  const totalHours = activeLeads.reduce((acc, l) => {
+                    const diff = new Date() - new Date(l.last_message_at);
+                    return acc + (diff / (1000 * 60 * 60));
+                  }, 0);
+                  return `${Math.round(totalHours / activeLeads.length)}h`;
+                })()}
+              </div>
+            </div>
           </div>
         </div>
 

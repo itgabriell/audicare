@@ -90,16 +90,26 @@ const KanbanCard = ({ lead, onClick }) => {
       )}
 
       {/* Rodapé: Tempo e Tags */}
-      <div className="flex items-center justify-between text-[10px] text-muted-foreground mt-2 border-t pt-2">
-        <div className={`flex items-center gap-1 ${isUrgent ? 'text-red-600 font-bold' : ''}`}>
+      <div className="flex items-center justify-between mt-2 pt-2 border-t border-dashed border-slate-200 dark:border-slate-700">
+
+        {/* Badge de Urgência */}
+        <div className={`
+          flex items-center gap-1.5 px-2 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wider
+          ${isUrgent
+            ? 'bg-red-100 text-red-600 dark:bg-red-900/30 dark:text-red-400 animate-pulse'
+            : isWarning
+              ? 'bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400'
+              : 'bg-slate-100 text-slate-500 dark:bg-slate-800 dark:text-slate-400'
+          }
+        `}>
           {isUrgent ? <AlertCircle className="h-3 w-3" /> : <Clock className="h-3 w-3" />}
           <span>
-            {formatDistanceToNow(lastActivity, { addSuffix: true, locale: ptBR })}
+            {Math.floor(hoursSinceActivity) === 0 ? 'Agora' : `${Math.floor(hoursSinceActivity)}h sem resp.`}
           </span>
         </div>
 
-        <span className="opacity-0 group-hover:opacity-100 transition-opacity">
-          {lead.phone?.slice(-4)}
+        <span className="text-[10px] text-slate-400 font-mono opacity-0 group-hover:opacity-100 transition-opacity">
+          #{lead.id}
         </span>
       </div>
     </div>
