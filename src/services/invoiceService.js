@@ -10,18 +10,23 @@ export class InvoiceService {
      * @param {string} params.type - Tipo da nota: 'fono', 'maintenance', 'sale'
      * @returns {Promise<Object>} Resultado da emissão
      */
-    static async emitInvoice({ patient, serviceItem, amount, type }) {
+    static async emitInvoice({ patient, serviceItem, amount, type, model, quantity, paymentMethod, installments }) {
         try {
             // Validar parâmetros obrigatórios
             if (!patient || !serviceItem || !amount) {
                 throw new Error('Parâmetros obrigatórios não fornecidos: patient, serviceItem, amount');
             }
 
+            // Validar/Sanitizar Quantidade
+            let safeQuantity = parseInt(quantity);
+            if (isNaN(safeQuantity) || safeQuantity <= 0) safeQuantity = 1;
+
+            console.log("💰 Dados de Pagamento:", { paymentMethod, installments, amount });
+
             // Montar payload conforme esperado pela Edge Function
             const payload = {
                 type,
                 paciente: {
-                    patient_id: patient.id,
                     patient_name: patient.name || patient.full_name,
                     patient_document: patient.document || patient.cpf,
                     patient_email: patient.email,
@@ -35,12 +40,18 @@ export class InvoiceService {
                     }
                 },
                 servico: {
-                    service_description: serviceItem.description || serviceItem.name,
-                    amount: parseFloat(amount)
+                    service_description: serviceItem.description || serviceItem.name, // Fallback visual
+                    amount: parseFloat(amount),
+                    quantity: safeQuantity,
+                    model: model || serviceItem.description || "Serviço Fonoaudiologia" // Garante que model nunca vá vazio
+                },
+                payment: { // Enviando dados de pagamento para completar o registro
+                    method: paymentMethod,
+                    installments: installments
                 }
             };
 
-
+            console.log("📤 Payload Enviado para Edge Function:", JSON.stringify(payload, null, 2));
 
             // Chamar Edge Function
             const { data, error } = await supabase.functions.invoke('emit-invoice', {
