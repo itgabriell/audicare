@@ -216,57 +216,17 @@ const InvoiceList = ({ patientId }) => {
       const result = await InvoiceService.emitInvoice(invoiceData);
 
       if (result.success) {
-        // Salvar no banco de dados local (invoices table)
-        const invoiceRecord = {
-          patient_id: patientId,
-          type: invoiceForm.type,
-          amount: amount,
-          description: invoiceForm.description,
-          payment_method: invoiceForm.paymentMethod,
-          installments: parseInt(invoiceForm.installments),
-          model: invoiceForm.model,
-          quantity: parseInt(invoiceForm.quantity),
-          status: 'authorized',
-          issued_at: new Date().toISOString(),
-          numero: result.invoice.numero,
-          link: result.invoice.link,
-          created_at: new Date().toISOString()
-        };
-
-        const { error: insertError } = await supabase.from('invoices').insert(invoiceRecord);
-        if (insertError) console.warn('Erro ao salvar nota no banco local:', insertError);
-
-        // Salvar em documentos
-        const documentRecord = {
-          patient_id: patientId,
-          title: `Nota Fiscal ${result.invoice.numero}`,
-          type: 'invoice',
-          content: {
-            invoice_number: result.invoice.numero,
-            type: invoiceForm.type,
-            amount: amount,
-            description: invoiceForm.description,
-            payment_method: invoiceForm.paymentMethod,
-            installments: parseInt(invoiceForm.installments),
-            model: invoiceForm.model,
-            quantity: parseInt(invoiceForm.quantity),
-            patient_name: patient.name,
-            patient_document: patient.document || patient.cpf,
-            issue_date: new Date().toISOString()
-          },
-          file_url: result.invoice.link,
-          created_at: new Date().toISOString()
-        };
-
-        const { error: docError } = await supabase.from('documents').insert(documentRecord);
-        if (docError) console.warn('Erro ao salvar documento:', docError);
-
-        // Aplicar tag "comprou" ao paciente
-        if (invoiceForm.type === 'sale') {
-          const { error: tagError } = await supabase.from('patient_tags').upsert({
-            patient_id: patientId, tag: 'comprou', created_at: new Date().toISOString()
-          }, { onConflict: 'patient_id,tag' });
-          if (tagError) console.warn('Erro ao aplicar tag:', tagError);
+        // Salvar no banco de dados local via Service (Centralizado)
+        try {
+          await InvoiceService.saveInvoiceRecord(result, invoiceData);
+        } catch (saveError) {
+          console.error("Erro ao salvar registros locais:", saveError);
+          // Não lançamos erro aqui para não invalidar a emissão visualmente, apenas avisamos
+          toast({
+            variant: 'warning',
+            title: 'Atenção',
+            description: 'Nota emitida, mas houve erro ao salvar no histórico local.'
+          });
         }
 
         toast({

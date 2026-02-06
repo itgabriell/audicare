@@ -82,13 +82,16 @@ export class InvoiceService {
      * @param {Object} params - Dados originais do formulário
      * @returns {Promise<void>}
      */
-    static async saveInvoiceRecord(emissionResult, params) {
+    async saveInvoiceRecord(emissionResult, params) {
         const { patient, amount, type, description, paymentMethod, installments, model, quantity } = params;
         const { invoice } = emissionResult;
+
+        const CLINIC_ID = 'b82d5019-c04c-47f6-b9f9-673ca736815b'; // ID fixo da Audicare
 
         // 1. Salvar na tabela invoices
         const invoiceRecord = {
             patient_id: patient.id,
+            clinic_id: CLINIC_ID,
             type,
             amount: parseFloat(amount),
             description,
@@ -109,12 +112,13 @@ export class InvoiceService {
             throw new Error('Nota emitida, mas erro ao salvar registro local.');
         }
 
-        // 2. Salvar em documentos
+        // 2. Salvar em documentos (Removido campo 'type' que não existe no schema)
         const documentRecord = {
             patient_id: patient.id,
             title: `Nota Fiscal ${invoice.numero}`,
-            type: 'invoice',
+            // type: 'invoice', // REMOVIDO: Coluna não existe
             content: {
+                document_type: 'invoice', // Movido para JSONB
                 invoice_number: invoice.numero,
                 type,
                 amount: parseFloat(amount),
@@ -133,13 +137,26 @@ export class InvoiceService {
 
         await supabase.from('documents').insert(documentRecord);
 
-        // 3. Aplicar tag "comprou" se for venda
+        // 3. Aplicar tag "comprou" (Check manual em vez de upsert para evitar erro de constraint)
         if (type === 'sale') {
-            await supabase.from('patient_tags').upsert({
-                patient_id: patient.id,
-                tag: 'comprou',
-                created_at: new Date().toISOString()
-            }, { onConflict: 'patient_id,tag' });
+            try {
+                const { data: existingTag } = await supabase
+                    .from('patient_tags')
+                    .select('id')
+                    .eq('patient_id', patient.id)
+                    .eq('tag', 'comprou')
+                    .maybeSingle();
+
+                if (!existingTag) {
+                    await supabase.from('patient_tags').insert({
+                        patient_id: patient.id,
+                        tag: 'comprou',
+                        created_at: new Date().toISOString()
+                    });
+                }
+            } catch (tagErr) {
+                console.warn("Erro ao aplicar tag (não crítico):", tagErr);
+            }
         }
     }
 }

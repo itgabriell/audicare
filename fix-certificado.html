@@ -1,0 +1,126 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <title>Reparador de Certificado Nuvem Fiscal</title>
+    <style>
+        body { font-family: sans-serif; max-width: 600px; margin: 40px auto; padding: 20px; background: #f4f4f9; }
+        .card { background: white; padding: 25px; border-radius: 8px; box-shadow: 0 2px 10px rgba(0,0,0,0.1); }
+        h2 { color: #333; border-bottom: 2px solid #eee; padding-bottom: 10px; }
+        label { display: block; margin-top: 15px; font-weight: bold; color: #555; }
+        input[type="text"], input[type="password"], input[type="file"] { width: 100%; padding: 10px; margin-top: 5px; border: 1px solid #ddd; border-radius: 4px; box-sizing: border-box; }
+        button { margin-top: 25px; width: 100%; padding: 15px; background: #007bff; color: white; border: none; border-radius: 4px; font-size: 16px; cursor: pointer; transition: background 0.3s; }
+        button:hover { background: #0056b3; }
+        #log { margin-top: 20px; padding: 15px; background: #2d2d2d; color: #0f0; font-family: monospace; border-radius: 4px; white-space: pre-wrap; min-height: 100px; }
+        .error { color: #ff6b6b; }
+        .success { color: #51cf66; font-weight: bold; }
+    </style>
+</head>
+<body>
+    <div class="card">
+        <h2>🚑 Injeção Direta de Certificado</h2>
+        <p>Use isso para forçar o vínculo do certificado quando o painel falha.</p>
+        
+        <label>Client ID (Novo):</label>
+        <input type="text" id="clientId" placeholder="Cole seu Client ID aqui">
+        
+        <label>Client Secret (Novo):</label>
+        <input type="text" id="clientSecret" placeholder="Cole seu Client Secret aqui">
+        
+        <label>CNPJ da Empresa (apenas números):</label>
+        <input type="text" id="cnpj" value="45582340000106">
+
+        <label>Arquivo do Certificado (.pfx ou .p12):</label>
+        <input type="file" id="certFile" accept=".pfx,.p12">
+
+        <label>Senha do Certificado:</label>
+        <input type="password" id="certPass">
+
+        <button onclick="iniciarUpload()">🚀 FORÇAR UPLOAD VIA API</button>
+
+        <div id="log">Aguardando início...</div>
+    </div>
+
+    <script>
+        const logArea = document.getElementById('log');
+        function log(msg, type = '') {
+            const span = document.createElement('div');
+            span.textContent = msg;
+            if(type) span.className = type;
+            logArea.appendChild(span);
+            logArea.scrollTop = logArea.scrollHeight;
+        }
+
+        async function iniciarUpload() {
+            logArea.innerHTML = '';
+            const clientId = document.getElementById('clientId').value.trim();
+            const clientSecret = document.getElementById('clientSecret').value.trim();
+            const cnpj = document.getElementById('cnpj').value.trim();
+            const password = document.getElementById('certPass').value;
+            const fileInput = document.getElementById('certFile');
+
+            if (!clientId || !clientSecret || !fileInput.files[0] || !password) {
+                log('❌ Preencha todos os campos!', 'error');
+                return;
+            }
+
+            log('1. Lendo arquivo e convertendo para Base64...');
+            const file = fileInput.files[0];
+            const reader = new FileReader();
+            
+            reader.onload = async function(e) {
+                const base64Content = e.target.result.split(',')[1];
+                log('✅ Arquivo convertido. Tamanho: ' + base64Content.length + ' bytes');
+                await enviarParaApi(clientId, clientSecret, cnpj, base64Content, password);
+            };
+            
+            reader.readAsDataURL(file);
+        }
+
+        async function enviarParaApi(id, secret, cnpj, certBase64, certPassword) {
+            try {
+                log('2. Autenticando com Nuvem Fiscal...');
+                const authBody = new URLSearchParams({
+                    grant_type: "client_credentials", client_id: id, client_secret: secret, scope: "empresa nfe nfse"
+                });
+                
+                const authRes = await fetch("https://auth.nuvemfiscal.com.br/oauth/token", {
+                    method: "POST", headers: { "Content-Type": "application/x-www-form-urlencoded" }, body: authBody
+                });
+                
+                if (!authRes.ok) throw new Error('Falha na autenticação: ' + await authRes.text());
+                const tokenData = await authRes.json();
+                log('✅ Autenticado! Token obtido.');
+
+                log(`3. Enviando PUT para /empresas/${cnpj}/certificado...`);
+                
+                const payload = {
+                    certificado: certBase64,
+                    password: certPassword
+                };
+
+                const uploadRes = await fetch(`https://api.nuvemfiscal.com.br/empresas/${cnpj}/certificado`, {
+                    method: "PUT",
+                    headers: {
+                        "Authorization": `Bearer ${tokenData.access_token}`,
+                        "Content-Type": "application/json"
+                    },
+                    body: JSON.stringify(payload)
+                });
+
+                if (uploadRes.ok) {
+                    log('🎉 SUCESSO TOTAL! O Certificado foi aceito pela API.', 'success');
+                    log('O erro 405 deve sumir agora. Pode testar a emissão.');
+                } else {
+                    const errTxt = await uploadRes.text();
+                    log('❌ Erro no Upload: ' + uploadRes.status, 'error');
+                    log('Detalhe: ' + errTxt);
+                }
+
+            } catch (err) {
+                log('❌ Erro Fatal: ' + err.message, 'error');
+            }
+        }
+    </script>
+</body>
+</html>
