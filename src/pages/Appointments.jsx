@@ -537,14 +537,16 @@ const Appointments = () => {
                           <div className="flex flex-col h-full justify-between gap-3">
                             <div>
                               <div className="flex justify-between items-start">
-                                <span className="text-2xl font-bold text-slate-800 dark:text-slate-100 tracking-tight font-sans">
-                                  {new Date(app.start_time).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })}
-                                </span>
-                                {isDomiciliar && (
-                                  <span className="bg-blue-100 dark:bg-blue-900/40 text-blue-700 dark:text-blue-300 text-[10px] px-2 py-1 rounded-full font-bold flex items-center gap-1 shadow-sm">
-                                    <Home className="h-3 w-3" /> DOM
+                                <div className="flex items-center gap-2">
+                                  <span className="text-2xl font-bold text-slate-800 dark:text-slate-100 tracking-tight font-sans">
+                                    {new Date(app.start_time).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })}
                                   </span>
-                                )}
+                                  {isDomiciliar && (
+                                    <span className="bg-blue-100 dark:bg-blue-900/40 text-blue-700 dark:text-blue-300 text-[10px] px-2 py-1 rounded-full font-bold flex items-center gap-1 shadow-sm">
+                                      <Home className="h-3 w-3" /> DOM
+                                    </span>
+                                  )}
+                                </div>
                               </div>
 
                               <div

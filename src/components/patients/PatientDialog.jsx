@@ -242,6 +242,11 @@ const PatientDialog = ({ open, onOpenChange, patient, onSave, initialData }) => 
         processedData.fiscal_email = processedData.email;
       }
 
+      // Convert empty birthdate to null to avoid invalid date syntax error
+      if (!processedData.birthdate) {
+        processedData.birthdate = null;
+      }
+
       // CRUCIAL: Remove o array 'phones' do objeto que vai para a tabela 'patients'
       // A tabela 'patients' não tem coluna 'phones' (array), isso causava o erro.
       const { phones: _ignoredPhones, ...patientPayload } = { ...processedData, phones: validPhones };

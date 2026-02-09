@@ -318,7 +318,7 @@ class AutomationManager {
       const { data: appointments, error } = await supabase
         .from('appointments')
         .select(`
-            id, start_time, title, status,
+            id, start_time, title, status, location,
             patients:patient_id (id, name, phone, phones:patient_phones(phone, is_primary, is_whatsapp))
           `)
         .eq('status', 'scheduled')
@@ -335,7 +335,14 @@ class AutomationManager {
           const phoneNumber = this.getPrimaryPhoneNumber(patient);
 
           if (phoneNumber) {
-            const message = this.processTemplate(automation.action_config.message_template || automation.action_config.message, {
+            let messageTemplate = automation.action_config.message_template || automation.action_config.message;
+
+            // [CUSTOM] Mensagem específica para domiciliar
+            if (appointment.location && appointment.location.toLowerCase() === 'domiciliar') {
+              messageTemplate = "Olá {{nome}}, seu agendamento domiciliar foi realizado com sucesso para dia {{data}} às {{hora}}.\n\nPor gentileza, nos envie o endereço e a localização.\n\nQualquer dúvida, pode nos chamar! 🦻";
+            }
+
+            const message = this.processTemplate(messageTemplate, {
               patient,
               appointment
             });
@@ -417,7 +424,7 @@ class AutomationManager {
       const { data: appointment, error: aptError } = await supabase
         .from('appointments')
         .select(`
-            id, start_time, title, status,
+            id, start_time, title, status, location,
             patients:patient_id (id, name, phone, phones:patient_phones(phone, is_primary, is_whatsapp))
           `)
         .eq('id', appointmentId)
@@ -452,7 +459,14 @@ class AutomationManager {
             .select()
             .single();
 
-          const message = this.processTemplate(automation.action_config.message_template || automation.action_config.message, {
+          let messageTemplate = automation.action_config.message_template || automation.action_config.message;
+
+          // [CUSTOM] Mensagem específica para domiciliar
+          if (appointment.location && appointment.location.toLowerCase() === 'domiciliar') {
+            messageTemplate = "Olá {{nome}}, seu agendamento domiciliar foi realizado com sucesso para dia {{data}} às {{hora}}.\n\nPor gentileza, nos envie o endereço e a localização.\n\nQualquer dúvida, pode nos chamar! 🦻";
+          }
+
+          const message = this.processTemplate(messageTemplate, {
             patient,
             appointment
           });
