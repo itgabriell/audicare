@@ -49,14 +49,25 @@ const Dashboard = () => {
 
   const processWeekData = () => {
     if (!stats?.charts?.weekAppointments) return [];
-    const counts = {};
+
+    // Initialize all days of the week with 0
+    const weekDays = ['dom', 'seg', 'ter', 'qua', 'qui', 'sex', 'sáb'];
+    const counts = weekDays.reduce((acc, day) => {
+      acc[day] = 0;
+      return acc;
+    }, {});
+
     stats.charts.weekAppointments.forEach(app => {
-      const date = new Date(app.appointment_date).toLocaleDateString('pt-BR', { weekday: 'short' });
-      counts[date] = (counts[date] || 0) + 1;
+      // Use UTC methods or ensure timezone consistency if needed, but simple toLocaleDateString usually works for local display
+      const date = new Date(app.appointment_date).toLocaleDateString('pt-BR', { weekday: 'short' }).replace('.', '');
+      if (counts[date] !== undefined) {
+        counts[date] += 1;
+      }
     });
-    return Object.keys(counts).map(key => ({
-      name: key.toUpperCase().replace('.', ''),
-      consultas: counts[key]
+
+    return weekDays.map(day => ({
+      name: day.toUpperCase(),
+      consultas: counts[day]
     }));
   };
 
@@ -65,10 +76,14 @@ const Dashboard = () => {
     const counts = {};
     stats.charts.repairsStatus.forEach(r => {
       let name = r.status || 'Indefinido';
-      if (name === 'received' || name === 'Pendente') name = 'Pendente';
-      if (name === 'sent_to_lab' || name === 'Em andamento') name = 'Andamento';
-      if (name === 'ready' || name === 'Concluído') name = 'Pronto';
-      if (name === 'returning') name = 'Retornando';
+      // Map database statuses to display names
+      if (name === 'received' || name === 'Pendente') name = 'Na Clínica';
+      else if (name === 'sent_to_lab') name = 'Enviado';
+      else if (name === 'in_lab') name = 'Em Reparo';
+      else if (name === 'returning') name = 'Retornando';
+      else if (name === 'ready' || name === 'Concluído') name = 'Pronto';
+      else if (name === 'Em andamento') name = 'Em Reparo'; // Fallback
+
       counts[name] = (counts[name] || 0) + 1;
     });
     return Object.keys(counts).map(key => ({ name: key, value: counts[key] }));

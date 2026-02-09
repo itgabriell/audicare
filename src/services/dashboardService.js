@@ -20,6 +20,17 @@ export const getDashboardStats = async () => {
     if (!clinicId) return null;
 
     const now = new Date();
+
+    // Calculate start and end of current week (Sunday to Saturday)
+    const dayOfWeek = now.getDay(); // 0 (Sun) - 6 (Sat)
+    const startOfWeek = new Date(now);
+    startOfWeek.setDate(now.getDate() - dayOfWeek);
+    startOfWeek.setHours(0, 0, 0, 0);
+
+    const endOfWeek = new Date(startOfWeek);
+    endOfWeek.setDate(startOfWeek.getDate() + 6);
+    endOfWeek.setHours(23, 59, 59, 999);
+
     const todayStart = new Date(now.getFullYear(), now.getMonth(), now.getDate()).toISOString();
     const todayEnd = new Date(now.getFullYear(), now.getMonth(), now.getDate(), 23, 59, 59, 999).toISOString();
     const yesterday = new Date(now);
@@ -39,14 +50,17 @@ export const getDashboardStats = async () => {
         repairsDataResult
     ] = await Promise.all([
         supabase.from('appointments').select('id', { count: 'exact', head: true }).eq('clinic_id', clinicId).gte('appointment_date', todayStart).lte('appointment_date', todayEnd),
-        Promise.resolve({ count: 0 }),
+        // Active repairs: everything except 'ready' (Concluído) and 'delivered' (if exists). 
+        // Note: repair_tickets currently seems to lack clinic_id, so we query globally or filtering if possible.
+        // using logic from Repairs.jsx which shows everything.
+        supabase.from('repair_tickets').select('id', { count: 'exact', head: true }).neq('status', 'ready'),
         supabase.from('leads').select('id', { count: 'exact', head: true }).eq('clinic_id', clinicId).gte('created_at', last24h),
         supabase.from('leads').select('id', { count: 'exact', head: true }).eq('clinic_id', clinicId).gte('created_at', firstDayOfMonth),
         supabase.from('leads').select('id', { count: 'exact', head: true }).eq('clinic_id', clinicId).in('status', ['purchased', 'won', 'venda_realizada', 'Venda Realizada']).gte('created_at', firstDayOfMonth),
         supabase.from('patients').select('id', { count: 'exact', head: true }).eq('clinic_id', clinicId),
         supabase.from('messages').select('id', { count: 'exact', head: true }).eq('clinic_id', clinicId).gte('created_at', firstDayOfMonth).then(res => res).catch(() => ({ count: 0 })),
-        supabase.from('appointments').select('appointment_date').eq('clinic_id', clinicId).gte('appointment_date', todayStart).order('appointment_date', { ascending: true }).limit(500),
-        Promise.resolve({ data: [] })
+        supabase.from('appointments').select('appointment_date').eq('clinic_id', clinicId).gte('appointment_date', startOfWeek.toISOString()).lte('appointment_date', endOfWeek.toISOString()).order('appointment_date', { ascending: true }),
+        supabase.from('repair_tickets').select('status')
     ]);
 
     return {
