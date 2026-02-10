@@ -132,9 +132,17 @@ export const getDashboardStats = async () => {
 
     return {
         metrics: {
-            charts: {
-                weekAppointments: results[7].data || [],
-                repairsStatus: results[8].data || []
-            }
-        };
+            appointmentsToday: results[0].count || 0,
+            activeRepairs: activeRepairsCount,
+            leads24h: results[2].count || 0,
+            leadsMonth: results[3].count || 0,
+            salesMonth: results[4].count || 0,
+            totalPatients: results[5].count || 0,
+            claraInteractions: results[6].count || 0
+        },
+        charts: {
+            weekAppointments: results[7].data || [],
+            repairsStatus: results[8].data || []
+        }
     };
+};
