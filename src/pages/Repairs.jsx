@@ -151,14 +151,16 @@ const Repairs = () => {
               Acompanhe os reparos de aparelhos auditivos
             </p>
           </div>
-          <Button onClick={() => { setEditingRepair(null); setDialogOpen(true); }} className="rounded-xl h-10 shadow-lg shadow-primary/20">
-            <Plus className="h-4 w-4 mr-2" />
-            Novo Reparo
-          </Button>
-          <Button variant="outline" onClick={handleMigration} className="rounded-xl h-10 ml-2 border-amber-200 bg-amber-50 text-amber-700 hover:bg-amber-100 hover:text-amber-800 dark:bg-amber-900/20 dark:text-amber-400 dark:border-amber-900/30">
-            <MoreHorizontal className="h-4 w-4 mr-2" />
-            Migrar Dados Antigos
-          </Button>
+          <div className="flex flex-row gap-2">
+            <Button onClick={() => { setEditingRepair(null); setDialogOpen(true); }} className="rounded-xl h-10 shadow-lg shadow-primary/20">
+              <Plus className="h-4 w-4 mr-2" />
+              Novo Reparo
+            </Button>
+            <Button variant="outline" onClick={handleMigration} className="rounded-xl h-10 border-amber-200 bg-amber-50 text-amber-700 hover:bg-amber-100 hover:text-amber-800 dark:bg-amber-900/20 dark:text-amber-400 dark:border-amber-900/30">
+              <MoreHorizontal className="h-4 w-4 mr-2" />
+              Migrar Dados
+            </Button>
+          </div>
         </div>
 
         {loading ? (

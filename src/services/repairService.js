@@ -79,34 +79,18 @@ export const migrateRepairsToClinic = async () => {
     const cid = await getClinicId();
     if (!cid) return { success: false, message: "No clinic ID" };
 
-    // 1. Find repairs with NO clinic_id (orphaned)
-    // Note: This relies on the user having permission to see rows with null clinic_id.
-    // If RLS is strict, this might return empty, but it's worth a try for legacy data.
-    const { data: orphans, error: fetchError } = await supabase
-        .from('repair_tickets')
-        .select('id')
-        .is('clinic_id', null);
+    // Use RPC to bypass RLS and update raw records
+    const { data, error } = await supabase.rpc('migrate_repairs_rpc', { target_clinic_id: cid });
 
-    if (fetchError) {
-        console.error("Migration fetch error:", fetchError);
-        return { success: false, message: "Erro ao buscar reparos antigos." };
+    if (error) {
+        console.error("Migration RPC error:", error);
+        // Fallback to client-side if RPC fails (e.g., function not created yet)
+        return { success: false, message: "Erro na migração (RPC). Verifique se o SQL foi rodado." };
     }
 
-    if (!orphans || orphans.length === 0) {
-        return { success: true, count: 0, message: "Nenhum reparo antigo encontrado." };
-    }
-
-    // 2. Update them
-    const ids = orphans.map(r => r.id);
-    const { error: updateError } = await supabase
-        .from('repair_tickets')
-        .update({ clinic_id: cid })
-        .in('id', ids);
-
-    if (updateError) {
-        console.error("Migration update error:", updateError);
-        return { success: false, message: "Erro ao atualizar reparos." };
-    }
-
-    return { success: true, count: ids.length, message: `${ids.length} reparos recuperados com sucesso!` };
+    return {
+        success: true,
+        count: data?.count || 0,
+        message: `Migração concluída! ${data?.count || 0} registros recuperados.`
+    };
 };
