@@ -60,15 +60,12 @@ export const getDashboardStats = async () => {
                 .lte('appointment_date', todayEnd),
             { count: 0 }
         ),
-        // 1: Active Repairs (Not ready/delivered/Concluído)
+        // 1: Active Repairs - Fetch all statuses and filter in JS to avoid 400 errors with complex query filters
         safeQuery(
             supabase.from('repair_tickets')
-                .select('id', { count: 'exact', head: true })
-                .eq('clinic_id', clinicId)
-                .neq('status', 'ready')
-                .neq('status', 'delivered')
-                .neq('status', 'Concluído'),
-            { count: 0 }
+                .select('status')
+                .eq('clinic_id', clinicId),
+            { data: [] }
         ),
         // 2: Leads 24h
         safeQuery(
@@ -129,19 +126,15 @@ export const getDashboardStats = async () => {
         )
     ]);
 
+    // Process Active Repairs count from JS array
+    const allRepairs = results[1].data || [];
+    const activeRepairsCount = allRepairs.filter(r => !['ready', 'delivered', 'Concluído'].includes(r.status)).length;
+
     return {
         metrics: {
-            appointmentsToday: results[0].count || 0,
-            activeRepairs: results[1].count || 0,
-            leads24h: results[2].count || 0,
-            leadsMonth: results[3].count || 0,
-            salesMonth: results[4].count || 0,
-            totalPatients: results[5].count || 0,
-            claraInteractions: results[6].count || 0
-        },
-        charts: {
-            weekAppointments: results[7].data || [],
-            repairsStatus: results[8].data || []
-        }
+            charts: {
+                weekAppointments: results[7].data || [],
+                repairsStatus: results[8].data || []
+            }
+        };
     };
-};
