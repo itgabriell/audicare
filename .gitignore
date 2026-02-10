@@ -5,9 +5,10 @@ dist
 .env
 .env.local
 .env.*.backup
-.env.*.local. e n v  
- . e n v . l o c a l  
- . e n v . p r o d u c t i o n  
+.env.development.local
+.env.test.local
+.env.production.local
+.env.local  
 # Logs
 logs/*
 !logs/.gitkeep

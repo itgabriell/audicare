@@ -10,7 +10,7 @@ import {
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
 import { useToast } from '@/components/ui/use-toast';
-import { getRepairs, addRepair, updateRepair, deleteRepair } from '@/database';
+import { getRepairs, addRepair, updateRepair, deleteRepair, migrateRepairsToClinic } from '@/database';
 import RepairDialog from '@/components/repairs/RepairDialog';
 import { supabase } from '@/lib/customSupabaseClient';
 
@@ -88,6 +88,37 @@ const Repairs = () => {
     }
   };
 
+  const handleMigration = async () => {
+    try {
+      setLoading(true);
+      const result = await migrateRepairsToClinic();
+      if (result.success) {
+        toast({
+          title: "Migração Concluída",
+          description: result.message,
+          variant: "default",
+          className: "bg-green-500 text-white"
+        });
+        // Reload list
+        loadRepairs();
+      } else {
+        toast({
+          title: "Resultado da Migração",
+          description: result.message,
+          variant: "destructive"
+        });
+      }
+    } catch (error) {
+      toast({
+        title: "Erro na Migração",
+        description: error.message,
+        variant: "destructive"
+      });
+    } finally {
+      setLoading(false);
+    }
+  };
+
   const handleEditRepair = (repair) => {
     setEditingRepair(repair);
     setDialogOpen(true);
@@ -123,6 +154,10 @@ const Repairs = () => {
           <Button onClick={() => { setEditingRepair(null); setDialogOpen(true); }} className="rounded-xl h-10 shadow-lg shadow-primary/20">
             <Plus className="h-4 w-4 mr-2" />
             Novo Reparo
+          </Button>
+          <Button variant="outline" onClick={handleMigration} className="rounded-xl h-10 ml-2 border-amber-200 bg-amber-50 text-amber-700 hover:bg-amber-100 hover:text-amber-800 dark:bg-amber-900/20 dark:text-amber-400 dark:border-amber-900/30">
+            <MoreHorizontal className="h-4 w-4 mr-2" />
+            Migrar Dados Antigos
           </Button>
         </div>
 

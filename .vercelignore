@@ -1,0 +1,31 @@
+# Vercel Ignore
+# Exclude backend code
+backend/
+backend-wa-bridge/
+migrations/
+supabase/
+
+# Exclude documentation and data
+docs/
+data/
+*.md
+.agent/
+.github/
+.clinerules
+.cursor/
+
+# Exclude tests and tools
+tests/
+tools/
+scripts/
+
+# Exclude environment files
+.env*
+
+# Exclude logs
+logs/
+*.log
+
+# Exclude local configs
+.vscode/
+.idea/

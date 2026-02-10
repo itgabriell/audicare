@@ -38,44 +38,108 @@ export const getDashboardStats = async () => {
     const last24h = yesterday.toISOString();
     const firstDayOfMonth = new Date(now.getFullYear(), now.getMonth(), 1).toISOString();
 
-    const [
-        appointmentsResult,
-        activeRepairsResult,
-        leads24hResult,
-        leadsMonthResult,
-        salesMonthResult,
-        totalPatientsResult,
-        claraInteractionsResult,
-        weekAppointmentsResult,
-        repairsDataResult
-    ] = await Promise.all([
-        supabase.from('appointments').select('id', { count: 'exact', head: true }).eq('clinic_id', clinicId).gte('appointment_date', todayStart).lte('appointment_date', todayEnd),
-        // Active repairs: everything except 'ready' (Concluído) and 'delivered' (if exists). 
-        // Note: repair_tickets currently seems to lack clinic_id, so we query globally or filtering if possible.
-        // using logic from Repairs.jsx which shows everything.
-        supabase.from('repair_tickets').select('id', { count: 'exact', head: true }).neq('status', 'ready'),
-        supabase.from('leads').select('id', { count: 'exact', head: true }).eq('clinic_id', clinicId).gte('created_at', last24h),
-        supabase.from('leads').select('id', { count: 'exact', head: true }).eq('clinic_id', clinicId).gte('created_at', firstDayOfMonth),
-        supabase.from('leads').select('id', { count: 'exact', head: true }).eq('clinic_id', clinicId).in('status', ['purchased', 'won', 'venda_realizada', 'Venda Realizada']).gte('created_at', firstDayOfMonth),
-        supabase.from('patients').select('id', { count: 'exact', head: true }).eq('clinic_id', clinicId),
-        supabase.from('messages').select('id', { count: 'exact', head: true }).eq('clinic_id', clinicId).gte('created_at', firstDayOfMonth).then(res => res).catch(() => ({ count: 0 })),
-        supabase.from('appointments').select('appointment_date').eq('clinic_id', clinicId).gte('appointment_date', startOfWeek.toISOString()).lte('appointment_date', endOfWeek.toISOString()).order('appointment_date', { ascending: true }),
-        supabase.from('repair_tickets').select('status')
+    // Helper to safely execute a promise and return a default
+    const safeQuery = async (promise, defaultValue) => {
+        try {
+            const result = await promise;
+            if (result.error) throw result.error;
+            return result;
+        } catch (err) {
+            console.error("Dashboard query error:", err);
+            return defaultValue;
+        }
+    };
+
+    const results = await Promise.all([
+        // 0: Appointments Today
+        safeQuery(
+            supabase.from('appointments')
+                .select('id', { count: 'exact', head: true })
+                .eq('clinic_id', clinicId)
+                .gte('appointment_date', todayStart)
+                .lte('appointment_date', todayEnd),
+            { count: 0 }
+        ),
+        // 1: Active Repairs (Not ready/delivered)
+        safeQuery(
+            supabase.from('repair_tickets')
+                .select('id', { count: 'exact', head: true })
+                .eq('clinic_id', clinicId)
+                .not('status', 'in', '("ready","delivered","Concluído")'), // Adjust based on exact status strings
+            { count: 0 }
+        ),
+        // 2: Leads 24h
+        safeQuery(
+            supabase.from('leads')
+                .select('id', { count: 'exact', head: true })
+                .eq('clinic_id', clinicId)
+                .gte('created_at', last24h),
+            { count: 0 }
+        ),
+        // 3: Leads Month
+        safeQuery(
+            supabase.from('leads')
+                .select('id', { count: 'exact', head: true })
+                .eq('clinic_id', clinicId)
+                .gte('created_at', firstDayOfMonth),
+            { count: 0 }
+        ),
+        // 4: Sales Month
+        safeQuery(
+            supabase.from('leads')
+                .select('id', { count: 'exact', head: true })
+                .eq('clinic_id', clinicId)
+                .in('status', ['purchased', 'won', 'venda_realizada', 'Venda Realizada'])
+                .gte('created_at', firstDayOfMonth),
+            { count: 0 }
+        ),
+        // 5: Total Patients
+        safeQuery(
+            supabase.from('patients')
+                .select('id', { count: 'exact', head: true })
+                .eq('clinic_id', clinicId),
+            { count: 0 }
+        ),
+        // 6: Clara Interactions
+        safeQuery(
+            supabase.from('messages')
+                .select('id', { count: 'exact', head: true })
+                .eq('clinic_id', clinicId)
+                .gte('created_at', firstDayOfMonth),
+            { count: 0 }
+        ),
+        // 7: Week Appointments
+        safeQuery(
+            supabase.from('appointments')
+                .select('appointment_date')
+                .eq('clinic_id', clinicId)
+                .gte('appointment_date', startOfWeek.toISOString())
+                .lte('appointment_date', endOfWeek.toISOString())
+                .order('appointment_date', { ascending: true }),
+            { data: [] }
+        ),
+        // 8: Repairs Status Distribution
+        safeQuery(
+            supabase.from('repair_tickets')
+                .select('status')
+                .eq('clinic_id', clinicId),
+            { data: [] }
+        )
     ]);
 
     return {
         metrics: {
-            appointmentsToday: appointmentsResult.count || 0,
-            activeRepairs: activeRepairsResult.count || 0,
-            leads24h: leads24hResult.count || 0,
-            leadsMonth: leadsMonthResult.count || 0,
-            salesMonth: salesMonthResult.count || 0,
-            totalPatients: totalPatientsResult.count || 0,
-            claraInteractions: claraInteractionsResult.count || 0
+            appointmentsToday: results[0].count || 0,
+            activeRepairs: results[1].count || 0,
+            leads24h: results[2].count || 0,
+            leadsMonth: results[3].count || 0,
+            salesMonth: results[4].count || 0,
+            totalPatients: results[5].count || 0,
+            claraInteractions: results[6].count || 0
         },
         charts: {
-            weekAppointments: weekAppointmentsResult.data || [],
-            repairsStatus: repairsDataResult.data || []
+            weekAppointments: results[7].data || [],
+            repairsStatus: results[8].data || []
         }
     };
 };
