@@ -6,6 +6,7 @@ import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { useToast } from '@/components/ui/use-toast';
 import KanbanBoard from '@/components/crm/KanbanBoard';
+import ChatwootImporter from '@/components/crm/ChatwootImporter'; // <--- IMPORTADO
 import LeadDialog from '@/components/crm/LeadDialog';
 import AITrainer from '@/components/crm/AITrainer'; // <--- O COMPONENTE DE TREINAMENTO
 import { getLeads, addLead, updateLead } from '@/database';
@@ -19,6 +20,7 @@ const CRM = () => {
 
   // Estado para mostrar/esconder o Treinador
   const [showAITrainer, setShowAITrainer] = useState(false);
+  const [showImporter, setShowImporter] = useState(false);
 
   const [isLeadDialogOpen, setIsLeadDialogOpen] = useState(false);
   const [currentLead, setCurrentLead] = useState(null);
@@ -136,6 +138,15 @@ const CRM = () => {
             <div className="flex gap-2 w-full md:w-auto">
 
               <Button
+                variant={showImporter ? "secondary" : "outline"}
+                onClick={() => setShowImporter(!showImporter)}
+                className="hidden sm:flex rounded-xl h-11"
+              >
+                <RefreshCw className="h-4 w-4 mr-2" />
+                Importar WhatsApp
+              </Button>
+
+              <Button
                 variant={showAITrainer ? "secondary" : "outline"}
                 onClick={() => setShowAITrainer(!showAITrainer)}
                 className="hidden sm:flex rounded-xl h-11"
@@ -198,6 +209,13 @@ const CRM = () => {
             </div>
           </div>
         </div>
+
+        {/* ÁREA DE IMPORTAÇÃO (Condicional) */}
+        {showImporter && (
+          <div className="animate-in fade-in slide-in-from-top-4 duration-300">
+            <ChatwootImporter onImportComplete={() => { fetchLeads(); setShowImporter(false); }} />
+          </div>
+        )}
 
         {/* ÁREA DO TREINADOR (Condicional) */}
         {showAITrainer && (

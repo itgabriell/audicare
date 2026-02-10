@@ -1,4 +1,4 @@
-import { supabase } from './baseService.js';
+import { supabase, getClinicId } from './baseService.js';
 
 export const getRepairs = async () => {
     const cid = await getClinicId();

@@ -30,6 +30,17 @@ const ChatwootImporter = ({ onImportComplete }) => {
 
       let importedCount = 0;
 
+      // 0. Buscar Regras de Campanha Ativas
+      const { data: rules } = await supabase
+        .from('campaign_rules')
+        .select('*')
+        .eq('is_active', true);
+
+      const campaignRules = rules || [];
+      if (campaignRules.length > 0) {
+        setLog(prev => [...prev, `ℹ️ Regras de campanha carregadas: ${campaignRules.length}`]);
+      }
+
       for (const conv of conversations) {
         const contact = conv.meta.sender;
         // Tenta pegar o telefone, removendo formatação
@@ -52,7 +63,7 @@ const ChatwootImporter = ({ onImportComplete }) => {
         // Verifica se já existe no Leads
         const { data: existingLead } = await supabase
           .from('leads')
-          .select('id')
+          .select('*') // Preciso dos dados atuais, inclusive as tags
           .eq('phone', phone)
           .maybeSingle();
 
@@ -63,8 +74,49 @@ const ChatwootImporter = ({ onImportComplete }) => {
           .eq('phone', phone)
           .maybeSingle();
 
-        if (!existingLead && !existingPatient) {
+        // LOGICA DE TAGS DE CAMPANHA (Para todos)
+        const firstMessage = conv.messages?.[0]?.content || "";
+        const newTags = [];
+
+        // Verificar correspondência com regras
+        campaignRules.forEach(rule => {
+          if (firstMessage.toLowerCase().includes(rule.trigger_text.toLowerCase())) {
+            newTags.push(rule.tag_name);
+          }
+        });
+
+        if (existingLead) {
+          // --- ATUALIZAR LEAD EXISTENTE ---
+
+          // Verificar se já tem as tags para não duplicar ou fazer update desnecessário
+          const currentTags = Array.isArray(existingLead.tags) ? existingLead.tags : [];
+          const tagsToAdd = newTags.filter(t => !currentTags.includes(t));
+
+          if (tagsToAdd.length > 0) {
+            const updatedTags = [...currentTags, ...tagsToAdd];
+
+            const { error: updateError } = await supabase
+              .from('leads')
+              .update({
+                tags: updatedTags,
+                last_message_content: firstMessage || existingLead.last_message_content, // Atualiza msg se tiver
+                last_message_at: new Date(conv.last_activity_at * 1000).toISOString()
+              })
+              .eq('id', existingLead.id);
+
+            if (!updateError) {
+              setLog(prev => [...prev, `🏷️ Lead Atualizado: ${existingLead.name} (+${tagsToAdd.join(', ')})`]);
+              importedCount++;
+            } else {
+              setLog(prev => [...prev, `❌ Erro ao atualizar: ${existingLead.name}`]);
+            }
+          } else {
+            // setLog(prev => [...prev, `⏩ Lead já possui as tags: ${existingLead.name}`]);
+          }
+
+        } else if (!existingPatient) { // Only create if not an existing lead AND not an existing patient
           // É NOVO! Vamos criar.
+          // A lógica de tags já foi movida para fora do if/else
           const { error } = await supabase.from('leads').insert({
             name: contact.name || `Lead ${phone}`,
             phone: phone,
@@ -73,7 +125,8 @@ const ChatwootImporter = ({ onImportComplete }) => {
             channel: 'chatwoot_import',
             created_at: new Date(conv.created_at * 1000).toISOString(),
             last_message_at: new Date(conv.last_activity_at * 1000).toISOString(),
-            last_message_content: conv.messages?.[0]?.content || "Importado do histórico",
+            last_message_content: firstMessage || "Importado do histórico",
+            tags: newTags, // Usando as tags calculadas
             // ID DA CLÍNICA (O mesmo que você usou no SQL)
             clinic_id: 'b82d5019-c04c-47f6-b9f9-673ca736815b',
             chatwoot_conversation_id: conv.id,

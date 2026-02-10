@@ -326,6 +326,63 @@ const Dashboard = () => {
         </ChartCard>
 
       </div>
+
+      {/* Linha 3: Performance de Campanhas (Novo) */}
+      <div className="grid gap-4 md:grid-cols-12 min-h-[350px]">
+        <ChartCard
+          title="Performance de Campanhas (Leads)"
+          icon={TrendingUp}
+          className="md:col-span-12 lg:col-span-12 border-none shadow-lg shadow-slate-200/50 dark:shadow-none"
+        >
+          <div className="h-[300px] w-full">
+            {stats?.charts?.campaigns && stats.charts.campaigns.length > 0 ? (
+              <ResponsiveContainer width="100%" height="100%">
+                <BarChart
+                  layout="vertical"
+                  data={stats.charts.campaigns}
+                  margin={{ top: 10, right: 30, left: 40, bottom: 0 }}
+                >
+                  <CartesianGrid strokeDasharray="3 3" horizontal={true} vertical={false} stroke="#e2e8f0" strokeOpacity={0.5} />
+                  <XAxis type="number" hide />
+                  <YAxis
+                    dataKey="name"
+                    type="category"
+                    stroke="#64748b"
+                    fontSize={12}
+                    tickLine={false}
+                    axisLine={false}
+                    width={150}
+                    fontWeight={600}
+                  />
+                  <Tooltip
+                    cursor={{ fill: '#f1f5f9' }}
+                    contentStyle={{
+                      backgroundColor: 'hsl(var(--card))',
+                      borderColor: 'hsl(var(--border))',
+                      color: 'hsl(var(--foreground))',
+                      borderRadius: '16px',
+                      padding: '12px 16px'
+                    }}
+                  />
+                  <Bar
+                    dataKey="value"
+                    fill="#8b5cf6" // Violet/Purple for campaigns
+                    radius={[0, 4, 4, 0]}
+                    barSize={32}
+                  >
+                    {/* Add labels on valid data */}
+                  </Bar>
+                </BarChart>
+              </ResponsiveContainer>
+            ) : (
+              <div className="h-full flex flex-col items-center justify-center text-muted-foreground text-sm">
+                <TrendingUp className="h-8 w-8 mb-2 opacity-20" />
+                Nenhuma campanha ativa detectada este mês.
+              </div>
+            )}
+          </div>
+        </ChartCard>
+      </div>
     </div>
   );
 };

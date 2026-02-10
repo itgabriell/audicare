@@ -64,12 +64,12 @@ const ProfileSettings = () => {
           setAvatarUrl(data.avatar_url);
         } else {
           // Se não há perfil, usar dados do contexto
-      form.reset({
+          form.reset({
             full_name: profile?.full_name || '',
-        email: user.email || '',
+            email: user.email || '',
             phone: profile?.phone || '',
             specialty: profile?.specialty || '',
-      });
+          });
           setAvatarUrl(profile?.avatar_url || null);
         }
       } catch (error) {
@@ -91,7 +91,7 @@ const ProfileSettings = () => {
       }
 
       const file = event.target.files[0];
-      
+
       // Validar tipo de arquivo
       if (!file.type.startsWith('image/')) {
         throw new Error('Por favor, selecione apenas arquivos de imagem.');
@@ -102,8 +102,9 @@ const ProfileSettings = () => {
         throw new Error('A imagem deve ter no máximo 5MB.');
       }
 
+      const timestamp = new Date().getTime();
       const fileExt = file.name.split('.').pop();
-      const fileName = `${user.id}.${fileExt}`;
+      const fileName = `${user.id}-${timestamp}.${fileExt}`;
       const filePath = fileName; // Usar apenas o nome do arquivo, sem pasta
 
       // Upload para Supabase Storage
@@ -150,7 +151,7 @@ const ProfileSettings = () => {
   const removeAvatar = async () => {
     try {
       setUploading(true);
-      
+
       if (!avatarUrl) return;
 
       // Extrair o caminho do arquivo da URL
@@ -246,9 +247,9 @@ const ProfileSettings = () => {
             <div className="relative">
               <div className="w-32 h-32 bg-secondary rounded-full flex items-center justify-center overflow-hidden border-4 border-border">
                 {avatarUrl ? (
-                  <img 
-                    src={avatarUrl} 
-                    alt="Avatar" 
+                  <img
+                    src={avatarUrl}
+                    alt="Avatar"
                     className="w-full h-full object-cover"
                     onError={(e) => {
                       e.target.style.display = 'none';
@@ -315,9 +316,9 @@ const ProfileSettings = () => {
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div className="space-y-2">
               <Label htmlFor="full_name">Nome Completo *</Label>
-              <Input 
-                id="full_name" 
-                {...form.register('full_name')} 
+              <Input
+                id="full_name"
+                {...form.register('full_name')}
                 disabled={loading || uploading}
               />
               {form.formState.errors.full_name && (
@@ -327,20 +328,20 @@ const ProfileSettings = () => {
 
             <div className="space-y-2">
               <Label htmlFor="email">Email</Label>
-              <Input 
-                id="email" 
-                {...form.register('email')} 
-                disabled 
-                className="bg-muted" 
+              <Input
+                id="email"
+                {...form.register('email')}
+                disabled
+                className="bg-muted"
               />
               <p className="text-xs text-muted-foreground">O email não pode ser alterado aqui.</p>
             </div>
 
             <div className="space-y-2">
               <Label htmlFor="phone">Telefone / WhatsApp</Label>
-              <Input 
-                id="phone" 
-                {...form.register('phone')} 
+              <Input
+                id="phone"
+                {...form.register('phone')}
                 placeholder="(00) 00000-0000"
                 disabled={loading || uploading}
               />
@@ -348,9 +349,9 @@ const ProfileSettings = () => {
 
             <div className="space-y-2">
               <Label htmlFor="specialty">Especialidade</Label>
-              <Input 
-                id="specialty" 
-                {...form.register('specialty')} 
+              <Input
+                id="specialty"
+                {...form.register('specialty')}
                 placeholder="Ex: Fonoaudiologia Clínica"
                 disabled={loading || uploading}
               />

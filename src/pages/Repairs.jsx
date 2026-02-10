@@ -151,7 +151,8 @@ const Repairs = () => {
               Acompanhe os reparos de aparelhos auditivos
             </p>
           </div>
-          <div className="flex flex-row gap-2">
+          <div className="flex flex-row gap-2 border-2 border-transparent">
+            {/* Debug: Migration button should be here */}
             <Button onClick={() => { setEditingRepair(null); setDialogOpen(true); }} className="rounded-xl h-10 shadow-lg shadow-primary/20">
               <Plus className="h-4 w-4 mr-2" />
               Novo Reparo
