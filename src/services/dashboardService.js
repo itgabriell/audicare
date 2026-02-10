@@ -60,12 +60,14 @@ export const getDashboardStats = async () => {
                 .lte('appointment_date', todayEnd),
             { count: 0 }
         ),
-        // 1: Active Repairs (Not ready/delivered)
+        // 1: Active Repairs (Not ready/delivered/Concluído)
         safeQuery(
             supabase.from('repair_tickets')
                 .select('id', { count: 'exact', head: true })
                 .eq('clinic_id', clinicId)
-                .not('status', 'in', '("ready","delivered","Concluído")'), // Adjust based on exact status strings
+                .neq('status', 'ready')
+                .neq('status', 'delivered')
+                .neq('status', 'Concluído'),
             { count: 0 }
         ),
         // 2: Leads 24h
