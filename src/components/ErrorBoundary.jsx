@@ -17,6 +17,22 @@ class ErrorBoundary extends React.Component {
   componentDidCatch(error, errorInfo) {
     // You can also log the error to an error reporting service
     console.error("Uncaught error:", error, errorInfo);
+
+    // --- CHUNK LOAD ERROR AUTO-RECOVERY ---
+    // If we fail to load a module (often due to a new deployment where hashes changed)
+    // we force a hard reload of the application.
+    const isChunkLoadError =
+      error.name === 'ChunkLoadError' ||
+      error.message?.includes('Failed to fetch dynamically imported module') ||
+      error.message?.includes('Expected a JavaScript-or-Wasm module script');
+
+    if (isChunkLoadError) {
+      console.warn("[ErrorBoundary] ChunkLoadError detected. Persistent recovery via hard reload...");
+      // Add a small delay for dev visibility, then reload
+      setTimeout(() => {
+        window.location.reload(true);
+      }, 500);
+    }
   }
 
   handleRetry = () => {
@@ -43,10 +59,10 @@ class ErrorBoundary extends React.Component {
               </p>
               {process.env.NODE_ENV === 'development' && this.state.error && (
                 <details className="mt-4 text-left bg-muted p-2 rounded-md text-xs">
-                    <summary className="cursor-pointer">Detalhes do erro</summary>
-                    <pre className="mt-2 whitespace-pre-wrap break-all">
-                        {this.state.error.toString()}
-                    </pre>
+                  <summary className="cursor-pointer">Detalhes do erro</summary>
+                  <pre className="mt-2 whitespace-pre-wrap break-all">
+                    {this.state.error.toString()}
+                  </pre>
                 </details>
               )}
             </CardContent>
