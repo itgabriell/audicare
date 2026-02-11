@@ -53,10 +53,17 @@ export const AuthProvider = ({ children }) => {
       const timeoutId = setTimeout(() => {
         if (mounted && loading) {
           console.warn("[Auth] Initialization taking longer than expected. Continuing wait...");
-          // We no longer force loading = false or clear the session here.
-          // This allows users on slow connections to eventually load.
         }
       }, 15000);
+
+      // Fail-safe: If after 20 seconds we are still loading, force stop and let the app handle it
+      // (usually ProtectedRoute will redirect to /login if session is null)
+      const failSafeId = setTimeout(() => {
+        if (mounted && loading) {
+          console.error("[Auth] Initialization FAIL-SAFE triggered (20s). Forcing load completion.");
+          setLoading(false);
+        }
+      }, 20000);
 
       try {
         console.log("[Auth] Calling getSession...");
@@ -96,6 +103,7 @@ export const AuthProvider = ({ children }) => {
         }
       } finally {
         clearTimeout(timeoutId);
+        clearTimeout(failSafeId);
         if (mounted) setLoading(false);
       }
     };
