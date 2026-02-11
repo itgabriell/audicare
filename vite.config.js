@@ -56,7 +56,16 @@ export default defineConfig(({ mode }) => {
         output: {
           manualChunks: {
             'vendor-react': ['react', 'react-dom', 'react-router-dom'],
-            'vendor-ui': ['@radix-ui/react-dialog', '@radix-ui/react-slot', 'lucide-react', 'framer-motion'],
+            'vendor-ui': [
+              '@radix-ui/react-dialog',
+              '@radix-ui/react-slot',
+              '@radix-ui/react-context-menu',
+              '@radix-ui/react-dropdown-menu',
+              '@radix-ui/react-tabs',
+              '@radix-ui/react-select',
+              'lucide-react',
+              'framer-motion'
+            ],
             'vendor-utils': ['date-fns', 'clsx', 'tailwind-merge'],
             'vendor-supabase': ['@supabase/supabase-js'],
             // Garante que o Kanban fique em um arquivo separado

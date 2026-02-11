@@ -84,8 +84,11 @@ function App() {
 
   // Show spinner only on initial cold start check
   if (loading) {
+    console.log("[App] Loading state active...");
     return <FullPageSpinner />;
   }
+
+  console.log("[App] Loading complete. Rendering routes.");
 
   return (
     <Suspense fallback={<FullPageSpinner />}>

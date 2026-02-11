@@ -60,6 +60,7 @@ export const AuthProvider = ({ children }) => {
         if (error) throw error;
 
         if (mounted) {
+          console.log("[Auth] Session retrieved:", currentSession ? "Yes" : "No");
           setSession(currentSession);
           if (currentSession) {
             // Optimistic UI: Set user immediately with session data while fetching profile
