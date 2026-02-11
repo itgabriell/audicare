@@ -91,13 +91,14 @@ export const AuthProvider = ({ children }) => {
       }
     };
 
-    // CRITICAL FIX: Clear potentially corrupted local storage if session is null but keys exist
-    // This handles the "infinite loading" caused by bad state in local storage
-    const storageKey = 'sb-edqvmybfluxgrdhjiujf-auth-token'; // Default supabase key format
+    // Aggressive session clearing removed to prevent logout on network glitches
+    /* 
+    const storageKey = 'sb-edqvmybfluxgrdhjiujf-auth-token'; 
     if (!session && localStorage.getItem(storageKey)) {
       console.warn("[Auth] Found auth token but no session. Potentially corrupted. CLEARING.");
       localStorage.removeItem(storageKey);
     }
+    */
 
     initAuth();
 
