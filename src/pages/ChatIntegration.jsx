@@ -303,6 +303,7 @@ const ChatIntegration = () => {
         patients={patients}
         onDelete={() => { }}
         appointment={null}
+        overlayClassName="backdrop-blur-none bg-background/5" // Remove blur and make background very transparent
       />
     </div>
   );

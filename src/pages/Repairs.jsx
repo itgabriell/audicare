@@ -124,6 +124,18 @@ const Repairs = () => {
     setDialogOpen(true);
   }
 
+  const getStatusLabel = (status) => {
+    switch (status) {
+      case 'received': return 'Na Clínica';
+      case 'sent_to_lab': return 'Enviado (SP)';
+      case 'in_lab': return 'Em Reparo';
+      case 'returning': return 'Voltando';
+      case 'ready': return 'Pronto';
+      case 'delivered': return 'Entregue';
+      default: return status;
+    }
+  };
+
   const getStatusColor = (status) => {
     switch (status) {
       case 'Pendente': return 'bg-yellow-500';
@@ -204,15 +216,36 @@ const Repairs = () => {
                       </DropdownMenuContent>
                     </DropdownMenu>
                   </div>
-                  <p className="text-sm font-medium text-muted-foreground">{repair.device_model}</p>
                 </CardHeader>
                 <CardContent>
+                  <div className="text-sm text-muted-foreground mt-1">
+                    {repair.os_type === 'hearing_aid' && (
+                      <span className="flex items-center gap-1">
+                        <Wrench className="h-3 w-3" /> {repair.device_brand} {repair.device_model}
+                      </span>
+                    )}
+                    {repair.os_type === 'earmold_device' && (
+                      <span className="flex items-center gap-1">
+                        <Wrench className="h-3 w-3" /> Molde {repair.mold_type === 'click' ? 'Click' : 'AASI'} - {repair.side === 'bilateral' ? 'Bilat.' : repair.side === 'left' ? 'E' : 'D'}
+                      </span>
+                    )}
+                    {repair.os_type === 'earmold_plug' && (
+                      <span className="flex items-center gap-1">
+                        <Wrench className="h-3 w-3" /> Tampão {repair.color}
+                      </span>
+                    )}
+                    {(!repair.os_type || repair.os_type === 'general') && (
+                      <span className="italic flex items-center gap-1">
+                        <Wrench className="h-3 w-3" /> Reparo Geral
+                      </span>
+                    )}
+                  </div>
                   <div className="flex items-center gap-2 mt-2">
                     <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium border ${repair.status === 'Concluído' ? 'bg-green-50 text-green-700 border-green-200 dark:bg-green-900/20 dark:text-green-400 dark:border-green-900/30' :
                       repair.status === 'Em andamento' ? 'bg-blue-50 text-blue-700 border-blue-200 dark:bg-blue-900/20 dark:text-blue-400 dark:border-blue-900/30' :
                         'bg-amber-50 text-amber-700 border-amber-200 dark:bg-amber-900/20 dark:text-amber-400 dark:border-amber-900/30'
                       }`}>
-                      {repair.status}
+                      {getStatusLabel(repair.status)}
                     </span>
                   </div>
                 </CardContent>
@@ -220,7 +253,7 @@ const Repairs = () => {
             ))}
           </div>
         )}
-      </div>
+      </div >
 
       <RepairDialog
         open={dialogOpen}

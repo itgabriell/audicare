@@ -221,7 +221,7 @@ const DraggableAppointmentCalendar = ({
   );
 
   const timeSlots = useMemo(() =>
-    Array.from({ length: 11 }, (_, i) => `${i + 8}:00`), // 8:00 to 18:00
+    Array.from({ length: 14 }, (_, i) => `${i + 7}:00`), // 7:00 to 20:00
     []
   );
 
@@ -348,17 +348,17 @@ const DraggableAppointmentCalendar = ({
         {/* Could add a Today button or other controls here */}
       </div>
 
-      <div className="overflow-x-auto bg-card rounded-lg border">
+      <div className="overflow-x-auto overflow-y-auto h-[calc(100%-80px)] bg-card rounded-lg border">
         <div
           className="grid w-full"
           style={{ gridTemplateColumns: '60px repeat(6, 1fr)' }}
         >
           {/* Time column header */}
-          <div className="sticky left-0 bg-card z-10 p-2"></div>
+          <div className="sticky top-0 left-0 bg-card z-30 p-2 border-b"></div>
 
           {/* Day headers */}
           {weekDates.map((date, index) => (
-            <div key={index} className="text-center p-2 border-b border-l">
+            <div key={index} className="text-center p-2 border-b border-l sticky top-0 bg-card z-20">
               <p className="text-sm font-medium text-muted-foreground capitalize">
                 {format(date, 'EEE', { locale: ptBR })}
               </p>

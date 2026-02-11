@@ -18,7 +18,12 @@ const KanbanBoard = ({
   onEditLead,
   onOpenConversation,
   onScheduleFromLead,
+  onDeleteLead, // NEW
 }) => {
+  // ... existing code ...
+
+  // Inside map
+
   const [activeId, setActiveId] = useState(null);
 
   // Sensores para detectar cliques e toques
@@ -37,10 +42,12 @@ const KanbanBoard = ({
   const columns = [
     { id: 'new', title: 'Novos Leads', color: 'blue' },
     { id: 'in_conversation', title: 'Em Conversa', color: 'yellow' },
+    { id: 'recovery', title: 'Recuperar', color: 'red' }, // Nova coluna
     { id: 'stopped_responding', title: 'Parou de Responder', color: 'gray' },
     { id: 'scheduled', title: 'Agendou', color: 'purple' },
     { id: 'likely_purchase', title: 'Provável Compra', color: 'orange' },
     { id: 'purchased', title: 'Venda Realizada', color: 'green' },
+    { id: 'completed', title: 'Concluído', color: 'green' }, // Nova coluna
     { id: 'no_purchase', title: 'Perdido / Não Comprou', color: 'red' },
   ];
 
@@ -108,6 +115,8 @@ const KanbanBoard = ({
               onEditLead={onEditLead}
               onOpenConversation={onOpenConversation}
               onScheduleFromLead={onScheduleFromLead}
+              onDeleteLead={onDeleteLead}
+              onBulkAction={() => console.log("Bulk Action for", column.id)} // Placeholder for now
             />
           </div>
         ))}

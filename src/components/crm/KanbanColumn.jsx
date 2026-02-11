@@ -9,6 +9,9 @@ const KanbanColumn = ({
   onEditLead,
   onOpenConversation,
   onScheduleFromLead,
+  onBulkAction,
+  onUpdateLead, // NEW
+  onDeleteLead, // NEW
 }) => {
   // Config Droppable para a coluna (para receber itens quando vazia ou entre itens)
   const { setNodeRef, isOver } = useDroppable({
@@ -51,9 +54,23 @@ const KanbanColumn = ({
             />
             <h3 className="font-semibold text-foreground text-sm">{column.title}</h3>
           </div>
-          <span className="text-xs text-muted-foreground bg-background/80 rounded-full px-2 py-0.5 border shadow-sm">
-            {leads.length}
-          </span>
+
+          <div className="flex items-center gap-2">
+            {/* BULK ACTION BUTTON (Only for Recovery for now) */}
+            {column.id === 'recovery' && leads.length > 0 && (
+              <button
+                onClick={() => onBulkAction && onBulkAction(leads)}
+                className="text-[10px] bg-red-100 dark:bg-red-900/30 text-red-600 dark:text-red-400 px-2 py-0.5 rounded-full hover:bg-red-200 transition-colors font-medium"
+                title="Disparar recuperação em massa"
+              >
+                Disparar ({leads.length})
+              </button>
+            )}
+
+            <span className="text-xs text-muted-foreground bg-background/80 rounded-full px-2 py-0.5 border shadow-sm">
+              {leads.length}
+            </span>
+          </div>
         </div>
       </div>
 
@@ -72,6 +89,8 @@ const KanbanColumn = ({
               key={lead.id}
               lead={lead}
               onClick={onEditLead}
+              onUpdateLead={onUpdateLead}
+              onDeleteLead={onDeleteLead}
             />
           ))}
         </SortableContext>

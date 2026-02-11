@@ -32,6 +32,11 @@ export function PatientCombobox({ patients = [], value, onChange, onPatientsUpda
   const [open, setOpen] = useState(false)
   const [searchTerm, setSearchTerm] = useState(initialSearchTerm)
 
+  // Sync searchTerm with initialSearchTerm when it changes
+  React.useEffect(() => {
+    setSearchTerm(initialSearchTerm || "");
+  }, [initialSearchTerm]);
+
   const [isRegisterOpen, setIsRegisterOpen] = useState(false);
   const [loading, setLoading] = useState(false);
   const [newPatientData, setNewPatientData] = useState({ name: "", phone: "", email: "" });

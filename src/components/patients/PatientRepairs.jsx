@@ -123,7 +123,28 @@ const PatientRepairs = ({ patientId }) => {
                                         {ticket.created_at ? format(new Date(ticket.created_at), "d 'de' MMMM, yyyy", { locale: ptBR }) : '-'}
                                     </span>
                                 </div>
-                                <h3 className="font-semibold text-lg">{ticket.device_brand || 'Aparelho sem marca'}</h3>
+                                <div className="text-xs text-muted-foreground flex flex-col gap-1 mb-1">
+                                    {ticket.os_type === 'hearing_aid' && (
+                                        <span className="flex items-center gap-1 font-medium text-foreground">
+                                            <Wrench className="w-3 h-3" /> {ticket.device_brand} {ticket.device_model}
+                                        </span>
+                                    )}
+                                    {ticket.os_type === 'earmold_device' && (
+                                        <span className="flex items-center gap-1 font-medium text-foreground">
+                                            <Wrench className="w-3 h-3" /> Molde {ticket.mold_type === 'click' ? 'Click' : 'AASI'} ({ticket.side === 'bilateral' ? 'Bilat.' : ticket.side === 'left' ? 'E' : 'D'})
+                                        </span>
+                                    )}
+                                    {ticket.os_type === 'earmold_plug' && (
+                                        <span className="flex items-center gap-1 font-medium text-foreground">
+                                            <Wrench className="w-3 h-3" /> Tampão {ticket.color}
+                                        </span>
+                                    )}
+                                    {(!ticket.os_type || ticket.os_type === 'general') && (
+                                        <span className="flex items-center gap-1 italic font-medium text-foreground">
+                                            <Wrench className="w-3 h-3" /> Reparo Geral ({ticket.device_brand || 'Sem marca'})
+                                        </span>
+                                    )}
+                                </div>
                                 <p className="text-sm text-muted-foreground line-clamp-2">{ticket.problem_description}</p>
                             </div>
 

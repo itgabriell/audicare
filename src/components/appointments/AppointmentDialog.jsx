@@ -37,7 +37,8 @@ const AppointmentDialog = ({
   appointment,
   initialData,
   patients = [],
-  onPatientsUpdate
+  onPatientsUpdate,
+  overlayClassName // NEW PROP
 }) => {
   const { register, handleSubmit, control, reset } = useForm({
     defaultValues: {
@@ -154,7 +155,7 @@ const AppointmentDialog = ({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-[500px] rounded-3xl p-0 overflow-hidden bg-white dark:bg-slate-900 border-none shadow-2xl">
+      <DialogContent overlayClassName={overlayClassName} className="sm:max-w-[500px] rounded-3xl p-0 overflow-hidden bg-white dark:bg-slate-900 border-none shadow-2xl">
         <div className="px-6 py-6 border-b border-slate-100 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-900/50">
           <DialogHeader>
             <DialogTitle className="text-xl font-bold text-slate-900 dark:text-slate-100 flex items-center gap-2">
