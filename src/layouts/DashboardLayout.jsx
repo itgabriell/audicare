@@ -15,6 +15,7 @@ import InternalChatWidget from '@/components/intercom/InternalChatWidget';
 const DashboardLayout = () => {
   console.log("[DashboardLayout] Rendering...");
   const [sidebarOpen, setSidebarOpen] = useState(false);
+  const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
   const location = useLocation();
   const { isOpen: commandPaletteOpen, setIsOpen: setCommandPaletteOpen, openPalette } = useCommandPalette();
 
@@ -55,13 +56,19 @@ const DashboardLayout = () => {
       {/* Mobile Sidebar Overlay */}
       <Sheet open={sidebarOpen} onOpenChange={setSidebarOpen}>
         <SheetContent side="left" className="p-0 w-64">
-          <Sidebar />
+          <Sidebar onToggle={() => setIsSidebarCollapsed(!isSidebarCollapsed)} isCollapsed={false} />
         </SheetContent>
       </Sheet>
 
       {/* Desktop Sidebar */}
-      <div className="hidden md:flex md:w-72 md:flex-col fixed inset-y-0 z-30">
-        <Sidebar />
+      <div className={cn(
+        "hidden md:flex flex-col transition-all duration-300 ease-in-out border-r border-border/50",
+        isSidebarCollapsed ? "w-20" : "w-72"
+      )}>
+        <Sidebar
+          isCollapsed={isSidebarCollapsed}
+          onToggle={() => setIsSidebarCollapsed(!isSidebarCollapsed)}
+        />
       </div>
 
       <div className="flex-1 flex flex-col relative min-w-0 overflow-hidden">

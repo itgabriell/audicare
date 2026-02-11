@@ -36,18 +36,29 @@ const ChatIntegration = () => {
 
   // Fetch Patients for Combobox
   useEffect(() => {
+    let mounted = true;
     const fetchPatients = async () => {
       try {
-        const patientsData = await getPatients(1, 1000);
-        setPatients(Array.isArray(patientsData?.data) ? patientsData.data : []);
+        const timeoutPromise = new Promise((_, reject) =>
+          setTimeout(() => reject(new Error("Fetch patients timeout")), 8000)
+        );
+        const patientsData = await Promise.race([
+          getPatients(1, 1000),
+          timeoutPromise
+        ]);
+        if (mounted) {
+          setPatients(Array.isArray(patientsData?.data) ? patientsData.data : []);
+        }
       } catch (error) {
         console.error("Erro ao carregar pacientes para o chat:", error);
       }
     };
     fetchPatients();
+    return () => { mounted = false; };
   }, []);
 
   useEffect(() => {
+    let mounted = true;
     const resolveUrl = async () => {
       setIsLoading(true);
       try {
@@ -55,7 +66,7 @@ const ChatIntegration = () => {
         const accountId = searchParams.get('account_id') || '2';
 
         if (conversationId) {
-          setComputedUrl(`${BASE_URL}/app/accounts/${accountId}/conversations/${conversationId}`);
+          if (mounted) setComputedUrl(`${BASE_URL}/app/accounts/${accountId}/conversations/${conversationId}`);
           return;
         }
 
@@ -71,8 +82,14 @@ const ChatIntegration = () => {
           };
 
           try {
-            const result = await chatwootService.ensureConversationForNavigation(patientMock);
-            if (result && result.conversationId) {
+            const timeoutPromise = new Promise((_, reject) =>
+              setTimeout(() => reject(new Error("Chatwoot URL resolve timeout")), 10000)
+            );
+            const result = await Promise.race([
+              chatwootService.ensureConversationForNavigation(patientMock),
+              timeoutPromise
+            ]);
+            if (mounted && result && result.conversationId) {
               setComputedUrl(`${BASE_URL}/app/accounts/${result.accountId || accountId}/conversations/${result.conversationId}`);
               return;
             }
@@ -81,14 +98,15 @@ const ChatIntegration = () => {
           }
         }
 
-        setComputedUrl(`${BASE_URL}/app/accounts/${accountId}/dashboard`);
+        if (mounted) setComputedUrl(`${BASE_URL}/app/accounts/${accountId}/dashboard`);
 
       } finally {
-        setIsLoading(false);
+        if (mounted) setIsLoading(false);
       }
     };
 
     resolveUrl();
+    return () => { mounted = false; };
   }, [searchParams]);
 
   // Helper to find patient context

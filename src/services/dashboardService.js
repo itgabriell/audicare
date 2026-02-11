@@ -61,8 +61,8 @@ export const getDashboardStats = async (clinicIdOverride = null) => {
         const start = performance.now();
         try {
             const result = await promise;
-            const end = performance.now();
-            console.log(`[Dashboard] Query '${label}' took ${(end - start).toFixed(2)}ms`);
+            // const end = performance.now();
+            // console.log(`[Dashboard] Query '${label}' took ${(end - start).toFixed(2)}ms`); // Removed debug log
             if (result.error) throw result.error;
             return result;
         } catch (err) {
