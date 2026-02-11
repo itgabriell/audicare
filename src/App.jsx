@@ -65,8 +65,12 @@ const ProtectedRoute = ({ children }) => {
   if (loading) return <FullPageSpinner />;
 
   // If not authenticated, redirect to login
-  if (!session) return <Navigate to="/login" replace />;
+  if (!session) {
+    console.log("[ProtectedRoute] No session, redirecting to /login");
+    return <Navigate to="/login" replace />;
+  }
 
+  console.log("[ProtectedRoute] Session valid, rendering content");
   return children;
 };
 
