@@ -73,27 +73,41 @@ export const AuthProvider = ({ children }) => {
 
       try {
         console.log("[Auth] Calling getSession...");
-        const { data: { session: currentSession }, error } = await supabase.auth.getSession();
+        const sessionPromise = supabase.auth.getSession();
+        const { data: { session: currentSession }, error } = await sessionPromise;
         console.log("[Auth] getSession result:", currentSession ? "Session Found" : "No Session", error ? error : "No Error");
 
-        if (error) throw error;
+        if (error) {
+          console.error("[Auth] getSession Error:", error);
+          throw error;
+        }
 
         if (mounted) {
-          console.log("[Auth] Session retrieved:", currentSession ? "Yes" : "No");
-          setSession(currentSession);
           if (currentSession) {
+            console.log("[Auth] Setting session and user...");
+            setSession(currentSession);
             setUser(currentSession.user);
-            fetchUserProfile(currentSession).then(fullProfile => {
-              if (mounted && fullProfile) setUser(fullProfile);
-            });
+
+            console.log("[Auth] Fetching user profile...");
+            const profile = await fetchUserProfile(currentSession);
+            if (mounted && profile) {
+              console.log("[Auth] Profile loaded successfully.");
+              setUser(profile);
+            }
+          } else {
+            console.log("[Auth] No active session found.");
+            setSession(null);
+            setUser(null);
           }
         }
       } catch (error) {
-        console.error('Error getting initial session:', error);
+        console.error('[Auth] Error in initAuth:', error);
         if (error.message && (error.message.includes('Invalid Refresh Token') || error.message.includes('Refresh Token Not Found'))) {
+          console.warn("[Auth] Invalid token detected, clearing.");
           clearLocalSession();
         }
       } finally {
+        console.log("[Auth] initAuth finished. Clearing timeout and setting loading=false.");
         clearTimeout(timeoutId);
         if (mounted) setLoading(false);
       }
