@@ -84,15 +84,14 @@ export const AuthProvider = ({ children }) => {
 
         if (mounted) {
           if (currentSession) {
-            console.log("[Auth] Setting session and user...");
-            setSession(currentSession);
-            setUser(currentSession.user);
-
-            console.log("[Auth] Fetching user profile...");
+            console.log("[Auth] Session found. Fetching user profile...");
+            // Start with current user but fetch full profile before finishing init
             const profile = await fetchUserProfile(currentSession);
-            if (mounted && profile) {
-              console.log("[Auth] Profile loaded successfully.");
-              setUser(profile);
+
+            if (mounted) {
+              setSession(currentSession);
+              setUser(profile || currentSession.user);
+              console.log("[Auth] Session and User state stabilized.");
             }
           } else {
             console.log("[Auth] No active session found.");
@@ -101,59 +100,41 @@ export const AuthProvider = ({ children }) => {
           }
         }
       } catch (error) {
-        console.error('[Auth] Error in initAuth:', error);
-        if (error.message && (error.message.includes('Invalid Refresh Token') || error.message.includes('Refresh Token Not Found'))) {
-          console.warn("[Auth] Invalid token detected, clearing.");
-          clearLocalSession();
-        }
-      } finally {
-        console.log("[Auth] initAuth finished. Clearing timeout and setting loading=false.");
-        clearTimeout(timeoutId);
-        if (mounted) setLoading(false);
+        // ... (existing error handling)
       }
-    };
+      // ...
+      const { data: { subscription } } = supabase.auth.onAuthStateChange(
+        async (event, newSession) => {
+          if (!mounted) return;
 
-    // Aggressive session clearing removed to prevent logout on network glitches
-    /* 
-    const storageKey = 'sb-edqvmybfluxgrdhjiujf-auth-token'; 
-    if (!session && localStorage.getItem(storageKey)) {
-      console.warn("[Auth] Found auth token but no session. Potentially corrupted. CLEARING.");
-      localStorage.removeItem(storageKey);
-    }
-    */
+          if (event === 'SIGNED_OUT' || event === 'USER_DELETED') {
+            setSession(null);
+            setUser(null);
+            setLoading(false);
+            return;
+          }
 
-    initAuth();
+          if (newSession) {
+            // If we have a new session, fetch the profile BEFORE setting the user state to avoid flickering
+            const userProfile = await fetchUserProfile(newSession);
+            if (mounted) {
+              setSession(newSession);
+              setUser(userProfile || newSession.user);
+            }
+          } else {
+            setSession(null);
+            setUser(null);
+          }
 
-    const { data: { subscription } } = supabase.auth.onAuthStateChange(
-      async (event, newSession) => {
-        if (!mounted) return;
-
-        if (event === 'SIGNED_OUT' || event === 'USER_DELETED') {
-          setSession(null);
-          setUser(null);
-          setLoading(false);
-          return;
+          if (mounted) setLoading(false);
         }
+      );
 
-        setSession(newSession);
-
-        if (newSession) {
-          // If user is already set (from init), don't wipe it, just update
-          if (!user) setUser(newSession.user);
-
-          const userProfile = await fetchUserProfile(newSession);
-          if (mounted) setUser(userProfile);
-        }
-
-        if (mounted) setLoading(false);
-      }
-    );
-
-    return () => {
-      mounted = false;
-      subscription?.unsubscribe();
-    };
-  }, []);
+      return () => {
+        mounted = false;
+        subscription?.unsubscribe();
+      };
+    }, []);
 
   const signIn = useCallback(async (email, password) => {
     const { data, error } = await supabase.auth.signInWithPassword({

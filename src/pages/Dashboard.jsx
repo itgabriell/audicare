@@ -38,51 +38,23 @@ const Dashboard = () => {
   const { user } = useAuth();
 
   useEffect(() => {
+    let mounted = true;
     async function loadStats() {
       console.log("[Dashboard] Starting loadStats...");
+      setLoading(true);
 
-      let clinicId = user?.user_metadata?.clinic_id;
+      // Prioritize clinic_id from metadata or profile
+      let clinicId = user?.user_metadata?.clinic_id || user?.profile?.clinic_id;
 
       if (!clinicId) {
-        console.warn("[Dashboard] clinic_id missing in metadata. Using HARDCODED fallback to bypass DB hang.");
+        console.warn("[Dashboard] clinic_id missing in metadata and profile. Using HARDCODED fallback.");
         clinicId = 'b82d5019-c04c-47f6-b9f9-673ca736815b';
-      }
-
-      /* 
-      // Commented out to prevent database hang during profile fetch
-      if (!clinicId && user?.id) {
-          console.log("[Dashboard] clinic_id missing in metadata, fetching from profiles...");
-          const { data: profile, error } = await supabase
-            .from('profiles')
-            .select('clinic_id')
-            .eq('id', user.id)
-            .single();
-            
-          if (profile?.clinic_id) {
-              clinicId = profile.clinic_id;
-              console.log("[Dashboard] Found clinic_id in profiles:", clinicId);
-          } else if (error) {
-              console.error("[Dashboard] Error fetching profile:", error);
-          }
-      }
-      */
-
-      if (!clinicId) {
-        // SAFETY FALLBACK: Use provided clinic ID
-        console.warn("[Dashboard] Using fallback hardcoded clinic_id");
-        clinicId = 'b82d5019-c04c-47f6-b9f9-673ca736815b';
-      }
-
-      if (!clinicId) {
-        console.error("[Dashboard] No clinic_id found for user:", user?.id);
-        setLoading(false);
-        return;
       }
 
       try {
-        // Create a timeout promise (Reduced to 2s for better UX during outage)
+        // Create a timeout promise (10s for better reliability)
         const timeoutPromise = new Promise((_, reject) =>
-          setTimeout(() => reject(new Error("Dashboard stats timeout")), 2000)
+          setTimeout(() => reject(new Error("Dashboard stats timeout")), 10000)
         );
 
         // Race against timeout
@@ -91,21 +63,30 @@ const Dashboard = () => {
           timeoutPromise
         ]);
 
-        console.log("[Dashboard] Stats loaded:", data);
-        setStats(data);
+        if (mounted) {
+          console.log("[Dashboard] Stats loaded successfully.");
+          setStats(data);
+        }
       } catch (error) {
         console.error("[Dashboard] Error loading stats:", error);
-        // Set empty stats to prevent infinite loading state
-        setStats({});
+        if (mounted) {
+          setStats({});
+        }
       } finally {
-        setLoading(false);
+        if (mounted) {
+          setLoading(false);
+        }
       }
     }
 
     if (user) {
       loadStats();
     }
-  }, [user]);
+
+    return () => {
+      mounted = false;
+    };
+  }, [user?.id, user?.profile?.clinic_id]); // More specific dependencies to avoid double trigger
 
   const processWeekData = () => {
     if (!stats?.charts?.weekAppointments) return [];
