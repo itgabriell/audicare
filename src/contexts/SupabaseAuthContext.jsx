@@ -49,7 +49,17 @@ export const AuthProvider = ({ children }) => {
     const initAuth = async () => {
       console.log("[Auth] Initializing unified auth check...");
 
+      // Hard Fail-safe: If after 15 seconds we are still "loading", force it to false
+      // so the app can at least show the Login screen or try to render.
+      const failSafeId = setTimeout(() => {
+        if (mounted) {
+          console.error("[Auth] Initial load hard timeout (15s). Releasing UI...");
+          setLoading(false);
+        }
+      }, 15000);
+
       try {
+        // Standard session recovery
         const { data: { session: initialSession }, error } = await supabase.auth.getSession();
 
         if (error) {
@@ -62,10 +72,20 @@ export const AuthProvider = ({ children }) => {
         if (mounted) {
           if (initialSession) {
             console.log("[Auth] Initial session found. Synchronizing profile...");
-            const profile = await fetchUserProfile(initialSession);
-            if (mounted) {
-              setSession(initialSession);
-              setUser(profile || initialSession.user);
+            setSession(initialSession);
+            setUser(initialSession.user); // Set basic user immediately to allow UI to progress
+
+            // Fetch full profile in background or blocking? 
+            // We'll do it blocking for the first time to ensure clinic_id is there, 
+            // but we'll add a inner timeout/catch.
+            try {
+              const profile = await fetchUserProfile(initialSession);
+              if (mounted) {
+                setUser(profile || initialSession.user);
+                console.log("[Auth] Profile sync complete.");
+              }
+            } catch (pError) {
+              console.warn("[Auth] Background profile fetch failed, continuing with basic user.", pError);
             }
           } else {
             console.log("[Auth] No initial session found.");
@@ -77,7 +97,8 @@ export const AuthProvider = ({ children }) => {
         console.error("[Auth] Fatal error during init:", e);
       } finally {
         if (mounted) {
-          console.log("[Auth] Initialization complete. Loading set to FALSE.");
+          clearTimeout(failSafeId);
+          console.log("[Auth] Initialization cycle finished.");
           setLoading(false);
         }
       }
