@@ -2,6 +2,7 @@ import React, { createContext, useContext, useEffect, useState, useCallback, use
 import { supabase } from '@/lib/customSupabaseClient';
 import { useToast } from '@/components/ui/use-toast';
 import { initializeUserClinic } from '@/lib/userUtils';
+import { cacheManager } from '@/utils/cacheManager';
 
 const AuthContext = createContext(null);
 
@@ -34,7 +35,7 @@ export const AuthProvider = ({ children }) => {
     setSession(null);
     updateUserData(null);
     // Deep wipe via cacheManager
-    import('@/utils/cacheManager').then(({ cacheManager }) => cacheManager.clearAll());
+    cacheManager.clearAll().catch(e => console.warn("CacheManager clear failed:", e));
   }, [updateUserData]);
 
   const fetchUserProfile = async (currentSession) => {
@@ -149,10 +150,11 @@ export const AuthProvider = ({ children }) => {
         console.log("[Auth] Auth event:", event);
 
         if (event === 'SIGNED_OUT') {
+          console.log("[Auth] User signed out, clearing caches...");
           setSession(null);
           setUser(null);
           setLoading(false);
-          import('@/utils/cacheManager').then(({ cacheManager }) => cacheManager.clearAll());
+          cacheManager.clearAll().catch(e => console.warn("Cleanup during logout failed:", e));
           return;
         }
 
