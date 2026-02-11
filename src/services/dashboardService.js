@@ -47,43 +47,48 @@ export const getDashboardStats = async () => {
 
     const firstDayOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
 
-    // Helper to safely execute a promise
-    const safeQuery = async (promise, defaultValue) => {
+    // Helper to safely execute a promise with timing
+    const safeQuery = async (promise, defaultValue, label) => {
+        const start = performance.now();
         try {
             const result = await promise;
+            const end = performance.now();
+            console.log(`[Dashboard] Query '${label}' took ${(end - start).toFixed(2)}ms`);
             if (result.error) throw result.error;
             return result;
         } catch (err) {
-            console.error("Dashboard query error:", err);
+            console.error(`[Dashboard] Query '${label}' error:`, err);
             return defaultValue;
         }
     };
 
     const results = await Promise.all([
-        // 0: Appointments Today (Visualized as "Today's Schedule")
+        // 0: Appointments Today
         safeQuery(
             supabase.from('appointments')
                 .select('id', { count: 'exact', head: true })
                 .eq('clinic_id', clinicId)
-                // Using generic "today" range. 
                 .gte('start_time', todayStart.toISOString())
                 .lte('start_time', todayEnd.toISOString()),
-            { count: 0 }
+            { count: 0 },
+            'appointments_today'
         ),
-        // 1: Active Repairs - Fetch all, filter in JS
+        // 1: Active Repairs
         safeQuery(
             supabase.from('repair_tickets')
                 .select('status')
                 .eq('clinic_id', clinicId),
-            { data: [] }
+            { data: [] },
+            'active_repairs'
         ),
-        // 2: Leads 24h (Strict last 24h rolling window)
+        // 2: Leads 24h
         safeQuery(
             supabase.from('leads')
                 .select('id', { count: 'exact', head: true })
                 .eq('clinic_id', clinicId)
                 .gte('created_at', last24h.toISOString()),
-            { count: 0 }
+            { count: 0 },
+            'leads_24h'
         ),
         // 3: Leads Month
         safeQuery(
@@ -91,23 +96,26 @@ export const getDashboardStats = async () => {
                 .select('id', { count: 'exact', head: true })
                 .eq('clinic_id', clinicId)
                 .gte('created_at', firstDayOfMonth.toISOString()),
-            { count: 0 }
+            { count: 0 },
+            'leads_month'
         ),
         // 4: Sales Month
         safeQuery(
             supabase.from('leads')
                 .select('id', { count: 'exact', head: true })
                 .eq('clinic_id', clinicId)
-                .in('status', ['purchased', 'won', 'venda_realizada', 'Venda Realizada', 'Ganho']) // Added common variations
+                .in('status', ['purchased', 'won', 'venda_realizada', 'Venda Realizada', 'Ganho'])
                 .gte('created_at', firstDayOfMonth.toISOString()),
-            { count: 0 }
+            { count: 0 },
+            'sales_month'
         ),
         // 5: Total Patients
         safeQuery(
             supabase.from('patients')
                 .select('id', { count: 'exact', head: true })
                 .eq('clinic_id', clinicId),
-            { count: 0 }
+            { count: 0 },
+            'total_patients'
         ),
         // 6: Clara Interactions
         safeQuery(
@@ -115,7 +123,8 @@ export const getDashboardStats = async () => {
                 .select('id', { count: 'exact', head: true })
                 .eq('clinic_id', clinicId)
                 .gte('created_at', firstDayOfMonth.toISOString()),
-            { count: 0 }
+            { count: 0 },
+            'clara_interactions'
         ),
         // 7: Week Appointments
         safeQuery(
@@ -125,22 +134,25 @@ export const getDashboardStats = async () => {
                 .gte('start_time', startOfWeek.toISOString())
                 .lte('start_time', endOfWeek.toISOString())
                 .order('start_time', { ascending: true }),
-            { data: [] }
+            { data: [] },
+            'week_appointments'
         ),
         // 8: Repairs Status Distribution
         safeQuery(
             supabase.from('repair_tickets')
                 .select('status')
                 .eq('clinic_id', clinicId),
-            { data: [] }
+            { data: [] },
+            'repairs_status'
         ),
         // 9: Leads Tags Distribution (Campaigns)
         safeQuery(
             supabase.from('leads')
                 .select('tags')
                 .eq('clinic_id', clinicId)
-                .gte('created_at', firstDayOfMonth.toISOString()), // Filter by current month as requested
-            { data: [] }
+                .gte('created_at', firstDayOfMonth.toISOString()),
+            { data: [] },
+            'leads_tags'
         )
     ]);
 
