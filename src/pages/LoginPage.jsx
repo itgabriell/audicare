@@ -127,14 +127,41 @@ const LoginPage = () => {
               <div className="mt-4 text-center">
                 <button
                   type="button"
-                  onClick={() => {
+                  onClick={async () => {
+                    console.log("[Emergency Reset] Clearing everything...");
                     localStorage.clear();
                     sessionStorage.clear();
-                    window.location.href = '/login';
+
+                    // Unregister all Service Workers
+                    if ('serviceWorker' in navigator) {
+                      const registrations = await navigator.serviceWorker.getRegistrations();
+                      for (let registration of registrations) {
+                        await registration.unregister();
+                        console.log("[Emergency Reset] Unregistered SW:", registration.scope);
+                      }
+                    }
+
+                    // Clear all Cache Storage
+                    if ('caches' in window) {
+                      const cacheNames = await caches.keys();
+                      for (let name of cacheNames) {
+                        await caches.delete(name);
+                        console.log("[Emergency Reset] Deleted Cache:", name);
+                      }
+                    }
+
+                    toast({
+                      title: "Reset concluído",
+                      description: "Limpamos o sistema. O navegador vai reiniciar em instantes.",
+                    });
+
+                    setTimeout(() => {
+                      window.location.href = '/login?v=' + Date.now();
+                    }, 1000);
                   }}
                   className="text-xs text-muted-foreground hover:text-primary transition-colors underline"
                 >
-                  Problemas para carregar? Clique aqui para resetar.
+                  Problemas para carregar? Clique aqui para um Reset Completo.
                 </button>
               </div>
             </form>

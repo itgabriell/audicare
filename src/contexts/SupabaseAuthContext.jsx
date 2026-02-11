@@ -67,6 +67,7 @@ export const AuthProvider = ({ children }) => {
 
       try {
         console.log("[Auth] Calling getSession...");
+        // Use standard getSession
         const { data: { session: currentSession }, error } = await supabase.auth.getSession();
         console.log("[Auth] getSession result:", currentSession ? "Session Found" : "No Session", error ? error : "No Error");
 
@@ -77,7 +78,7 @@ export const AuthProvider = ({ children }) => {
             console.log("[Auth] Session found. Fetching user profile...");
             const profile = await fetchUserProfile(currentSession);
 
-            // --- SYNC CLINIC_ID TO METADATA (Performance Fix) ---
+            // --- SYNC CLINIC_ID TO METADATA ---
             if (profile?.clinic_id && (!currentSession.user.user_metadata?.clinic_id)) {
               console.log("[Auth] Syncing clinic_id to user metadata for cache...");
               supabase.auth.updateUser({
@@ -91,6 +92,9 @@ export const AuthProvider = ({ children }) => {
               console.log("[Auth] Session and User state stabilized.");
             }
           } else {
+            console.log("[Auth] No session found at init.");
+            // --- RECOVERY: Check if there's any pending auth state change ---
+            // Sometimes onAuthStateChange fires before getSession completes
             setSession(null);
             setUser(null);
           }
