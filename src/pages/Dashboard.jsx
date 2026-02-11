@@ -6,7 +6,7 @@ import {
 } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Skeleton } from '@/components/ui/skeleton';
-import { getDashboardStats } from '@/database';
+import { getDashboardStats, supabase } from '@/database';
 import {
   BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer,
   PieChart, Pie, Cell, Legend
@@ -41,9 +41,26 @@ const Dashboard = () => {
     async function loadStats() {
       console.log("[Dashboard] Starting loadStats...");
 
-      const clinicId = user?.user_metadata?.clinic_id;
+      let clinicId = user?.user_metadata?.clinic_id;
+
+      if (!clinicId && user?.id) {
+        console.log("[Dashboard] clinic_id missing in metadata, fetching from profiles...");
+        const { data: profile, error } = await supabase
+          .from('profiles')
+          .select('clinic_id')
+          .eq('id', user.id)
+          .single();
+
+        if (profile?.clinic_id) {
+          clinicId = profile.clinic_id;
+          console.log("[Dashboard] Found clinic_id in profiles:", clinicId);
+        } else if (error) {
+          console.error("[Dashboard] Error fetching profile:", error);
+        }
+      }
+
       if (!clinicId) {
-        console.error("[Dashboard] No clinic_id found in user metadata");
+        console.error("[Dashboard] No clinic_id found for user:", user?.id);
         setLoading(false);
         return;
       }
