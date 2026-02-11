@@ -49,17 +49,14 @@ export const AuthProvider = ({ children }) => {
     const initAuth = async () => {
       console.log("[Auth] Initializing...");
 
+      // Relaxed timeout: 15 seconds instead of 5
       const timeoutId = setTimeout(() => {
         if (mounted && loading) {
-          console.warn("[Auth] Initialization timed out. Forcing load completion.");
-          setLoading(false);
-          if (!session) {
-            console.warn("[Auth] Clearing potentially stuck session due to timeout.");
-            const storageKey = 'sb-edqvmybfluxgrdhjiujf-auth-token';
-            localStorage.removeItem(storageKey);
-          }
+          console.warn("[Auth] Initialization taking longer than expected. Continuing wait...");
+          // We no longer force loading = false or clear the session here.
+          // This allows users on slow connections to eventually load.
         }
-      }, 5000);
+      }, 15000);
 
       try {
         console.log("[Auth] Calling getSession...");
@@ -72,6 +69,15 @@ export const AuthProvider = ({ children }) => {
           if (currentSession) {
             console.log("[Auth] Session found. Fetching user profile...");
             const profile = await fetchUserProfile(currentSession);
+
+            // --- SYNC CLINIC_ID TO METADATA (Performance Fix) ---
+            if (profile?.clinic_id && (!currentSession.user.user_metadata?.clinic_id)) {
+              console.log("[Auth] Syncing clinic_id to user metadata for cache...");
+              supabase.auth.updateUser({
+                data: { clinic_id: profile.clinic_id }
+              }).catch(e => console.warn("[Auth] Failed to sync metadata:", e));
+            }
+
             if (mounted) {
               setSession(currentSession);
               setUser(profile || currentSession.user);
@@ -84,6 +90,7 @@ export const AuthProvider = ({ children }) => {
         }
       } catch (error) {
         console.error('[Auth] Error in initAuth:', error);
+        // Only clear if it's a definitive "bad token" error
         if (error.message && (error.message.includes('Invalid Refresh Token') || error.message.includes('Refresh Token Not Found'))) {
           clearLocalSession();
         }
