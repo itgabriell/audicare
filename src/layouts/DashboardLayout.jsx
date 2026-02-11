@@ -12,6 +12,7 @@ import { AIAssistant } from '@/components/AIAssistant';
 import InternalChatWidget from '@/components/intercom/InternalChatWidget';
 
 const DashboardLayout = () => {
+  console.log("[DashboardLayout] Rendering...");
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const location = useLocation();
   const { isOpen: commandPaletteOpen, setIsOpen: setCommandPaletteOpen, openPalette } = useCommandPalette();
