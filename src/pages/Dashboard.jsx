@@ -1,4 +1,5 @@
 import React, { useEffect, useState } from 'react';
+import { useAuth } from '@/contexts/SupabaseAuthContext';
 import {
   Users, Calendar, Wrench, TrendingUp,
   Activity, Clock, Bot, UserPlus
@@ -33,9 +34,20 @@ const Dashboard = () => {
   const [stats, setStats] = useState(null);
   const [loading, setLoading] = useState(true);
 
+  // Get user from context to bypass getSession hang in baseService
+  const { user } = useAuth();
+
   useEffect(() => {
     async function loadStats() {
       console.log("[Dashboard] Starting loadStats...");
+
+      const clinicId = user?.user_metadata?.clinic_id;
+      if (!clinicId) {
+        console.error("[Dashboard] No clinic_id found in user metadata");
+        setLoading(false);
+        return;
+      }
+
       try {
         // Create a timeout promise
         const timeoutPromise = new Promise((_, reject) =>
@@ -44,7 +56,7 @@ const Dashboard = () => {
 
         // Race against timeout
         const data = await Promise.race([
-          getDashboardStats(),
+          getDashboardStats(clinicId),
           timeoutPromise
         ]);
 
@@ -58,8 +70,11 @@ const Dashboard = () => {
         setLoading(false);
       }
     }
-    loadStats();
-  }, []);
+
+    if (user) {
+      loadStats();
+    }
+  }, [user]);
 
   const processWeekData = () => {
     if (!stats?.charts?.weekAppointments) return [];

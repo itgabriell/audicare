@@ -15,9 +15,18 @@ export const getDashboardMetrics = async () => {
     };
 };
 
-export const getDashboardStats = async () => {
-    const clinicId = await getClinicId();
-    if (!clinicId) return null;
+// allow passing clinicId directly to avoid getSession hang
+export const getDashboardStats = async (clinicIdOverride = null) => {
+    let clinicId = clinicIdOverride;
+    if (!clinicId) {
+        console.warn("[DashboardService] No override provided, calling getClinicId...");
+        clinicId = await getClinicId();
+    }
+
+    if (!clinicId) {
+        console.error("[DashboardService] Could not determine clinicId");
+        return null;
+    }
 
     const now = new Date();
 
