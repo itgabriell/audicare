@@ -47,79 +47,48 @@ export const AuthProvider = ({ children }) => {
     let mounted = true;
 
     const initAuth = async () => {
-      console.log("[Auth] Initializing...");
-
-      // Relaxed timeout: 15 seconds instead of 5
-      const timeoutId = setTimeout(() => {
-        if (mounted && loading) {
-          console.warn("[Auth] Initialization taking longer than expected. Continuing wait...");
-        }
-      }, 15000);
-
-      // Fail-safe: If after 20 seconds we are still loading, force stop and let the app handle it
-      // (usually ProtectedRoute will redirect to /login if session is null)
-      const failSafeId = setTimeout(() => {
-        if (mounted && loading) {
-          console.error("[Auth] Initialization FAIL-SAFE triggered (20s). Forcing load completion.");
-          setLoading(false);
-        }
-      }, 20000);
+      console.log("[Auth] Initializing unified auth check...");
 
       try {
-        console.log("[Auth] Calling getSession...");
-        // Use standard getSession
-        const { data: { session: currentSession }, error } = await supabase.auth.getSession();
-        console.log("[Auth] getSession result:", currentSession ? "Session Found" : "No Session", error ? error : "No Error");
+        const { data: { session: initialSession }, error } = await supabase.auth.getSession();
 
-        if (error) throw error;
+        if (error) {
+          console.error('[Auth] getSession error:', error);
+          if (error.message?.includes('Invalid Refresh Token')) {
+            clearLocalSession();
+          }
+        }
 
         if (mounted) {
-          if (currentSession) {
-            console.log("[Auth] Session found. Fetching user profile...");
-            const profile = await fetchUserProfile(currentSession);
-
-            // --- SYNC CLINIC_ID TO METADATA ---
-            if (profile?.clinic_id && (!currentSession.user.user_metadata?.clinic_id)) {
-              console.log("[Auth] Syncing clinic_id to user metadata for cache...");
-              supabase.auth.updateUser({
-                data: { clinic_id: profile.clinic_id }
-              }).catch(e => console.warn("[Auth] Failed to sync metadata:", e));
-            }
-
+          if (initialSession) {
+            console.log("[Auth] Initial session found. Synchronizing profile...");
+            const profile = await fetchUserProfile(initialSession);
             if (mounted) {
-              setSession(currentSession);
-              setUser(profile || currentSession.user);
-              console.log("[Auth] Session and User state stabilized.");
+              setSession(initialSession);
+              setUser(profile || initialSession.user);
             }
           } else {
-            console.log("[Auth] No session found at init.");
-            // --- RECOVERY: Check if there's any pending auth state change ---
-            // Sometimes onAuthStateChange fires before getSession completes
+            console.log("[Auth] No initial session found.");
             setSession(null);
             setUser(null);
           }
         }
-      } catch (error) {
-        console.error('[Auth] Error in initAuth:', error);
-        // Only clear if it's a definitive "bad token" error
-        if (error.message && (error.message.includes('Invalid Refresh Token') || error.message.includes('Refresh Token Not Found'))) {
-          clearLocalSession();
-        }
+      } catch (e) {
+        console.error("[Auth] Fatal error during init:", e);
       } finally {
-        clearTimeout(timeoutId);
-        clearTimeout(failSafeId);
-        if (mounted) setLoading(false);
+        if (mounted) {
+          console.log("[Auth] Initialization complete. Loading set to FALSE.");
+          setLoading(false);
+        }
       }
     };
-
-    initAuth();
 
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
       async (event, newSession) => {
         if (!mounted) return;
-        console.log("[Auth] Auth state changed:", event);
+        console.log("[Auth] Auth event:", event);
 
-        if (event === 'SIGNED_OUT' || event === 'USER_DELETED') {
+        if (event === 'SIGNED_OUT') {
           setSession(null);
           setUser(null);
           setLoading(false);
@@ -131,15 +100,13 @@ export const AuthProvider = ({ children }) => {
           if (mounted) {
             setSession(newSession);
             setUser(userProfile || newSession.user);
+            setLoading(false);
           }
-        } else {
-          setSession(null);
-          setUser(null);
         }
-
-        if (mounted) setLoading(false);
       }
     );
+
+    initAuth();
 
     return () => {
       mounted = false;

@@ -13,9 +13,18 @@ const LoginPage = () => {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [loading, setLoading] = useState(false);
-  const { signIn } = useAuth();
+  const { signIn, session, loading: authLoading } = useAuth();
   const navigate = useNavigate();
   const { toast } = useToast();
+
+  // --- AUTO-REDIRECT IF ALREADY LOGGED IN ---
+  // This prevents the "stuck at login" loop on page refreshes
+  React.useEffect(() => {
+    if (session && !authLoading) {
+      console.log("[LoginPage] Active session detected. Redirecting to home...");
+      navigate('/');
+    }
+  }, [session, authLoading, navigate]);
 
   const handleSubmit = async (e) => {
     e.preventDefault();
