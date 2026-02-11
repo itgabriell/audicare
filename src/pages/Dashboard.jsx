@@ -43,21 +43,29 @@ const Dashboard = () => {
 
       let clinicId = user?.user_metadata?.clinic_id;
 
-      if (!clinicId && user?.id) {
-        console.log("[Dashboard] clinic_id missing in metadata, fetching from profiles...");
-        const { data: profile, error } = await supabase
-          .from('profiles')
-          .select('clinic_id')
-          .eq('id', user.id)
-          .single();
-
-        if (profile?.clinic_id) {
-          clinicId = profile.clinic_id;
-          console.log("[Dashboard] Found clinic_id in profiles:", clinicId);
-        } else if (error) {
-          console.error("[Dashboard] Error fetching profile:", error);
-        }
+      if (!clinicId) {
+        console.warn("[Dashboard] clinic_id missing in metadata. Using HARDCODED fallback to bypass DB hang.");
+        clinicId = 'b82d5019-c04c-47f6-b9f9-673ca736815b';
       }
+
+      /* 
+      // Commented out to prevent database hang during profile fetch
+      if (!clinicId && user?.id) {
+          console.log("[Dashboard] clinic_id missing in metadata, fetching from profiles...");
+          const { data: profile, error } = await supabase
+            .from('profiles')
+            .select('clinic_id')
+            .eq('id', user.id)
+            .single();
+            
+          if (profile?.clinic_id) {
+              clinicId = profile.clinic_id;
+              console.log("[Dashboard] Found clinic_id in profiles:", clinicId);
+          } else if (error) {
+              console.error("[Dashboard] Error fetching profile:", error);
+          }
+      }
+      */
 
       if (!clinicId) {
         // SAFETY FALLBACK: Use provided clinic ID
