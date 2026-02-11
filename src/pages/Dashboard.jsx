@@ -35,11 +35,25 @@ const Dashboard = () => {
 
   useEffect(() => {
     async function loadStats() {
+      console.log("[Dashboard] Starting loadStats...");
       try {
-        const data = await getDashboardStats();
+        // Create a timeout promise
+        const timeoutPromise = new Promise((_, reject) =>
+          setTimeout(() => reject(new Error("Dashboard stats timeout")), 10000)
+        );
+
+        // Race against timeout
+        const data = await Promise.race([
+          getDashboardStats(),
+          timeoutPromise
+        ]);
+
+        console.log("[Dashboard] Stats loaded:", data);
         setStats(data);
       } catch (error) {
-        console.error(error);
+        console.error("[Dashboard] Error loading stats:", error);
+        // Set empty stats to prevent infinite loading state
+        setStats({});
       } finally {
         setLoading(false);
       }

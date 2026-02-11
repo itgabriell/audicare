@@ -52,33 +52,33 @@ const DashboardLayout = () => {
     <div className="flex min-h-screen bg-background">
       {/* <ConfigValidationBanner /> */}
 
-      {/* <Sheet open={sidebarOpen} onOpenChange={setSidebarOpen}>
+      {/* Mobile Sidebar Overlay */}
+      <Sheet open={sidebarOpen} onOpenChange={setSidebarOpen}>
         <SheetContent side="left" className="p-0 w-64">
-           <Sidebar />
+          <Sidebar />
         </SheetContent>
-      </Sheet> */}
+      </Sheet>
 
-      {/* <div className="hidden md:flex md:w-72 md:flex-col fixed inset-y-0 z-30">
+      {/* Desktop Sidebar */}
+      <div className="hidden md:flex md:w-72 md:flex-col fixed inset-y-0 z-30">
         <Sidebar />
-      </div> */}
+      </div>
 
       <div className="flex-1 flex flex-col relative min-w-0 overflow-hidden">
-        {/* {!isInbox && (
+        {!isInbox && (
           <div className="relative z-10">
             <Header
               onMenuClick={() => setSidebarOpen(true)}
               showMenuButton={true}
               onCommandPaletteOpen={openPalette}
             >
+              {/* Passando o título dinâmico aqui */}
               {currentTitle}
             </Header>
           </div>
-        )} */}
+        )}
 
-        <div className="p-4 bg-red-100 text-red-800">
-          MODO DE DEBUG: LAYOUT ISOLADO.
-          Se você vê isso, o DashboardLayout carregou.
-        </div>
+
 
         <main className={`flex-1 overflow-y-auto ${isInbox ? 'p-0 md:p-0 pb-0' : 'p-4 md:p-6 pb-20 md:pb-6'} relative`}>
           <Suspense fallback={
@@ -93,10 +93,11 @@ const DashboardLayout = () => {
 
       </div>
 
-      {/* <CommandPalette
+      {/* Global Command Palette */}
+      <CommandPalette
         open={commandPaletteOpen}
         onOpenChange={setCommandPaletteOpen}
-      /> */}
+      />
 
       {/* <InternalChatWidget /> */}
     </div>
