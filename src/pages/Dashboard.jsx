@@ -80,9 +80,9 @@ const Dashboard = () => {
       }
 
       try {
-        // Create a timeout promise
+        // Create a timeout promise (Reduced to 2s for better UX during outage)
         const timeoutPromise = new Promise((_, reject) =>
-          setTimeout(() => reject(new Error("Dashboard stats timeout")), 10000)
+          setTimeout(() => reject(new Error("Dashboard stats timeout")), 2000)
         );
 
         // Race against timeout
