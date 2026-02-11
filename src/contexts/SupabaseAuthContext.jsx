@@ -60,6 +60,14 @@ export const AuthProvider = ({ children }) => {
         if (mounted && loading) {
           console.warn("[Auth] Initialization timed out. Forcing load completion.");
           setLoading(false);
+          // SAFE FIX: If we timed out and still have no session, clear storage to prevent zombie state on next reload
+          // This avoids the infinite loop where the app thinks it has a token but can't verify it.
+          // We only do this on TIMEOUT, not on every load.
+          if (!session) {
+            console.warn("[Auth] Clearing potentially stuck session due to timeout.");
+            const storageKey = 'sb-edqvmybfluxgrdhjiujf-auth-token';
+            localStorage.removeItem(storageKey);
+          }
         }
       }, 5000);
 
