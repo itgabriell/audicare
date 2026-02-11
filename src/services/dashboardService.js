@@ -82,13 +82,13 @@ export const getDashboardStats = async (clinicIdOverride = null) => {
             { count: 0 },
             'appointments_today'
         ),
-        // 1: Active Repairs
+        // 1: Repairs Distribution (Consolidated for metrics & charts)
         safeQuery(
             supabase.from('repair_tickets')
                 .select('status')
                 .eq('clinic_id', clinicId),
             { data: [] },
-            'active_repairs'
+            'repairs_data'
         ),
         // 2: Leads 24h
         safeQuery(
@@ -126,7 +126,7 @@ export const getDashboardStats = async (clinicIdOverride = null) => {
             { count: 0 },
             'total_patients'
         ),
-        // 6: Clara Interactions
+        // 6: Clara Interactions (Messages in Month)
         safeQuery(
             supabase.from('messages')
                 .select('id', { count: 'exact', head: true })
@@ -146,15 +146,7 @@ export const getDashboardStats = async (clinicIdOverride = null) => {
             { data: [] },
             'week_appointments'
         ),
-        // 8: Repairs Status Distribution
-        safeQuery(
-            supabase.from('repair_tickets')
-                .select('status')
-                .eq('clinic_id', clinicId),
-            { data: [] },
-            'repairs_status'
-        ),
-        // 9: Leads Tags Distribution (Campaigns)
+        // 8: Leads Tags (Campaigns)
         safeQuery(
             supabase.from('leads')
                 .select('tags')
@@ -165,18 +157,26 @@ export const getDashboardStats = async (clinicIdOverride = null) => {
         )
     ]);
 
-    // Process Active Repairs
-    // Normalize status checks to avoid case/formatting issues
-    const allRepairs = results[1].data || [];
-    const activeRepairsCount = allRepairs.filter(r => {
+    // Results mapping (shift due to consolidation)
+    const appointmentsToday = results[0];
+    const repairsData = results[1].data || [];
+    const leads24h = results[2];
+    const leadsMonth = results[3];
+    const salesMonth = results[4];
+    const totalPatients = results[5];
+    const claraInteractions = results[6];
+    const weekAppointments = results[7].data || [];
+    const leadsTags = results[8].data || [];
+
+    // Process Active Repairs (from consolidated repairsData)
+    const activeRepairsCount = repairsData.filter(r => {
         const s = (r.status || '').toLowerCase();
         return !['ready', 'delivered', 'concluído', 'concluido', 'entregue'].includes(s);
     }).length;
 
-    // Process Leads Tags
-    const leadsWithTags = results[9].data || [];
+    // Process Leads Tags (Campaigns)
     const campaignStats = {};
-    leadsWithTags.forEach(lead => {
+    leadsTags.forEach(lead => {
         if (lead.tags && Array.isArray(lead.tags)) {
             lead.tags.forEach(tag => {
                 campaignStats[tag] = (campaignStats[tag] || 0) + 1;
@@ -188,17 +188,17 @@ export const getDashboardStats = async (clinicIdOverride = null) => {
 
     return {
         metrics: {
-            appointmentsToday: results[0].count || 0,
+            appointmentsToday: appointmentsToday.count || 0,
             activeRepairs: activeRepairsCount,
-            leads24h: results[2].count || 0,
-            leadsMonth: results[3].count || 0,
-            salesMonth: results[4].count || 0,
-            totalPatients: results[5].count || 0,
-            claraInteractions: results[6].count || 0
+            leads24h: leads24h.count || 0,
+            leadsMonth: leadsMonth.count || 0,
+            salesMonth: salesMonth.count || 0,
+            totalPatients: totalPatients.count || 0,
+            claraInteractions: claraInteractions.count || 0
         },
         charts: {
-            weekAppointments: (results[7].data || []).map(a => ({ appointment_date: a.start_time })),
-            repairsStatus: results[8].data || [],
+            weekAppointments: weekAppointments.map(a => ({ appointment_date: a.start_time })),
+            repairsStatus: repairsData,
             campaigns: campaignData
         }
     };

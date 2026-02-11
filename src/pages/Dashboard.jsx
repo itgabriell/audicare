@@ -31,45 +31,45 @@ const ChartCard = ({ title, icon: Icon, children, className }) => (
 );
 
 const Dashboard = () => {
-  const [stats, setStats] = useState(null);
-  const [loading, setLoading] = useState(true);
+  const [stats, setStats] = useState(() => {
+    try {
+      const cached = localStorage.getItem('audicare_dashboard_stats');
+      return cached ? JSON.parse(cached) : null;
+    } catch { return null; }
+  });
+  const [loading, setLoading] = useState(!stats); // Only show skeleton if no cache
 
-  // Get user from context to bypass getSession hang in baseService
+  // Get user from context
   const { user } = useAuth();
 
   useEffect(() => {
     let mounted = true;
     async function loadStats() {
-      console.log("[Dashboard] Starting loadStats...");
-      setLoading(true);
+      console.log("[Dashboard] Loading fresh stats...");
 
-      // Prioritize clinic_id from metadata or profile
-      let clinicId = user?.user_metadata?.clinic_id || user?.profile?.clinic_id;
-
-      if (!clinicId) {
-        console.warn("[Dashboard] clinic_id missing in metadata and profile. Using HARDCODED fallback.");
-        clinicId = 'b82d5019-c04c-47f6-b9f9-673ca736815b';
-      }
+      const clinicId = user?.user_metadata?.clinic_id || user?.profile?.clinic_id;
+      if (!clinicId) return;
 
       try {
-        // Create a timeout promise (10s for better reliability)
+        // Relaxed timeout: 15s for reliability
         const timeoutPromise = new Promise((_, reject) =>
-          setTimeout(() => reject(new Error("Dashboard stats timeout")), 10000)
+          setTimeout(() => reject(new Error("Dashboard stats timeout")), 15000)
         );
 
-        // Race against timeout
         const data = await Promise.race([
           getDashboardStats(clinicId),
           timeoutPromise
         ]);
 
-        if (mounted) {
-          console.log("[Dashboard] Stats loaded successfully.");
+        if (mounted && data) {
+          console.log("[Dashboard] Fresh stats loaded.");
           setStats(data);
+          localStorage.setItem('audicare_dashboard_stats', JSON.stringify(data));
         }
       } catch (error) {
-        console.error("[Dashboard] Error loading stats:", error);
-        if (mounted) {
+        console.error("[Dashboard] Refresh failed:", error);
+        // If we have stats (from cache), we don't clear them on error to keep UI alive
+        if (mounted && !stats) {
           setStats({});
         }
       } finally {
