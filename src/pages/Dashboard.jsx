@@ -37,6 +37,11 @@ const Dashboard = () => {
   // Get user from context to bypass getSession hang in baseService
   const { user } = useAuth();
 
+  // DEBUG: Test connection on mount
+  useEffect(() => {
+    import('@/utils/connectionTest').then(({ testConnection }) => testConnection());
+  }, []);
+
   useEffect(() => {
     async function loadStats() {
       console.log("[Dashboard] Starting loadStats...");

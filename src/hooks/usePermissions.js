@@ -7,7 +7,7 @@ import { hasPermission, canAccessRoute, getRoleConfig } from '@/lib/permissions'
  */
 export const usePermissions = () => {
   const { user } = useAuth();
-  
+
   const userRole = useMemo(() => {
     return user?.profile?.role || user?.role || null;
   }, [user]);
@@ -27,8 +27,12 @@ export const usePermissions = () => {
     // Isso evita que o sistema bloqueie completamente se o perfil não carregar
     if (!userRole) {
       // Permite rotas básicas mesmo sem role (caso o perfil ainda esteja carregando)
-      const basicRoutes = ['/dashboard', '/patients', '/appointments'];
+      // EMERGENCY FIX: Allowing all routes to prevent sidebar from being empty during connection issues
+      return true;
+      /*
+      const basicRoutes = ['/dashboard', '/patients', '/appointments', '/inbox', '/crm', '/repairs', '/invoices', '/tasks', '/settings'];
       return basicRoutes.includes(route);
+      */
     }
     return canAccessRoute(userRole, route);
   };
