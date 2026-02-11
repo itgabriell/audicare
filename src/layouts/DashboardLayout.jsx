@@ -107,7 +107,7 @@ const DashboardLayout = () => {
         onOpenChange={setCommandPaletteOpen}
       />
 
-      {/* <InternalChatWidget /> */}
+      <InternalChatWidget />
     </div>
   );
 };
