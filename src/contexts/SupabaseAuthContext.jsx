@@ -17,6 +17,7 @@ export const AuthProvider = ({ children }) => {
     } catch { return null; }
   });
   const [loading, setLoading] = useState(true);
+  const [slowLoading, setSlowLoading] = useState(false);
 
   // Helper to update user and cache simultaneously
   const updateUserData = useCallback((userData) => {
@@ -32,6 +33,8 @@ export const AuthProvider = ({ children }) => {
     console.log("[AuthContext] Clearing invalid session data.");
     setSession(null);
     updateUserData(null);
+    // Deep wipe via cacheManager
+    import('@/utils/cacheManager').then(({ cacheManager }) => cacheManager.clearAll());
   }, [updateUserData]);
 
   const fetchUserProfile = async (currentSession) => {
@@ -67,18 +70,30 @@ export const AuthProvider = ({ children }) => {
     }
   };
 
+  // Allow manual profile refresh from settings
+  const refreshProfile = useCallback(async () => {
+    if (!session) return;
+    console.log("[Auth] Manually refreshing profile cache...");
+    return await fetchUserProfile(session);
+  }, [session]);
+
   useEffect(() => {
     let mounted = true;
 
     const initAuth = async () => {
       console.log("[Auth] Initializing unified auth check...");
 
+      // Slow load feedback timer (8s)
+      const slowLoadId = setTimeout(() => {
+        if (mounted && loading) setSlowLoading(true);
+      }, 8000);
+
       // Hard Fail-safe: If after 15 seconds we are still "loading", force it to false
-      // so the app can at least show the Login screen or try to render.
       const failSafeId = setTimeout(() => {
         if (mounted) {
           console.error("[Auth] Initial load hard timeout (15s). Releasing UI...");
           setLoading(false);
+          setSlowLoading(false);
         }
       }, 15000);
 
@@ -119,9 +134,11 @@ export const AuthProvider = ({ children }) => {
         console.error("[Auth] Fatal error during init:", e);
       } finally {
         if (mounted) {
+          clearTimeout(slowLoadId);
           clearTimeout(failSafeId);
           console.log("[Auth] Initialization cycle finished.");
           setLoading(false);
+          setSlowLoading(false);
         }
       }
     };
@@ -135,15 +152,14 @@ export const AuthProvider = ({ children }) => {
           setSession(null);
           setUser(null);
           setLoading(false);
+          import('@/utils/cacheManager').then(({ cacheManager }) => cacheManager.clearAll());
           return;
         }
 
         if (newSession) {
-          const userProfile = await fetchUserProfile(newSession);
-          if (mounted) {
-            setSession(newSession);
-            setUser(userProfile || newSession.user);
-            setLoading(false);
+          setSession(newSession);
+          if (!user) {
+            fetchUserProfile(newSession);
           }
         }
       }
@@ -196,10 +212,12 @@ export const AuthProvider = ({ children }) => {
     user,
     profile: user,
     loading,
+    slowLoading,
+    refreshProfile,
     signIn,
     signOut,
     signUp,
-  }), [session, user, loading, signIn, signOut, signUp]);
+  }), [session, user, loading, slowLoading, refreshProfile, signIn, signOut, signUp]);
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
 };

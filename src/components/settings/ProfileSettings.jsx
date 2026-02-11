@@ -19,7 +19,7 @@ const profileSchema = z.object({
 });
 
 const ProfileSettings = () => {
-  const { user, profile } = useAuth();
+  const { user, profile, refreshProfile } = useAuth();
   const { toast } = useToast();
   const [loading, setLoading] = useState(false);
   const [uploading, setUploading] = useState(false);
@@ -131,6 +131,10 @@ const ProfileSettings = () => {
       if (updateError) throw updateError;
 
       setAvatarUrl(publicUrl);
+
+      // Sync cache immediately so Header/Sidebar update
+      await refreshProfile();
+
       toast({
         title: 'Foto atualizada',
         description: 'Sua foto de perfil foi atualizada com sucesso.',
@@ -203,6 +207,9 @@ const ProfileSettings = () => {
         .eq('id', user.id);
 
       if (error) throw error;
+
+      // Sync cache immediately so Header/Sidebar update
+      await refreshProfile();
 
       toast({
         title: 'Perfil atualizado',
