@@ -54,22 +54,27 @@ export default defineConfig(({ mode }) => {
       chunkSizeWarningLimit: 1000, // Aumenta limite de aviso
       rollupOptions: {
         output: {
-          manualChunks: {
-            'vendor-react': ['react', 'react-dom', 'react-router-dom'],
-            'vendor-ui': [
-              '@radix-ui/react-dialog',
-              '@radix-ui/react-slot',
-              '@radix-ui/react-context-menu',
-              '@radix-ui/react-dropdown-menu',
-              '@radix-ui/react-tabs',
-              '@radix-ui/react-select',
-              'lucide-react',
-              'framer-motion'
-            ],
-            'vendor-utils': ['date-fns', 'clsx', 'tailwind-merge'],
-            'vendor-supabase': ['@supabase/supabase-js'],
-            // Garante que o Kanban fique em um arquivo separado
-            // REMOVED: 'vendor-kanban': ['react-beautiful-dnd'] (Library uninstalled) 
+          manualChunks: (id) => {
+            // Group UI components (Radix/Lucide) together
+            if (id.includes('@radix-ui') || id.includes('lucide-react')) {
+              return 'vendor-ui';
+            }
+            // Group large utilities separately
+            if (id.includes('date-fns') || id.includes('recharts') || id.includes('xlsx')) {
+              return 'vendor-utils';
+            }
+            // Supabase isolated
+            if (id.includes('@supabase')) {
+              return 'vendor-supabase';
+            }
+            // Framer Motion (heavy)
+            if (id.includes('framer-motion')) {
+              return 'vendor-animation';
+            }
+            // Standard node_modules
+            if (id.includes('node_modules')) {
+              return 'vendor';
+            }
           }
         }
       }
