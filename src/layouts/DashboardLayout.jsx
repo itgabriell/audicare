@@ -6,6 +6,7 @@ import Header from '@/components/layout/Header';
 import { Sheet, SheetContent } from "@/components/ui/sheet";
 import { Menu } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { cn } from '@/lib/utils';
 import ConfigValidationBanner from '@/components/Debug/ConfigValidationBanner';
 import { CommandPalette } from '@/components/ui/command-palette';
 import { useCommandPalette } from '@/hooks/useCommandPalette';
