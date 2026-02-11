@@ -50,37 +50,35 @@ const DashboardLayout = () => {
 
   return (
     <div className="flex min-h-screen bg-background">
-      {/* Validation Banner is placed here to be visible across all dashboard pages */}
-      <ConfigValidationBanner />
+      {/* <ConfigValidationBanner /> */}
 
-      {/* Mobile Sidebar Overlay */}
-      <Sheet open={sidebarOpen} onOpenChange={setSidebarOpen}>
+      {/* <Sheet open={sidebarOpen} onOpenChange={setSidebarOpen}>
         <SheetContent side="left" className="p-0 w-64">
-          <Sidebar />
+           <Sidebar />
         </SheetContent>
-      </Sheet>
+      </Sheet> */}
 
-      {/* Desktop Sidebar */}
-      <div className="hidden md:flex md:w-72 md:flex-col fixed inset-y-0 z-30">
+      {/* <div className="hidden md:flex md:w-72 md:flex-col fixed inset-y-0 z-30">
         <Sidebar />
-      </div>
+      </div> */}
 
-      {/* Main Content */}
-      <div className="flex-1 md:pl-72 flex flex-col relative min-w-0 overflow-hidden">
-
-        {/* Renderiza o Header exceto no Inbox (que tem layout próprio) ou se quiser forçar o título */}
-        {!isInbox && (
+      <div className="flex-1 flex flex-col relative min-w-0 overflow-hidden">
+        {/* {!isInbox && (
           <div className="relative z-10">
             <Header
               onMenuClick={() => setSidebarOpen(true)}
               showMenuButton={true}
               onCommandPaletteOpen={openPalette}
             >
-              {/* Passando o título dinâmico aqui */}
               {currentTitle}
             </Header>
           </div>
-        )}
+        )} */}
+
+        <div className="p-4 bg-red-100 text-red-800">
+          MODO DE DEBUG: LAYOUT ISOLADO.
+          Se você vê isso, o DashboardLayout carregou.
+        </div>
 
         <main className={`flex-1 overflow-y-auto ${isInbox ? 'p-0 md:p-0 pb-0' : 'p-4 md:p-6 pb-20 md:pb-6'} relative`}>
           <Suspense fallback={
@@ -95,13 +93,11 @@ const DashboardLayout = () => {
 
       </div>
 
-      {/* Global Command Palette */}
-      <CommandPalette
+      {/* <CommandPalette
         open={commandPaletteOpen}
         onOpenChange={setCommandPaletteOpen}
-      />
+      /> */}
 
-      {/* Internal Clinic Intercom */}
       {/* <InternalChatWidget /> */}
     </div>
   );
