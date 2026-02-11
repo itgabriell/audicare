@@ -93,7 +93,7 @@ const DashboardLayout = () => {
       />
 
       {/* Internal Clinic Intercom */}
-      <InternalChatWidget />
+      {/* <InternalChatWidget /> */}
     </div>
   );
 };
