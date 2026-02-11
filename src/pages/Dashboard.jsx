@@ -60,6 +60,12 @@ const Dashboard = () => {
       }
 
       if (!clinicId) {
+        // SAFETY FALLBACK: Use provided clinic ID
+        console.warn("[Dashboard] Using fallback hardcoded clinic_id");
+        clinicId = 'b82d5019-c04c-47f6-b9f9-673ca736815b';
+      }
+
+      if (!clinicId) {
         console.error("[Dashboard] No clinic_id found for user:", user?.id);
         setLoading(false);
         return;
