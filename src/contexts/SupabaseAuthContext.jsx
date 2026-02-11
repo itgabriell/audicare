@@ -53,9 +53,20 @@ export const AuthProvider = ({ children }) => {
     let mounted = true;
 
     const initAuth = async () => {
+      console.log("[Auth] Initializing...");
+
+      // Safety timeout in case Supabase hangs
+      const timeoutId = setTimeout(() => {
+        if (mounted && loading) {
+          console.warn("[Auth] Initialization timed out. Forcing load completion.");
+          setLoading(false);
+        }
+      }, 5000);
+
       try {
-        // Check for existing session first
+        console.log("[Auth] Calling getSession...");
         const { data: { session: currentSession }, error } = await supabase.auth.getSession();
+        console.log("[Auth] getSession result:", currentSession ? "Session Found" : "No Session", error ? error : "No Error");
 
         if (error) throw error;
 
@@ -63,10 +74,7 @@ export const AuthProvider = ({ children }) => {
           console.log("[Auth] Session retrieved:", currentSession ? "Yes" : "No");
           setSession(currentSession);
           if (currentSession) {
-            // Optimistic UI: Set user immediately with session data while fetching profile
             setUser(currentSession.user);
-
-            // Fetch full profile in background
             fetchUserProfile(currentSession).then(fullProfile => {
               if (mounted && fullProfile) setUser(fullProfile);
             });
@@ -78,6 +86,7 @@ export const AuthProvider = ({ children }) => {
           clearLocalSession();
         }
       } finally {
+        clearTimeout(timeoutId);
         if (mounted) setLoading(false);
       }
     };
