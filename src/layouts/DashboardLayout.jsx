@@ -1,5 +1,6 @@
-import React, { useState } from 'react';
+import React, { useState, Suspense } from 'react';
 import { Outlet, useLocation } from 'react-router-dom';
+import { Loader2 } from 'lucide-react';
 import Sidebar from '@/components/layout/Sidebar';
 import Header from '@/components/layout/Header';
 import { Sheet, SheetContent } from "@/components/ui/sheet";
@@ -82,7 +83,14 @@ const DashboardLayout = () => {
         )}
 
         <main className={`flex-1 overflow-y-auto ${isInbox ? 'p-0 md:p-0 pb-0' : 'p-4 md:p-6 pb-20 md:pb-6'} relative`}>
-          <Outlet />
+          <Suspense fallback={
+            <div className="flex items-center justify-center h-full min-h-[50vh]">
+              <Loader2 className="w-8 h-8 animate-spin text-primary" />
+              <span className="ml-2 text-muted-foreground">Carregando conteúdo...</span>
+            </div>
+          }>
+            <Outlet />
+          </Suspense>
         </main>
 
       </div>
