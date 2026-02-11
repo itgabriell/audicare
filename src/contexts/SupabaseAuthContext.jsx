@@ -7,15 +7,32 @@ const AuthContext = createContext(null);
 
 export const AuthProvider = ({ children }) => {
   const { toast } = useToast();
+  // --- OPTIMISTIC HYDRATION ---
+  // Try to load a cached profile immediately to speed up UI rendering
   const [session, setSession] = useState(null);
-  const [user, setUser] = useState(null);
+  const [user, setUser] = useState(() => {
+    try {
+      const cached = localStorage.getItem('audicare_user_profile');
+      return cached ? JSON.parse(cached) : null;
+    } catch { return null; }
+  });
   const [loading, setLoading] = useState(true);
+
+  // Helper to update user and cache simultaneously
+  const updateUserData = useCallback((userData) => {
+    setUser(userData);
+    if (userData) {
+      localStorage.setItem('audicare_user_profile', JSON.stringify(userData));
+    } else {
+      localStorage.removeItem('audicare_user_profile');
+    }
+  }, []);
 
   const clearLocalSession = useCallback(() => {
     console.log("[AuthContext] Clearing invalid session data.");
     setSession(null);
-    setUser(null);
-  }, []);
+    updateUserData(null);
+  }, [updateUserData]);
 
   const fetchUserProfile = async (currentSession) => {
     if (!currentSession) return null;
@@ -31,12 +48,19 @@ export const AuthProvider = ({ children }) => {
         return currentSession.user;
       }
 
-      if (profile && !profile.clinic_id) {
-        const updatedProfile = await initializeUserClinic(currentSession.user, profile);
-        return { ...currentSession.user, profile: updatedProfile };
-      } else {
-        return { ...currentSession.user, profile };
+      let finalUserObject = currentSession.user;
+      if (profile) {
+        if (!profile.clinic_id) {
+          const updatedProfile = await initializeUserClinic(currentSession.user, profile);
+          finalUserObject = { ...currentSession.user, profile: updatedProfile };
+        } else {
+          finalUserObject = { ...currentSession.user, profile };
+        }
       }
+
+      // Sync to cache
+      updateUserData(finalUserObject);
+      return finalUserObject;
     } catch (e) {
       console.error("Error in fetchUserProfile:", e);
       return currentSession.user;
@@ -73,24 +97,22 @@ export const AuthProvider = ({ children }) => {
           if (initialSession) {
             console.log("[Auth] Initial session found. Synchronizing profile...");
             setSession(initialSession);
-            setUser(initialSession.user); // Set basic user immediately to allow UI to progress
+            // If we don't have a cached user, set the basic one immediately
+            if (!user) setUser(initialSession.user);
 
             // Fetch full profile in background or blocking? 
             // We'll do it blocking for the first time to ensure clinic_id is there, 
             // but we'll add a inner timeout/catch.
             try {
-              const profile = await fetchUserProfile(initialSession);
-              if (mounted) {
-                setUser(profile || initialSession.user);
-                console.log("[Auth] Profile sync complete.");
-              }
+              await fetchUserProfile(initialSession);
+              console.log("[Auth] Profile sync complete.");
             } catch (pError) {
-              console.warn("[Auth] Background profile fetch failed, continuing with basic user.", pError);
+              console.warn("[Auth] Background profile fetch failed.", pError);
             }
           } else {
             console.log("[Auth] No initial session found.");
             setSession(null);
-            setUser(null);
+            updateUserData(null);
           }
         }
       } catch (e) {
