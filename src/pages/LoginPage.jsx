@@ -122,6 +122,21 @@ const LoginPage = () => {
               <Button type="submit" className="w-full h-12 rounded-xl text-base font-semibold shadow-lg shadow-primary/20 hover:shadow-primary/40 transition-all hover:-translate-y-0.5" disabled={loading}>
                 {loading ? 'Entrando...' : 'Acessar Sistema'}
               </Button>
+
+              {/* Reset Emergency Button */}
+              <div className="mt-4 text-center">
+                <button
+                  type="button"
+                  onClick={() => {
+                    localStorage.clear();
+                    sessionStorage.clear();
+                    window.location.href = '/login';
+                  }}
+                  className="text-xs text-muted-foreground hover:text-primary transition-colors underline"
+                >
+                  Problemas para carregar? Clique aqui para resetar.
+                </button>
+              </div>
             </form>
 
             <div className="text-center mt-8">
