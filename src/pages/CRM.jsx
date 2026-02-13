@@ -60,11 +60,16 @@ const CRM = () => {
     // Automatic trigger check for CRM automations (Client-side trigger)
     const runAutomations = async () => {
       console.log('[CRM] Checking automations...');
+      // 1. Existing Time-based checks (20h/24h)
       const results = await AutomationService.checkTimeBasedTriggers();
-      if (results.movedToRecovery > 0 || results.movedToLost > 0) {
+
+      // 2. Intelligent Follow-up (Barrier, Scarcity, Closing)
+      const followUpResults = await AutomationService.checkIntelligentFollowUp();
+
+      if (results.movedToRecovery > 0 || results.movedToLost > 0 || followUpResults.stage1 > 0 || followUpResults.stage2 > 0 || followUpResults.stage3 > 0) {
         toast({
-          title: "Automação CRM",
-          description: `${results.movedToRecovery} leads movidos para Recuperar, ${results.movedToLost} para Perdido.`,
+          title: "Automações Executadas",
+          description: `Recuperação: ${results.movedToRecovery} | Perdidos: ${results.movedToLost} | Follow-ups: ${followUpResults.stage1 + followUpResults.stage2 + followUpResults.stage3}`,
         });
         fetchLeads(); // Refresh logic
       }

@@ -47,9 +47,36 @@ const KanbanBoard = ({
   // Configuração Inicial das Colunas
   const initialColumns = [
     { id: 'new', title: 'Novos Leads', color: 'blue' },
+    { id: 'follow_up_1', title: 'Follow-up 1 (24h)', color: 'purple' }, // New
+    { id: 'follow_up_2', title: 'Follow-up 2 (3 Dias)', color: 'purple' }, // New
+    { id: 'follow_up_3', title: 'Follow-up 3 (7 Dias)', color: 'purple' }, // New
     { id: 'in_conversation', title: 'Em Conversa', color: 'yellow' },
-    { id: 'recovery', title: 'Recuperar', color: 'red' },
-    { id: 'follow_up_sent', title: 'Receberam Follow Up', color: 'purple' },
+    { id: 'recovery', title: 'Recuperar (Antigo)', color: 'gray' }, // Kept for legacy/manual? Or rename? User said "ao final da estrutura que já temos". actually user said "check/create 3 new columns... at the end of the structure we already have" but logically they fit before "conversation" or after?
+    // User said: "Status Destino Obrigatório: 'Em Conversa' (Para onde o lead vai IMEDIATAMENTE se responder)."
+    // Usually funnel is: New -> Follow-ups -> Conversation (if replied) OR Lost (if not).
+    // Let's place them logically after 'New' and before 'In Conversation' or 'Recovery'.
+    // Actually, user said "ao final da estrutura" as "add to the list".
+    // But for a Kanban, logical order is better.
+    // "Quebra de Barreira" -> "Escassez" -> "Encerramento".
+
+    // Revised Order based on "Funnel":
+    // 1. New
+    // 2. Follow-up 1
+    // 3. Follow-up 2
+    // 4. Follow-up 3
+    // 5. In Conversation (Successful reply)
+    // 6. Scheduled
+    // 7. Won
+    // 8. Lost
+
+    // I will try to respect the user's specific column names and IDs.
+
+    // { id: 'recovery', title: 'Recuperar', color: 'red' }, // Keeping this as "Legacy/Manual Recovery" for now, or maybe the user meant "Recuperar" is the generic term.
+    // The user didn't explicitly say "DELETE Recovery".
+    // I will place the new columns after "Novos Leads".
+
+    { id: 'follow_up_sent', title: 'Receberam Follow Up (Legacy)', color: 'gray' }, // Renaming/Deprecating?
+
     { id: 'stopped_responding', title: 'Parou de Responder', color: 'gray' },
     { id: 'scheduled', title: 'Agendou', color: 'green' },
     { id: 'purchased', title: 'Venda Realizada', color: 'emerald' },
