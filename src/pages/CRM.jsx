@@ -12,7 +12,8 @@ import AITrainer from '@/components/crm/AITrainer';
 import { getLeads, addLead, updateLead } from '@/database';
 import { useAuth } from '@/contexts/SupabaseAuthContext';
 import { differenceInHours } from 'date-fns';
-import BulkRecoveryDialog from '@/components/crm/BulkRecoveryDialog'; // NEW COMPONENT
+import BulkRecoveryDialog from '@/components/crm/BulkRecoveryDialog';
+import { AutomationService } from '@/services/automationService';
 
 const CRM = () => {
   const [leads, setLeads] = useState([]);
@@ -55,6 +56,24 @@ const CRM = () => {
 
   useEffect(() => {
     fetchLeads();
+
+    // Automatic trigger check for CRM automations (Client-side trigger)
+    const runAutomations = async () => {
+      console.log('[CRM] Checking automations...');
+      const results = await AutomationService.checkTimeBasedTriggers();
+      if (results.movedToRecovery > 0 || results.movedToLost > 0) {
+        toast({
+          title: "Automação CRM",
+          description: `${results.movedToRecovery} leads movidos para Recuperar, ${results.movedToLost} para Perdido.`,
+        });
+        fetchLeads(); // Refresh logic
+      }
+    };
+
+    runAutomations();
+    // Optional: Interval check every 5 minutes
+    const interval = setInterval(runAutomations, 5 * 60 * 1000);
+    return () => clearInterval(interval);
   }, []);
 
   // --- RECOVERY LOGIC ---
@@ -165,6 +184,39 @@ const CRM = () => {
     setIsLeadDialogOpen(true);
   };
 
+  // --- BULK OPERATIONS ---
+  const handleBulkUpdate = async (leadIds, newStatus) => {
+    try {
+      // Optimistic Update
+      const originalLeads = [...leads];
+      setLeads(prev => prev.map(l => leadIds.includes(l.id) ? { ...l, status: newStatus } : l));
+
+      await Promise.all(leadIds.map(id => updateLead(id, { status: newStatus })));
+
+      toast({ title: "Atualização em massa", description: `${leadIds.length} leads movidos para ${newStatus}.` });
+    } catch (error) {
+      console.error("Bulk Update Error:", error);
+      toast({ title: "Erro", description: "Falha na atualização em massa.", variant: "destructive" });
+      fetchLeads(); // Revert/Refresh
+    }
+  };
+
+  const handleBulkDelete = async (leadIds) => {
+    try {
+      // Optimistic
+      const originalLeads = [...leads];
+      setLeads(prev => prev.map(l => leadIds.includes(l.id) ? { ...l, status: 'archived' } : l));
+
+      await Promise.all(leadIds.map(id => updateLead(id, { status: 'archived' })));
+
+      toast({ title: "Exclusão em massa", description: `${leadIds.length} leads arquivados.` });
+    } catch (error) {
+      console.error("Bulk Delete Error:", error);
+      toast({ title: "Erro", description: "Falha na exclusão.", variant: "destructive" });
+      fetchLeads();
+    }
+  };
+
   const handleBulkAction = (columnLeads) => {
     // Filter out invalid leads if necessary (e.g. no phone)
     const validLeads = columnLeads.filter(l => l.phone);
@@ -176,12 +228,17 @@ const CRM = () => {
     setIsBulkDialogOpen(true);
   };
 
-  const handleBulkComplete = () => {
-    // Optional: Refresh leads or move them to another status?
-    // User requested: "Disparar mensagem". 
-    // Maybe move to "Reabordado"? For now keep in Recovery or let user decide.
-    // If we wanted to move them, we could do it here.
-    fetchLeads(); // Refresh to update last message content/time if changed
+  const handleBulkComplete = async (successCount, failCount, successIds) => {
+    if (successCount > 0 && successIds?.length > 0) {
+      // Move successful leads to 'follow_up_sent'
+      try {
+        await Promise.all(successIds.map(id => updateLead(id, { status: 'follow_up_sent' })));
+        toast({ title: "Ciclo Atualizado", description: "Leads movidos para 'Receberam Follow Up'." });
+      } catch (error) {
+        console.error("Error moving leads after bulk send:", error);
+      }
+    }
+    fetchLeads();
   };
 
   const filteredLeads = leads.filter(lead => {
@@ -300,6 +357,8 @@ const CRM = () => {
                 onEditLead={handleEditLead}
                 onBulkAction={handleBulkAction}
                 onDeleteLead={handleDeleteLead}
+                onBulkUpdate={handleBulkUpdate}
+                onBulkDelete={handleBulkDelete}
               />
             </div>
           )}

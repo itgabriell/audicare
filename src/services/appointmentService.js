@@ -43,6 +43,68 @@ export const addAppointment = async (d) => {
         .select().single();
 
     if (error) throw error;
+
+    // --- AUTOMATION: Move Lead to 'scheduled' ---
+    try {
+        // Find lead by patient ID or Phone
+        let leadToUpdate = null;
+
+        // 1. Try by patient_id if exists in appointment
+        if (dataToInsert.patient_id) {
+            const { data: leads } = await supabase
+                .from('leads')
+                .select('id, status')
+                .eq('patient_id', dataToInsert.patient_id)
+                .neq('status', 'scheduled')
+                .neq('status', 'purchased')
+                .neq('status', 'no_purchase')
+                .order('created_at', { ascending: false })
+                .limit(1);
+
+            if (leads && leads.length > 0) leadToUpdate = leads[0];
+        }
+
+        // 2. If not found, try by phone (if patient has phone, or if appointment has contact_id)
+        if (!leadToUpdate) {
+            // Need to fetch patient phone first if we only have patient_id
+            let phoneToSearch = null;
+            if (dataToInsert.patient_id) {
+                const { data: patient } = await supabase.from('patients').select('phone').eq('id', dataToInsert.patient_id).single();
+                if (patient) phoneToSearch = patient.phone;
+            }
+
+            if (phoneToSearch) {
+                const cleanPhone = phoneToSearch.replace(/\D/g, '');
+                if (cleanPhone.length >= 10) { // Basic validation
+                    const { data: leads } = await supabase
+                        .from('leads')
+                        .select('id, status')
+                        .ilike('phone', `%${cleanPhone}%`) // Loose match
+                        .neq('status', 'scheduled')
+                        .neq('status', 'purchased')
+                        .neq('status', 'no_purchase')
+                        .order('created_at', { ascending: false })
+                        .limit(1);
+
+                    if (leads && leads.length > 0) leadToUpdate = leads[0];
+                }
+            }
+        }
+
+        if (leadToUpdate) {
+            await supabase
+                .from('leads')
+                .update({ status: 'scheduled' })
+                .eq('id', leadToUpdate.id);
+            console.log(`[Automation] Lead ${leadToUpdate.id} moved to 'scheduled'`);
+        }
+
+    } catch (autoError) {
+        console.error("[Automation] Error updating lead status:", autoError);
+        // Do not fail the appointment creation
+    }
+    // ---------------------------------------------
+
     return data;
 };
 

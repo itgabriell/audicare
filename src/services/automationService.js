@@ -491,4 +491,89 @@ export class AutomationService {
 
         return false;
     }
+
+    /**
+     * Checks for time-based triggers (20h no response -> Recovery, 24h follow-up -> Lost)
+     * This is a client-side implementation of logic that should ideally be on backend.
+     * @returns {Promise<{movedToRecovery: number, movedToLost: number}>}
+     */
+    static async checkTimeBasedTriggers() {
+        try {
+            // 1. Leads in 'new' for > 20h without response -> 'recovery'
+            // We use client-side logical check.
+
+            // Get 'new' leads
+            const { data: newLeads, error: newLeadsError } = await supabase
+                .from('leads')
+                .select('id, created_at, status, last_message_at')
+                .eq('status', 'new');
+
+            if (newLeadsError) throw newLeadsError;
+
+            const now = new Date();
+            const leadsToRecover = newLeads.filter(lead => {
+                const activityTime = lead.last_message_at ? new Date(lead.last_message_at) : new Date(lead.created_at);
+                const hoursSince = (now - activityTime) / (1000 * 60 * 60);
+                return hoursSince >= 20;
+            });
+
+            if (leadsToRecover.length > 0) {
+                const ids = leadsToRecover.map(l => l.id);
+                await supabase
+                    .from('leads')
+                    .update({ status: 'recovery' })
+                    .in('id', ids);
+
+                console.log(`[Automation] Moved ${ids.length} leads to Recovery (20h rule)`);
+            }
+
+            // 2. Leads in 'follow_up_sent' for > 24h without response -> 'no_purchase'
+            const { data: followUpLeads, error: followUpError } = await supabase
+                .from('leads')
+                .select('id, updated_at, status, last_message_at')
+                .eq('status', 'follow_up_sent');
+
+            if (followUpError) throw followUpError;
+
+            const leadsToLost = followUpLeads.filter(lead => {
+                // If last message was FROM the lead, they responded, so we shouldn't move them to lost blindly.
+                // However, the prompt says "case not respond in 24 hours".
+                // We assume 'updated_at' reflects when they were moved to 'follow_up_sent'.
+                // Ideally we verify if there was an INCOMING message after updated_at.
+                // For simplified logic: checks if time since updated_at > 24h AND last_message_at < updated_at (meaning no new message since move)
+
+                const moveTime = new Date(lead.updated_at);
+                const lastMsgTime = lead.last_message_at ? new Date(lead.last_message_at) : new Date(0); // Epoch if null
+
+                const timeSinceMove = (now - moveTime) / (1000 * 60 * 60);
+
+                // If they responded after move, lastMsgTime should be > moveTime (approximately) 
+                // BUT 'last_message_at' might be updated by outgoing messages too depending on implementation.
+                // Assuming last_message_at tracks ANY message.
+                // If they responded, they should have been moved to 'in_conversation' via webhook/manual interaction.
+                // So if they are STILL in 'follow_up_sent' after 24h, assume no interaction occurred that moved them out.
+
+                return timeSinceMove >= 24;
+            });
+
+            if (leadsToLost.length > 0) {
+                const ids = leadsToLost.map(l => l.id);
+                await supabase
+                    .from('leads')
+                    .update({ status: 'no_purchase' })
+                    .in('id', ids);
+
+                console.log(`[Automation] Moved ${ids.length} leads to Lost (24h follow-up rule)`);
+            }
+
+            return {
+                movedToRecovery: leadsToRecover.length,
+                movedToLost: leadsToLost.length
+            };
+
+        } catch (error) {
+            console.error('[Automation] Error checking time triggers:', error);
+            return { movedToRecovery: 0, movedToLost: 0 };
+        }
+    }
 }

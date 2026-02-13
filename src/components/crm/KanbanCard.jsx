@@ -16,7 +16,9 @@ import {
   ContextMenuSubContent,
 } from "@/components/ui/context-menu";
 
-const KanbanCard = ({ lead, onClick, onUpdateLead, onDeleteLead }) => {
+const KanbanCard = ({ lead, onClick, onUpdateLead, onDeleteLead, selectedLeads, toggleSelectLead }) => {
+  const isSelected = selectedLeads?.has(lead.id);
+
   const {
     attributes,
     listeners,
@@ -59,10 +61,30 @@ const KanbanCard = ({ lead, onClick, onUpdateLead, onDeleteLead }) => {
             ${isWarning ? 'border-l-4 border-l-yellow-500' : ''}
             ${isStoppedResponding ? 'opacity-75 bg-gray-50 border-gray-200 grayscale-[0.5] dark:bg-slate-800/50 dark:border-slate-700' : ''}
             ${isDragging ? 'opacity-50 ring-2 ring-primary rotate-2 z-50 shadow-xl scale-105' : ''}
+            ${isSelected ? 'ring-2 ring-primary ring-offset-1 bg-primary/5' : ''}
           `}
         >
+          {/* Selection Checkbox (Visible on hover or when selected) */}
+          <div
+            className={`
+              absolute top-2 left-2 z-10 
+              ${isSelected ? 'opacity-100' : 'opacity-0 group-hover:opacity-100'} 
+              transition-opacity
+            `}
+            onClick={(e) => {
+              e.stopPropagation();
+              toggleSelectLead && toggleSelectLead(lead.id);
+            }}
+          >
+            <div className={`
+               w-5 h-5 rounded border border-primary/50 flex items-center justify-center
+               ${isSelected ? 'bg-primary text-primary-foreground' : 'bg-background hover:bg-primary/10'}
+             `}>
+              {isSelected && <div className="w-3 h-3 bg-white rounded-sm" />}
+            </div>
+          </div>
           {/* Cabeçalho */}
-          <div className="flex justify-between items-start mb-2">
+          <div className="flex justify-between items-start mb-2 pl-4">
             <span className={`font-semibold text-sm truncate pr-2 ${isStoppedResponding ? 'text-muted-foreground' : ''}`}>
               {lead.name}
             </span>
@@ -121,9 +143,10 @@ const KanbanCard = ({ lead, onClick, onUpdateLead, onDeleteLead }) => {
               </span>
             </div>
 
-            <span className="text-[10px] text-slate-400 font-mono opacity-0 group-hover:opacity-100 transition-opacity">
+            {/* ID Removed as requested */}
+            {/* <span className="text-[10px] text-slate-400 font-mono opacity-0 group-hover:opacity-100 transition-opacity">
               #{lead.id}
-            </span>
+            </span> */}
           </div>
         </div>
       </ContextMenuTrigger>
@@ -148,9 +171,9 @@ const KanbanCard = ({ lead, onClick, onUpdateLead, onDeleteLead }) => {
             <ContextMenuItem onClick={() => onUpdateLead(lead.id, 'scheduled')}>
               Agendou
             </ContextMenuItem>
-            <ContextMenuItem onClick={() => onUpdateLead(lead.id, 'likely_purchase')}>
+            {/* <ContextMenuItem onClick={() => onUpdateLead(lead.id, 'likely_purchase')}>
               Provável Compra
-            </ContextMenuItem>
+            </ContextMenuItem> */}
             <ContextMenuItem onClick={() => onUpdateLead(lead.id, 'purchased')}>
               Venda Realizada
             </ContextMenuItem>

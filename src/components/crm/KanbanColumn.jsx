@@ -12,6 +12,10 @@ const KanbanColumn = ({
   onBulkAction,
   onUpdateLead, // NEW
   onDeleteLead, // NEW
+  dragHandleProps, // NEW for column reordering
+  selectedLeads,
+  toggleSelectLead,
+  toggleSelectColumn, // NEW
 }) => {
   // Config Droppable para a coluna (para receber itens quando vazia ou entre itens)
   const { setNodeRef, isOver } = useDroppable({
@@ -38,15 +42,20 @@ const KanbanColumn = ({
     gray: 'bg-gray-500', // Header para 'Parou de Responder'
   };
 
-  // IDs para o SortableContext (necessário para o dnd-kit saber a ordem)
+  // IDs para o SortableContext e Checkbox Logic
   const leadIds = leads.map(l => l.id);
+  const allSelected = leads.length > 0 && leads.every(l => selectedLeads.has(l.id));
+  const someSelected = leads.some(l => selectedLeads.has(l.id));
 
   return (
     <div
       className={`rounded-xl border ${colorClasses[column.color]} flex flex-col h-full max-h-full`}
     >
-      {/* Cabeçalho da Coluna */}
-      <div className="p-3 border-b border-border bg-background/50 rounded-t-xl flex-shrink-0">
+      {/* Cabeçalho da Coluna - Draggable Handle */}
+      <div
+        {...dragHandleProps}
+        className="p-3 border-b border-border bg-background/50 rounded-t-xl flex-shrink-0 cursor-grab active:cursor-grabbing touch-none"
+      >
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-2">
             <div
@@ -56,6 +65,30 @@ const KanbanColumn = ({
           </div>
 
           <div className="flex items-center gap-2">
+            {/* Select All Checkbox */}
+            {leads.length > 0 && (
+              <div
+                className="flex items-center justify-center p-1 rounded hover:bg-muted/50 cursor-pointer"
+                onClick={(e) => {
+                  e.stopPropagation(); // Prevent drag start
+                  toggleSelectColumn && toggleSelectColumn(column.id, leads);
+                }}
+                title={allSelected ? "Desmarcar todos" : "Selecionar todos"}
+                onPointerDown={(e) => e.stopPropagation()} // Prevent drag
+              >
+                <div className={`
+                        w-4 h-4 rounded border flex items-center justify-center transition-colors
+                        ${allSelected
+                    ? 'bg-primary border-primary text-primary-foreground'
+                    : someSelected
+                      ? 'bg-primary/20 border-primary/50'
+                      : 'border-muted-foreground/30 hover:border-primary/50 bg-background'}
+                    `}>
+                  {allSelected && <div className="w-2.5 h-2.5 bg-current rounded-[1px]" />}
+                  {!allSelected && someSelected && <div className="w-2 h-0.5 bg-primary rounded-full" />}
+                </div>
+              </div>
+            )}
             {/* BULK ACTION BUTTON (Only for Recovery for now) */}
             {column.id === 'recovery' && leads.length > 0 && (
               <button
@@ -91,6 +124,8 @@ const KanbanColumn = ({
               onClick={onEditLead}
               onUpdateLead={onUpdateLead}
               onDeleteLead={onDeleteLead}
+              selectedLeads={selectedLeads}
+              toggleSelectLead={toggleSelectLead}
             />
           ))}
         </SortableContext>

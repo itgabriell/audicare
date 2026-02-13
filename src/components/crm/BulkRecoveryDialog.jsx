@@ -6,6 +6,10 @@ import { Label } from '@/components/ui/label';
 import { Loader2, CheckCircle, AlertCircle } from 'lucide-react';
 import { chatwootService } from '@/services/chatwootService';
 import { useToast } from '@/components/ui/use-toast';
+import { Smile } from 'lucide-react';
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
+
+const COMMON_EMOJIS = ["👋", "😄", "✅", "📍", "📅", "😊", "🙏", "👀", "🚀", "📞"];
 
 const BulkRecoveryDialog = ({ open, onOpenChange, leads, onComplete }) => {
     const [message, setMessage] = useState("Olá! Tudo bem? Estou passando para verificar sobre sua audiometria. Podemos continuar?");
@@ -57,7 +61,7 @@ const BulkRecoveryDialog = ({ open, onOpenChange, leads, onComplete }) => {
         setResults({ success: successList, failed: failedList });
 
         if (onComplete) {
-            onComplete(successList.length, failedList.length);
+            onComplete(successList.length, failedList.length, successList.map(s => s.id));
         }
 
         toast({
@@ -99,6 +103,44 @@ const BulkRecoveryDialog = ({ open, onOpenChange, leads, onComplete }) => {
                                 className="min-h-[100px]"
                                 disabled={isSending}
                             />
+                        </div>
+
+                        <div className="flex items-center justify-between gap-2">
+                            <div className="flex gap-2">
+                                <Button
+                                    type="button"
+                                    variant="outline"
+                                    size="sm"
+                                    className="text-xs h-7"
+                                    onClick={() => setMessage(prev => prev + " {nome_lead}")}
+                                    title="Inserir nome do lead"
+                                >
+                                    {`{nome_lead}`}
+                                </Button>
+                                <Popover>
+                                    <PopoverTrigger asChild>
+                                        <Button variant="ghost" size="sm" className="h-7 w-7 p-0 rounded-full">
+                                            <Smile className="h-4 w-4 text-muted-foreground" />
+                                        </Button>
+                                    </PopoverTrigger>
+                                    <PopoverContent className="w-auto p-2" align="start">
+                                        <div className="grid grid-cols-5 gap-1">
+                                            {COMMON_EMOJIS.map(emoji => (
+                                                <button
+                                                    key={emoji}
+                                                    className="w-8 h-8 flex items-center justify-center hover:bg-muted rounded text-lg"
+                                                    onClick={() => setMessage(prev => prev + emoji)}
+                                                >
+                                                    {emoji}
+                                                </button>
+                                            ))}
+                                        </div>
+                                    </PopoverContent>
+                                </Popover>
+                            </div>
+                            <span className="text-xs text-muted-foreground">
+                                {message.length} caracteres
+                            </span>
                         </div>
 
                         {isSending && (
