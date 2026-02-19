@@ -163,6 +163,21 @@ const CRM = () => {
     }
   };
 
+  // Generic update handler for any field (e.g. automation_status)
+  const handleUpdateLeadData = async (leadId, updates) => {
+    // Optimistic update
+    setLeads(prev => prev.map(l => l.id === leadId ? { ...l, ...updates } : l));
+
+    try {
+      await updateLead(leadId, updates);
+      toast({ title: "Lead atualizado", description: "Alterações salvas com sucesso." });
+    } catch (error) {
+      console.error('Erro ao atualizar lead:', error);
+      toast({ title: "Erro", description: "Falha ao atualizar dados.", variant: "destructive" });
+      fetchLeads(); // Revert/Refresh
+    }
+  };
+
   const handleDeleteLead = async (id) => {
     if (confirm("Tem certeza que deseja arquivar este lead? Ele sumirá desta tela.")) {
       try {
@@ -359,6 +374,7 @@ const CRM = () => {
               <KanbanBoard
                 leads={filteredLeads}
                 onUpdateLead={handleUpdateStatus}
+                onUpdateData={handleUpdateLeadData} // NEW
                 onEditLead={handleEditLead}
                 onBulkAction={handleBulkAction}
                 onDeleteLead={handleDeleteLead}

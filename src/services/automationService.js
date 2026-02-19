@@ -590,32 +590,43 @@ export class AutomationService {
         console.log('[Automation] Checking Intelligent Follow-up Rules...');
         const results = { stage1: 0, stage2: 0, stage3: 0 };
         const now = new Date();
+        const currentHour = now.getHours();
+
+        // 1. TIME SAFEGUARD (08:00 - 20:00)
+        // Evita enviar mensagens de madrugada ou fora de horário comercial razoável
+        if (currentHour < 8 || currentHour >= 20) {
+            console.log('[Automation] Fora do horário permitido (08h às 20h). Automação pausada.');
+            return results;
+        }
 
         try {
             const { chatwootService } = await import('./chatwootService');
 
             // --- STAGE 1: 24h Silence (Quebra de Barreira) ---
-            // Leads in 'new' or 'waiting' (assuming 'new' is the start)
-            // Condition: Last Msg (from AGENT) > 24h ago OR Created > 24h ago (if no msg).
-            // NOTE: We need to ensure we don't spam. Moving to 'follow_up_1' acts as the flag.
-
             const { data: stage1Leads, error: err1 } = await supabase
                 .from('leads')
                 .select('*')
-                .in('status', ['new', 'waiting']); // Adjust status codes as needed
+                .in('status', ['new', 'waiting']);
 
             if (!err1 && stage1Leads) {
                 for (const lead of stage1Leads) {
+                    // Check if paused
+                    if (lead.automation_status === 'paused') continue;
+
                     const lastActivity = lead.last_message_at ? new Date(lead.last_message_at) : new Date(lead.created_at);
                     const hoursSince = (now - lastActivity) / (1000 * 60 * 60);
 
                     if (hoursSince >= 24) {
-                        // Action: Move to follow_up_1 & Send Msg
                         console.log(`[Automation] Stage 1 triggered for lead ${lead.name}`);
-
                         const msg = `Oi, ${lead.name.split(' ')[0]}! 👋 Estava aqui pensando: muitas vezes as pessoas deixam de responder porque ainda não têm o exame de audiometria em mãos.\n\nSe esse for o caso, não se preocupe! A gente consegue fazer uma triagem inicial gratuita aqui na clínica mesmo, sem o exame pronto. Assim você já conhece a tecnologia.\n\nFaz sentido para você?`;
 
-                        await chatwootService.sendMessage(lead.phone, msg, lead.name);
+                        const res = await chatwootService.sendMessage(lead.phone, msg, lead.name);
+
+                        // Auto-Tagging
+                        if (res.success && res.conversationId) {
+                            await chatwootService.addLabels(res.conversationId, ['automacao_att', 'stage_1']);
+                        }
+
                         await supabase.from('leads').update({ status: 'follow_up_1', last_message_at: new Date().toISOString() }).eq('id', lead.id);
                         results.stage1++;
                     }
@@ -630,10 +641,7 @@ export class AutomationService {
 
             if (!err2 && stage2Leads) {
                 for (const lead of stage2Leads) {
-                    // Check time since entered Stage 1 (updated_at) OR last message
-                    // User said: "Last message was OURS and > 3 days"
-                    // If they are in follow_up_1, we assume the last msg was the automation one or manual agent.
-                    // If client replied, they would be in 'in_conversation'.
+                    if (lead.automation_status === 'paused') continue;
 
                     const lastActivity = lead.updated_at ? new Date(lead.updated_at) : new Date(lead.created_at);
                     const hoursSince = (now - lastActivity) / (1000 * 60 * 60);
@@ -641,10 +649,14 @@ export class AutomationService {
 
                     if (daysSince >= 3) {
                         console.log(`[Automation] Stage 2 triggered for lead ${lead.name}`);
-
                         const msg = `Olá, ${lead.name.split(' ')[0]}. Tudo bem?\n\nEstou organizando a agenda da Dra. Karine para a próxima semana e notei que nossa conversa ficou pendente.\n\nComo a procura tem sido alta, vou precisar liberar a pré-reserva que fiz para você para outros pacientes da lista de espera, tudo bem?\n\nPode me chamar aqui para agendar sua avaliação sem custo!`;
 
-                        await chatwootService.sendMessage(lead.phone, msg, lead.name);
+                        const res = await chatwootService.sendMessage(lead.phone, msg, lead.name);
+
+                        if (res.success && res.conversationId) {
+                            await chatwootService.addLabels(res.conversationId, ['automacao_att', 'stage_2']);
+                        }
+
                         await supabase.from('leads').update({ status: 'follow_up_2', last_message_at: new Date().toISOString() }).eq('id', lead.id);
                         results.stage2++;
                     }
@@ -659,19 +671,22 @@ export class AutomationService {
 
             if (!err3 && stage3Leads) {
                 for (const lead of stage3Leads) {
+                    if (lead.automation_status === 'paused') continue;
+
                     const lastActivity = lead.updated_at ? new Date(lead.updated_at) : new Date(lead.created_at);
                     const hoursSince = (now - lastActivity) / (1000 * 60 * 60);
                     const daysSince = hoursSince / 24;
 
-                    if (daysSince >= 4) { // 3 days (prev) + 4 days (now) = 7 days total roughly
+                    if (daysSince >= 4) {
                         console.log(`[Automation] Stage 3 triggered for lead ${lead.name}`);
-
                         const msg = `${lead.name.split(' ')[0]}, como não tivemos mais retorno, imagino que você já tenha resolvido ou que agora não seja o momento ideal para o atendimento na Audicare.\n\nVou encerrar seu atendimento por aqui para não lotar seu WhatsApp, tá bom?\n\nQuando precisar cuidar da sua audição, estaremos aqui. Um abraço! 👋`;
 
-                        await chatwootService.sendMessage(lead.phone, msg, lead.name);
-                        // Move to follow_up_3 (which acts as lost/archived in this flow) or directly to no_purchase?
-                        // User said: "Mover para coluna 'Follow-up 3' ... Arquivar ou marcar como 'Perdido' após envio."
-                        // We'll move to follow_up_3 first.
+                        const res = await chatwootService.sendMessage(lead.phone, msg, lead.name);
+
+                        if (res.success && res.conversationId) {
+                            await chatwootService.addLabels(res.conversationId, ['automacao_att', 'stage_3', 'encerrado']);
+                        }
+
                         await supabase.from('leads').update({ status: 'follow_up_3', last_message_at: new Date().toISOString() }).eq('id', lead.id);
                         results.stage3++;
                     }

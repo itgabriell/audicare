@@ -23,6 +23,7 @@ const KanbanBoard = ({
   onBulkUpdate, // New prop for bulk status update
   onBulkDelete, // New prop for bulk delete
   onBulkAction, // Fixing ReferenceError
+  onUpdateData, // NEW: Generic update handler
 }) => {
   const [selectedLeads, setSelectedLeads] = useState(new Set());
   // ... existing code ...
@@ -280,12 +281,14 @@ const KanbanBoard = ({
                 <KanbanColumn
                   column={column}
                   leads={leads.filter((lead) => lead.status === column.id)}
-                  onUpdateLead={onUpdateLead}
                   onEditLead={onEditLead}
                   onOpenConversation={onOpenConversation}
                   onScheduleFromLead={onScheduleFromLead}
+                  onUpdateLead={onUpdateLead}
+                  onUpdateData={onUpdateData}
                   onDeleteLead={onDeleteLead}
                   onBulkAction={onBulkAction}
+                  dragHandleProps={attributes && listeners ? { ...attributes, ...listeners } : {}}
                   selectedLeads={selectedLeads}
                   toggleSelectLead={toggleSelectLead}
                   toggleSelectColumn={toggleSelectColumn}

@@ -106,10 +106,21 @@ class ChatwootService {
     async findOrCreateConversation(contactId) {
         try {
             const search = await this._invokeProxy('GET', `/contacts/${contactId}/conversations`);
+            const conversations = search.payload || [];
 
-            const existing = search.payload.find(c => c.inbox_id === parseInt(this.inboxId));
-            if (existing) return existing;
+            // 1. PRIORIDADE TOTAL: Usar qualquer conversa que já esteja ABERTA (status: 'open')
+            // Isso evita criar duplicatas só porque o inbox está diferente ou algo assim.
+            // O objetivo é manter o histórico único para o cliente.
+            const openConversation = conversations.find(c => c.status === 'open');
+            if (openConversation) {
+                return openConversation;
+            }
 
+            // 2. Se não achou aberta, procura qualquer uma no inbox correto (para reabrir se precisar)
+            const existingInInbox = conversations.find(c => c.inbox_id === parseInt(this.inboxId));
+            if (existingInInbox) return existingInInbox;
+
+            // 3. Se não achou nada, cria uma nova
             const data = await this._invokeProxy('POST', `/conversations`, {
                 source_id: contactId,
                 inbox_id: this.inboxId,
@@ -260,6 +271,20 @@ class ChatwootService {
             return true;
         } catch (error) {
             console.error('[ChatwootService] Erro ao criar nota privada:', error);
+            return false;
+        }
+    }
+
+    async addLabels(conversationId, labels) {
+        try {
+            // POST /api/v1/accounts/{account_id}/conversations/{conversation_id}/labels
+            // Payload: { labels: ['tag1', 'tag2'] }
+            await this._invokeProxy('POST', `/conversations/${conversationId}/labels`, {
+                labels
+            });
+            return true;
+        } catch (error) {
+            console.error('[ChatwootService] Erro ao adicionar etiquetas:', error);
             return false;
         }
     }

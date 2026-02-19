@@ -1,7 +1,7 @@
 import React from 'react';
 import { useSortable } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
-import { Clock, MessageCircle, AlertCircle, PhoneOff } from 'lucide-react';
+import { Clock, MessageCircle, AlertCircle, PhoneOff, PauseCircle, PlayCircle } from 'lucide-react';
 import { formatDistanceToNow } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 
@@ -16,7 +16,7 @@ import {
   ContextMenuSubContent,
 } from "@/components/ui/context-menu";
 
-const KanbanCard = ({ lead, onClick, onUpdateLead, onDeleteLead, selectedLeads, toggleSelectLead }) => {
+const KanbanCard = ({ lead, onClick, onUpdateLead, onUpdateData, onDeleteLead, selectedLeads, toggleSelectLead }) => {
   const isSelected = selectedLeads?.has(lead.id);
 
   const {
@@ -26,7 +26,15 @@ const KanbanCard = ({ lead, onClick, onUpdateLead, onDeleteLead, selectedLeads, 
     transform,
     transition,
     isDragging
-  } = useSortable({ id: lead.id });
+  } = useSortable({ id: lead.id, data: { ...lead } });
+
+  const handleToggleAutomation = (e) => {
+    e.stopPropagation();
+    const newStatus = lead.automation_status === 'paused' ? 'active' : 'paused';
+    if (onUpdateData) {
+      onUpdateData(lead.id, { automation_status: newStatus });
+    }
+  };
 
   const style = {
     transform: CSS.Transform.toString(transform),
@@ -114,6 +122,7 @@ const KanbanCard = ({ lead, onClick, onUpdateLead, onDeleteLead, selectedLeads, 
           </div>
 
           {/* Resumo da última mensagem */}
+          {/* Resumo da última mensagem */}
           {lead.last_message_content ? (
             <p className="text-xs text-muted-foreground line-clamp-2 mb-2 italic">
               &quot;{lead.last_message_content}&quot;
@@ -124,6 +133,22 @@ const KanbanCard = ({ lead, onClick, onUpdateLead, onDeleteLead, selectedLeads, 
             </p>
           )}
 
+          <div className="flex items-center gap-2 mb-2">
+            <span className={`px-2 py-0.5 rounded text-[10px] font-medium border ${getStatusColor(lead.status)}`}>
+              {lead.status.replace(/_/g, ' ').toUpperCase()}
+            </span>
+            {lead.automation_status === 'paused' && (
+              <span className="px-2 py-0.5 rounded text-[10px] font-medium bg-amber-100 text-amber-800 border border-amber-200 flex items-center gap-1" title="Automação Pausada">
+                <PauseCircle className="w-3 h-3" /> Pausado
+              </span>
+            )}
+            {lead.last_message_at && (
+              <span className="text-[10px] text-muted-foreground flex items-center gap-1 ml-auto" title="Última interação">
+                <Clock className="w-3 h-3" />
+                {formatDistanceToNow(new Date(lead.last_message_at), { locale: ptBR, addSuffix: true })}
+              </span>
+            )}
+          </div>
           {/* Rodapé: Tempo e Tags */}
           <div className="flex items-center justify-between mt-2 pt-2 border-t border-dashed border-slate-200 dark:border-slate-700">
 
@@ -191,12 +216,28 @@ const KanbanCard = ({ lead, onClick, onUpdateLead, onDeleteLead, selectedLeads, 
 
         <ContextMenuSeparator />
 
+        <ContextMenuItem inset onClick={handleToggleAutomation}>
+          {lead.automation_status === 'paused' ? (
+            <>
+              <PlayCircle className="mr-2 h-4 w-4" />
+              Retomar Automação
+            </>
+          ) : (
+            <>
+              <PauseCircle className="mr-2 h-4 w-4" />
+              Pausar Automação
+            </>
+          )}
+        </ContextMenuItem>
+
+        <ContextMenuSeparator />
+
         <ContextMenuItem inset className="text-red-600 focus:text-red-500" onClick={() => onDeleteLead && onDeleteLead(lead.id)}>
           Arquivar / Excluir
         </ContextMenuItem>
 
       </ContextMenuContent>
-    </ContextMenu>
+    </ContextMenu >
   );
 };
 

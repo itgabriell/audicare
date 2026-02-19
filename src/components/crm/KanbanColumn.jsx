@@ -11,6 +11,7 @@ const KanbanColumn = ({
   onScheduleFromLead,
   onBulkAction,
   onUpdateLead, // NEW
+  onUpdateData, // NEW: Generic update
   onDeleteLead, // NEW
   dragHandleProps, // NEW for column reordering
   selectedLeads,
@@ -123,6 +124,7 @@ const KanbanColumn = ({
               lead={lead}
               onClick={onEditLead}
               onUpdateLead={onUpdateLead}
+              onUpdateData={onUpdateData} // NEW
               onDeleteLead={onDeleteLead}
               selectedLeads={selectedLeads}
               toggleSelectLead={toggleSelectLead}
